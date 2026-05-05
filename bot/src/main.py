@@ -9,15 +9,16 @@ from pathlib import Path
 from typing import Any
 
 import aiofiles
-
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
     CallbackQuery,
+    FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     InputMediaPhoto,
@@ -25,9 +26,7 @@ from aiogram.types import (
     Message,
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
-    FSInputFile,
 )
-from aiogram.exceptions import TelegramAPIError
 from aiogram.utils.media_group import MediaGroupBuilder
 from dotenv import load_dotenv
 
@@ -241,7 +240,7 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
 
     except Exception as e:
         logger.error(f"Error in vote command: {e}")
-        await message.answer("❌ Произошла ошибка при загрузке блюда. Попробуй позже.")
+        await message.answer("😜 Хаха попался ламер xd. Нажми еще раз /vote или офай")
 
 
 @router.callback_query(F.data.startswith("vote:"))
