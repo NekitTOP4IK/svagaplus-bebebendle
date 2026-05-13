@@ -117,7 +117,7 @@ class Database:
                 "id": row["id"],
                 "name": row["name"],
                 "approved": row["approved"],
-                "date": row["approved"]
+                "date": row["date"]
             }
             for row in rows
         ]
