@@ -65,7 +65,7 @@ class Database:
             scran_id = await connection.fetchval(
                 """
                 INSERT INTO scrans (
-                    image_url, name, description, price, 
+                    image_url, name, description, price,
                     number_of_likes, number_of_dislikes, approved, telegram_id
                 ) VALUES ($1, $2, $3, $4, 0, 0, false, $5)
                 RETURNING id
@@ -97,11 +97,17 @@ class Database:
         async with self.pool.acquire() as connection:
             rows = await connection.fetch(
                 """
-                SELECT id, name, approved
-                FROM scrans
+                SELECT
+                  s.id,
+                  s.name,
+                  s.approved,
+                  d.date
+                FROM scrans s
+                LEFT JOIN daily_scrandles d ON
+                    s.id = d.scran_a_id OR s.id = d.scran_b_id
                 WHERE telegram_id = $1
                 ORDER BY id DESC
-                LIMIT 20
+                LIMIT 50;
                 """,
                 telegram_id,
             )
@@ -111,6 +117,7 @@ class Database:
                 "id": row["id"],
                 "name": row["name"],
                 "approved": row["approved"],
+                "date": row["approved"]
             }
             for row in rows
         ]

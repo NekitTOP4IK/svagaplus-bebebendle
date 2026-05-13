@@ -546,8 +546,17 @@ async def cmd_status(message: Message) -> None:
 
         response = "📊 Твои предложения:\n\n"
         for i, scran in enumerate(user_scrans, 1):
-            status = "✅ Одобрено" if scran["approved"] else "⏳ На рассмотрении"
-            response += f"{i}. {scran['name']} - {status}\n"
+            status = "✅" if scran["approved"] else "⏳"
+            response += f"{i}. {scran['name']} - {status}"
+
+            if scran["date"] is not None:
+                response += f" {scran['date']}"
+
+            response += "\n"
+
+        response += "\n\n✅ - одобрено"
+        response += "\n⏳ - на ожидании (если давно - скорее всего не одобрено)"
+        response += "\nдата - дата в которую блюдо было на дейлике"
 
         await message.answer(response)
 
