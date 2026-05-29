@@ -36,6 +36,7 @@ export function DailyGameClient({ initialData }: DailyGameClientProps) {
           userAnswers={userAnswers}
           score={gameState.score}
           averageScore={gameState.averageScore}
+          scoreDistribution={gameState.scoreDistribution}
         />
       );
 
@@ -58,6 +59,7 @@ export function DailyGameClient({ initialData }: DailyGameClientProps) {
           userAnswers={gameState.result.userAnswers}
           score={gameState.result.score}
           averageScore={null}
+          scoreDistribution={[]}
         />
       );
 

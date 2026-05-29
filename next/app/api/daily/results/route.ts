@@ -106,16 +106,30 @@ export async function GET(request: Request) {
         date,
         totalUsers: 0,
         averageScore: null,
+        scoreDistribution: [],
       });
     }
 
     const totalScore = results.reduce((sum, r) => sum + r.score, 0);
     const averageScore = Math.round((totalScore / results.length) * 10) / 10;
 
+    const distributionMap = new Map<number, number>();
+    for (let i = 0; i <= 10; i++) {
+      distributionMap.set(i, 0);
+    }
+    results.forEach((r) => {
+      distributionMap.set(r.score, (distributionMap.get(r.score) || 0) + 1);
+    });
+
+    const scoreDistribution = Array.from(distributionMap.entries()).map(
+      ([score, count]) => ({ score, count })
+    );
+
     return NextResponse.json({
       date,
       totalUsers: results.length,
       averageScore,
+      scoreDistribution,
     });
   } catch (error) {
     console.error("Error fetching results:", error);

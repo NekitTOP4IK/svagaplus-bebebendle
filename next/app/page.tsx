@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { GameActions } from "@/components/game-actions";
 import { SocialLinks } from "@/components/social-links";
+import { InfoButton } from "@/components/info-button";
 
 export default function HomePage() {
   return (
@@ -35,6 +36,9 @@ export default function HomePage() {
         </div>
       </main>
       <SocialLinks />
+      <div className="fixed bottom-2 sm:bottom-4 left-2 sm:left-4 2xl:bottom-8 2xl:left-8 4xl:bottom-12 4xl:left-12 z-20">
+        <InfoButton />
+      </div>
     </div>
   );
 }

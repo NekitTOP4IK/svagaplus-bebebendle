@@ -1,25 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { BarChart3 } from "lucide-react";
 import { AnswerIndicators } from "@/components/answer-indicators";
 import { ScoreDisplay } from "@/components/score-display";
 import { AverageScoreDisplay } from "@/components/average-score-display";
+import { HistogramModal } from "@/components/histogram-modal";
 import { ShareButton } from "@/components/share-button";
-import type { UserAnswer } from "@/types/game";
+import type { UserAnswer, ScoreDistributionItem } from "@/types/game";
 
 interface GameResultProps {
   userAnswers: UserAnswer[];
   score: number;
   averageScore: number | null;
+  scoreDistribution: ScoreDistributionItem[];
 }
 
 export function GameResult({
   userAnswers,
   score,
   averageScore,
+  scoreDistribution,
 }: GameResultProps) {
   const trueScore = userAnswers.filter(({ isCorrect }) => isCorrect).length;
+  const [showHistogram, setShowHistogram] = useState(false);
 
   return (
     <div className="retro-bg flex min-h-dvh flex-col items-center justify-center px-4">
@@ -43,7 +49,19 @@ export function GameResult({
           />
         </div>
 
-        <ShareButton userAnswers={userAnswers} score={trueScore} />
+        {scoreDistribution.length > 0 && (
+          <button
+            onClick={() => setShowHistogram(true)}
+            className="pixel-btn mb-4 inline-flex items-center gap-2 border-4 border-black bg-blue-500 px-6 py-3 text-base text-white hover:bg-blue-400"
+          >
+            <BarChart3 className="w-5 h-5" />
+            Распределение результатов
+          </button>
+        )}
+
+        <div className="block">
+          <ShareButton userAnswers={userAnswers} score={trueScore} />
+        </div>
 
         <Link
           href="/"
@@ -51,6 +69,15 @@ export function GameResult({
         >
           На главную
         </Link>
+
+        {scoreDistribution.length > 0 && (
+          <HistogramModal
+            isOpen={showHistogram}
+            onClose={() => setShowHistogram(false)}
+            distribution={scoreDistribution}
+            userScore={trueScore}
+          />
+        )}
       </motion.div>
     </div>
   );

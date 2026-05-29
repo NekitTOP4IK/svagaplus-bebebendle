@@ -72,6 +72,7 @@ export function useDailyGame({
         type: "complete",
         score,
         averageScore: avgData.averageScore,
+        scoreDistribution: avgData.scoreDistribution,
       });
 
       saveDailyResult({
@@ -86,6 +87,7 @@ export function useDailyGame({
         type: "complete",
         score,
         averageScore: null,
+        scoreDistribution: [],
       });
     }
   }, [dailyData, userAnswers, setGameState]);

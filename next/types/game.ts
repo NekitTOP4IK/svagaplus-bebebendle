@@ -42,9 +42,14 @@ export interface DailyResult {
   userAnswers: UserAnswer[];
 }
 
+export interface ScoreDistributionItem {
+  score: number;
+  count: number;
+}
+
 export type GameState =
   | { type: "loading" }
   | { type: "already-played"; result: DailyResult }
   | { type: "error"; message: string }
   | { type: "playing"; data: DailyData }
-  | { type: "complete"; score: number; averageScore: number | null };
+  | { type: "complete"; score: number; averageScore: number | null; scoreDistribution: ScoreDistributionItem[] };
