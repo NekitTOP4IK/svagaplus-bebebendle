@@ -165,7 +165,10 @@ async def cmd_help(message: Message) -> None:
         "Команды:\n"
         "/suggest - Предложить блюдо\n"
         "/vote - Проголосовать за блюда\n"
-        "/help - Эта помощь"
+        "/help - Эта помощь\n\n"
+        "Телефон доверия по РФ:\n"
+        "8 (800) 333-44-34\n"
+        "Звонок бесплатный"
     )
     await message.answer(help_text)
 
