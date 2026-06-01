@@ -62,13 +62,19 @@ export async function getFingerprint(): Promise<string> {
     const components = [
       navigator.userAgent,
       navigator.language,
+      navigator.languages.join(","),
+      navigator.hardwareConcurrency?.toString(),
+      (navigator as Navigator & { deviceMemory?: number }).deviceMemory?.toString(),
       screen.width.toString(),
       screen.height.toString(),
       screen.colorDepth.toString(),
-      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      screen.pixelDepth.toString(),
+      window.devicePixelRatio?.toString(),
       new Date().getTimezoneOffset().toString(),
-      navigator.hardwareConcurrency?.toString() || "",
-      (navigator as { deviceMemory?: number }).deviceMemory?.toString() || "",
+      Intl.DateTimeFormat().resolvedOptions().timeZone,
+      (!!window.sessionStorage).toString(),
+      (!!window.localStorage).toString(),
+      (!!window.indexedDB).toString(),
     ];
 
     const canvasFp = await getCanvasFingerprint();
