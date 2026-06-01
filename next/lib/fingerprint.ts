@@ -54,7 +54,7 @@ function getCanvasFingerprint(): Promise<string> {
 
 export async function getFingerprint(): Promise<string> {
   if (typeof window === "undefined" || typeof crypto === "undefined") return "";
-
+  return `${Math.random()}`
   const stored = localStorage.getItem(FINGERPRINT_KEY);
   if (stored) return stored;
 
