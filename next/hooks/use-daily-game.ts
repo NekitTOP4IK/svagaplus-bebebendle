@@ -47,6 +47,7 @@ export function useDailyGame({
     incrementRound,
     getCorrectCount,
     resetLastAnswer,
+    getCurrentAnswers,
   } = useVoteSubmission();
   const { showResult, isTransitioning, setShowResult, startTransition } =
     useTransitionState();
@@ -60,7 +61,8 @@ export function useDailyGame({
   // Submit final score
   const submitScore = useCallback(async () => {
     if (!dailyData) return;
-    const score = userAnswers.filter(({ isCorrect }) => isCorrect).length;
+    const answers = getCurrentAnswers();
+    const score = answers.filter(({ isCorrect }) => isCorrect).length;
 
     try {
       const fingerprint = await getFingerprint();
@@ -79,7 +81,7 @@ export function useDailyGame({
         date: dailyData.date,
         score,
         totalRounds: TOTAL_ROUNDS,
-        userAnswers: [...userAnswers],
+        userAnswers: [...answers],
       });
     } catch (error) {
       console.error("Error submitting score:", error);
@@ -90,7 +92,7 @@ export function useDailyGame({
         scoreDistribution: [],
       });
     }
-  }, [dailyData, userAnswers, setGameState]);
+  }, [dailyData, getCurrentAnswers, setGameState]);
 
   // Handle vote submission
   const handleVote = useCallback(

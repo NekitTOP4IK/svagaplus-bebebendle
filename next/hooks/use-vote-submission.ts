@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { UserAnswer } from "@/types/game";
 
 interface UseVoteSubmissionReturn {
@@ -13,6 +13,7 @@ interface UseVoteSubmissionReturn {
   incrementRound: () => void;
   getCorrectCount: () => number;
   resetLastAnswer: () => void;
+  getCurrentAnswers: () => UserAnswer[];
 }
 
 export function useVoteSubmission(): UseVoteSubmissionReturn {
@@ -20,10 +21,19 @@ export function useVoteSubmission(): UseVoteSubmissionReturn {
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [lastAnswer, setLastAnswer] = useState<UserAnswer | null>(null);
   const [isVoting, setIsVoting] = useState(false);
+  const userAnswersRef = useRef<UserAnswer[]>([]);
+
+  useEffect(() => {
+    userAnswersRef.current = userAnswers;
+  }, [userAnswers]);
 
   const addAnswer = useCallback((answer: UserAnswer) => {
     setLastAnswer(answer);
-    setUserAnswers((prev) => [...prev, answer]);
+    setUserAnswers((prev) => {
+      const next = [...prev, answer];
+      userAnswersRef.current = next;
+      return next;
+    });
   }, []);
 
   const incrementRound = useCallback(() => {
@@ -38,6 +48,10 @@ export function useVoteSubmission(): UseVoteSubmissionReturn {
     setLastAnswer(null);
   }, []);
 
+  const getCurrentAnswers = useCallback(() => {
+    return userAnswersRef.current;
+  }, []);
+
   return {
     currentRound,
     userAnswers,
@@ -48,5 +62,6 @@ export function useVoteSubmission(): UseVoteSubmissionReturn {
     incrementRound,
     getCorrectCount,
     resetLastAnswer,
+    getCurrentAnswers,
   };
 }
