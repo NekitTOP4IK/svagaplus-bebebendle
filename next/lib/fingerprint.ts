@@ -16,7 +16,7 @@ async function generateFingerprintHash(components: string): Promise<string> {
   let hash = 0;
   for (let i = 0; i < components.length; i++) {
     const char = components.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash;
   }
   return Math.abs(hash).toString(16);
@@ -54,7 +54,7 @@ function getCanvasFingerprint(): Promise<string> {
 
 export async function getFingerprint(): Promise<string> {
   if (typeof window === "undefined" || typeof crypto === "undefined") return "";
-  return `${Math.random()}`
+
   const stored = localStorage.getItem(FINGERPRINT_KEY);
   if (stored) return stored;
 
@@ -64,7 +64,9 @@ export async function getFingerprint(): Promise<string> {
       navigator.language,
       navigator.languages.join(","),
       navigator.hardwareConcurrency?.toString(),
-      (navigator as Navigator & { deviceMemory?: number }).deviceMemory?.toString(),
+      (
+        navigator as Navigator & { deviceMemory?: number }
+      ).deviceMemory?.toString(),
       screen.width.toString(),
       screen.height.toString(),
       screen.colorDepth.toString(),
@@ -98,7 +100,9 @@ export function getFingerprintFromCookie(): string {
   if (typeof document === "undefined") return "";
 
   const cookies = document.cookie.split(";");
-  const cookie = cookies.find((c) => c.trim().startsWith(`${FINGERPRINT_COOKIE}=`));
+  const cookie = cookies.find((c) =>
+    c.trim().startsWith(`${FINGERPRINT_COOKIE}=`),
+  );
 
   if (!cookie) return "";
 
