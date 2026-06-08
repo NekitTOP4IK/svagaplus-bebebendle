@@ -61,20 +61,6 @@ UPLOADS_DIR = Path("/app/uploads")
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def sanitize_markdown(text: str) -> str:
-    """Escape Markdown special characters that would break Telegram Markdown parsing.
-
-    Telegram Markdown entities (bold, italic, links, etc.) use chars like *, _, [, ], (
-    , ), ~, `, >, #, +, -, =, |, {, }, ., !. If user input contains these, the entity
-    parser can fail with "can't find end of the entity". We escape them with backslashes.
-    """
-    special_chars = ["\\", "*", "_", "[", "]", "(", ")", "~", "`", ">", "#", "+",
-                     "-", "=", "|", "{", "}", ".", "!"]
-    for ch in special_chars:
-        text = text.replace(ch, f"\\{ch}")
-    return text
-
-
 async def save_uploaded_photo(file_id: str) -> str:
     """Download photo from Telegram and save locally.
 
@@ -223,12 +209,9 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
             scran = random.choice(available_scrans)
 
             # Build caption with name, description and price
-            # Sanitize to avoid unclosed Markdown entities from user-provided text
-            safe_name = sanitize_markdown(scran["name"])
-            caption = f"*{safe_name}*"
-            safe_description = sanitize_markdown(scran["description"]) if scran.get("description") else None
-            if safe_description:
-                caption += f"\n\n{safe_description}"
+            caption = f"*{scran['name']}*"
+            if scran.get("description"):
+                caption += f"\n\n{scran['description']}"
             caption += f"\n\n💰 {scran['price']:.2f} ₽"
 
             # Handle local files vs external URLs
