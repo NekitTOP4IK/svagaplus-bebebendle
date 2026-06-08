@@ -5,6 +5,7 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -182,13 +183,18 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
             return
 
         telegram_id = str(message.from_user.id)
+        logger.info(f"{telegram_id=}")
 
         if user_id:
             telegram_id = user_id
 
         async with database_session() as database:
             # Get 1 least-voted scran that user hasn't voted for yet
-            available_scrans = await database.get_least_voted_scrans(limit=1, telegram_id=telegram_id)
+            available_scrans = await database.get_least_voted_scrans(
+                limit=1, telegram_id=telegram_id
+            )
+
+            logger.info(f"{available_scrans=}")
 
             if not available_scrans:
                 await message.answer(
@@ -200,13 +206,16 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
             scran = available_scrans[0]
 
             # Build caption with name, description and price
-            caption = f"*{scran['name']}*"
+            caption = f"<b>{escape(str(scran['name']))}</b>"
             if scran.get("description"):
-                caption += f"\n\n{scran['description']}"
+                caption += f"\n\n{escape(str(scran['description']))}"
             caption += f"\n\n💰 {scran['price']:.2f} ₽"
+            logger.info(f"{caption=}")
 
             # Handle local files vs external URLs
             media = get_media_input(scran["image_url"])
+
+            logger.info(f"{media=}")
 
             # Create inline keyboard with like/dislike buttons
             keyboard = InlineKeyboardMarkup(
@@ -229,8 +238,9 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
                 photo=media,
                 caption=caption,
                 reply_markup=keyboard,
-                parse_mode="Markdown",
+                parse_mode="HTML",
             )
+            logger.error(f"Готово")
 
     except Exception as e:
         logger.error(f"Error in vote command: {e}")
