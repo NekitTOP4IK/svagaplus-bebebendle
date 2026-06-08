@@ -187,14 +187,8 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
             telegram_id = user_id
 
         async with database_session() as database:
-            # Get scrans user has already voted for
-            voted_ids = await database.get_voted_scran_ids(telegram_id)
-
-            # Get 50 scrans with least votes (more than needed to filter)
-            least_voted = await database.get_least_voted_scrans(limit=50)
-
-            # Filter out already voted scrans
-            available_scrans = [s for s in least_voted if s["id"] not in voted_ids]
+            # Get 1 least-voted scran that user hasn't voted for yet
+            available_scrans = await database.get_least_voted_scrans(limit=1, telegram_id=telegram_id)
 
             if not available_scrans:
                 await message.answer(
@@ -203,10 +197,7 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
                 )
                 return
 
-            # Select random scran from available
-            import random
-
-            scran = random.choice(available_scrans)
+            scran = available_scrans[0]
 
             # Build caption with name, description and price
             caption = f"*{scran['name']}*"

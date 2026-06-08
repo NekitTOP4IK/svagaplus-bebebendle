@@ -171,11 +171,14 @@ class Database:
         logger.info(f"Approved scran {scran_id}")
         return True
 
-    async def get_least_voted_scrans(self, limit: int = 10) -> list[dict]:
-        """Get scrans with least votes (likes + dislikes).
+    async def get_least_voted_scrans(
+        self, limit: int = 10, telegram_id: str | None = None
+    ) -> list[dict]:
+        """Get scrans with least votes that user hasn't voted for yet.
 
         Args:
             limit: Number of scrans to return
+            telegram_id: Optional Telegram user ID to exclude already-voted scrans
 
         Returns:
             List of scran dictionaries with image_url
@@ -184,18 +187,38 @@ class Database:
             raise RuntimeError("Database not connected")
 
         async with self.pool.acquire() as connection:
-            rows = await connection.fetch(
-                """
-                SELECT id, image_url, name, description, price,
-                       number_of_likes, number_of_dislikes,
-                       (number_of_likes + number_of_dislikes) as total_votes
-                FROM scrans
-                WHERE approved = true
-                ORDER BY total_votes ASC, RANDOM()
-                LIMIT $1
-                """,
-                limit,
-            )
+            if telegram_id:
+                rows = await connection.fetch(
+                    """
+                    SELECT s.id, s.image_url, s.name, s.description, s.price,
+                           s.number_of_likes, s.number_of_dislikes,
+                           (s.number_of_likes + s.number_of_dislikes) as total_votes
+                    FROM scrans s
+                    WHERE s.approved = true
+                      AND s.id NOT IN (
+                          SELECT tv.scran_id
+                          FROM telegram_votes tv
+                          WHERE tv.telegram_id = $1
+                      )
+                    ORDER BY total_votes ASC, RANDOM()
+                    LIMIT $2
+                    """,
+                    telegram_id,
+                    limit,
+                )
+            else:
+                rows = await connection.fetch(
+                    """
+                    SELECT id, image_url, name, description, price,
+                           number_of_likes, number_of_dislikes,
+                           (number_of_likes + number_of_dislikes) as total_votes
+                    FROM scrans
+                    WHERE approved = true
+                    ORDER BY total_votes ASC, RANDOM()
+                    LIMIT $1
+                    """,
+                    limit,
+                )
 
         return [
             {
