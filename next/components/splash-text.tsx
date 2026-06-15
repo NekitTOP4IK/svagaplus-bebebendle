@@ -17,7 +17,7 @@ export function SplashText({ texts }: SplashTextProps) {
 
   return (
     <p
-      className="pixel-text text-center text-sm font-bold italic sm:text-base lg:text-lg 2xl:text-xl md:-rotate-15"
+      className="pixel-text text-center text-sm font-bold italic sm:text-base lg:text-lg 2xl:text-xl md:-rotate-15 animate-pulse"
       style={{
         color: "#ffff55",
         textShadow: "2px 2px 0 #3f3f00, -1px -1px 0 #3f3f00",
