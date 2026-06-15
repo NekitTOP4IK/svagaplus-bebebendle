@@ -1,12 +1,12 @@
 import Image from "next/image";
-import { GameActions } from "@/components/game-actions";
+import { DailyPlayButton } from "@/components/daily-play-button";
 import { SocialLinks } from "@/components/social-links";
-import { InfoButton } from "@/components/info-button";
+import { CountdownTimer } from "@/components/countdown-timer";
 
 export default function HomePage() {
   return (
     <div
-      className="flex min-h-dvh items-start justify-center font-sans overflow-x-hidden"
+      className="relative flex min-h-dvh flex-col items-center justify-between overflow-hidden font-sans"
       style={{
         backgroundImage: "url('/background.jpg')",
         backgroundSize: "cover",
@@ -15,30 +15,35 @@ export default function HomePage() {
         backgroundAttachment: "fixed",
       }}
     >
-      <div className="absolute inset-0" />
-      <main className="relative z-10 flex flex-col items-center justify-start px-3 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 text-center pt-24 sm:pt-32 lg:pt-44 2xl:pt-56 4xl:pt-72 w-full max-w-[100vw]">
-        {/* Hero Section */}
-        <div className="mb-8 sm:mb-12 lg:mb-16 2xl:mb-20 w-full">
-          <h1 className="mb-4 sm:mb-6 2xl:mb-8 animate-rotate">
-            <Image
-              src="/бебендл.webp"
-              alt="бебендл"
-              width={1303}
-              height={319}
-              className="h-auto w-[85vw] sm:w-[75vw] md:w-[70vw] lg:w-[65vw] xl:w-[60vw] 2xl:w-[55vw] 4xl:w-[50vw] max-w-[1000px] 2xl:max-w-[1400px] 4xl:max-w-[1800px] animate-title mx-auto"
-              priority
-            />
-          </h1>
-          <p className="pixel-text mb-4 sm:mb-6 2xl:mb-8 text-base sm:text-lg md:text-xl 2xl:text-2xl 4xl:text-3xl text-white max-w-[90%] sm:max-w-xl md:max-w-2xl 2xl:max-w-3xl 4xl:max-w-4xl mx-auto text-center leading-relaxed px-2">
-            Scrandle по еде зрителей стримера Olesha, дарованный подписчиками платного тг-канала
-          </p>
-          <GameActions />
+      <div className="absolute inset-0 bg-black/40" />
+
+      <main className="relative z-10 flex w-full flex-1 flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
+        <h1 className="mb-8 sm:mb-12 lg:mb-16 2xl:mb-20">
+          <Image
+            src="/бебендл.webp"
+            alt="бебендл"
+            width={1303}
+            height={319}
+            className="h-auto w-[85vw] max-w-[800px] sm:w-[70vw] lg:w-[55vw] 2xl:w-[45vw] 4xl:max-w-[1000px]"
+            priority
+          />
+        </h1>
+
+        <div className="flex w-full max-w-[320px] flex-col gap-2 sm:max-w-[400px] sm:gap-4 2xl:max-w-[480px] 2xl:gap-5 4xl:max-w-[560px]">
+          <DailyPlayButton />
+          <SocialLinks />
         </div>
       </main>
-      <SocialLinks />
-      <div className="fixed bottom-2 sm:bottom-4 left-2 sm:left-4 2xl:bottom-8 2xl:left-8 4xl:bottom-12 4xl:left-12 z-20">
-        <InfoButton />
-      </div>
+
+      <footer className="relative z-10 flex w-full items-end justify-between gap-4 px-3 pb-3 sm:px-6 sm:pb-6 lg:px-8 lg:pb-8">
+        <p className="pixel-text max-w-[45%] text-left text-[10px] leading-tight text-white/90 sm:text-xs md:text-sm 2xl:text-base 4xl:text-lg">
+          Scrandle по еде зрителей стримера Olesha, дарованный подписчиками
+          платного тг-канала
+        </p>
+        <div className="max-w-[45%]">
+          <CountdownTimer />
+        </div>
+      </footer>
     </div>
   );
 }

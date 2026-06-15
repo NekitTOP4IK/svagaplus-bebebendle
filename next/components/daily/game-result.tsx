@@ -52,7 +52,7 @@ export function GameResult({
         {scoreDistribution.length > 0 && (
           <button
             onClick={() => setShowHistogram(true)}
-            className="pixel-btn mb-4 inline-flex items-center gap-2 border-4 border-black bg-blue-500 px-6 py-3 text-base text-white hover:bg-blue-400"
+            className="pixel-btn mb-4 inline-flex items-center gap-2 px-6 py-3 text-base"
           >
             <BarChart3 className="w-5 h-5" />
             Распределение результатов
@@ -65,7 +65,7 @@ export function GameResult({
 
         <Link
           href="/"
-          className="pixel-btn mt-4 inline-block border-4 border-black bg-yellow-400 px-8 py-4 text-lg text-black hover:bg-yellow-300"
+          className="pixel-btn mt-4 inline-block px-8 py-4 text-lg"
         >
           На главную
         </Link>

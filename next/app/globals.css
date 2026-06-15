@@ -58,19 +58,54 @@ body {
 .pixel-btn {
     font-family: var(--font-pixel), monospace;
     image-rendering: pixelated;
+    background: #8b8b8b;
+    color: #fff;
+    border: 2px solid #000;
     box-shadow:
-        0 4px 0 #000,
-        4px 4px 0 #000,
-        4px 0 0 #000;
-    transition: all 0.1s;
+        inset 2px 2px 0 #c6c6c6,
+        inset -2px -2px 0 #555;
+    text-shadow: 2px 2px 0 #3f3f3f;
+    transition: all 0.05s;
+}
+
+.pixel-btn:hover {
+    background: #a0a0a0;
+    color: #ffffa0;
 }
 
 .pixel-btn:active {
-    transform: translate(4px, 4px);
     box-shadow:
-        0 0 0 #000,
-        0 0 0 #000,
-        0 0 0 #000;
+        inset -2px -2px 0 #c6c6c6,
+        inset 2px 2px 0 #555;
+    transform: translate(1px, 1px);
+}
+
+.pixel-btn:disabled {
+    background: #6b6b6b;
+    color: #aaa;
+    box-shadow:
+        inset 2px 2px 0 #888,
+        inset -2px -2px 0 #444;
+}
+
+.pixel-btn:hover {
+    background: #a0a0a0;
+    color: #ffffa0;
+}
+
+.pixel-btn:active {
+    box-shadow:
+        inset -2px -2px 0 #c6c6c6,
+        inset 2px 2px 0 #555;
+    transform: translate(1px, 1px);
+}
+
+.pixel-btn:disabled {
+    background: #6b6b6b;
+    color: #aaa;
+    box-shadow:
+        inset 2px 2px 0 #888,
+        inset -2px -2px 0 #444;
 }
 
 .pixel-text {

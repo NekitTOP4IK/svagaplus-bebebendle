@@ -35,19 +35,19 @@ export function DailyPlayButton() {
 
   if (hasPlayed) {
     return (
-      <div className="mt-4 sm:mt-6 2xl:mt-8">
+      <div className="flex flex-col items-center gap-2">
         <button
           disabled
-          className="pixel-btn inline-block bg-gray-500 border-4 border-black px-6 sm:px-8 py-3 sm:py-4 text-black text-base sm:text-lg md:text-xl 2xl:text-2xl 4xl:text-3xl cursor-not-allowed opacity-70 2xl:px-12 2xl:py-6 4xl:px-16 4xl:py-8"
+          className="pixel-btn inline-flex items-center justify-center gap-1.5 sm:gap-2 2xl:gap-3 4xl:gap-4 px-2 sm:px-4 py-1.5 sm:py-2 2xl:px-6 2xl:py-3 4xl:px-8 4xl:py-4 text-xs sm:text-sm md:text-base 2xl:text-xl 4xl:text-2xl w-full"
         >
-          Уже сыграно ✓
+          Уже сыграно
         </button>
         {/*{score !== null && (
           <p className="pixel-text mt-2 text-lg text-white">
             Ваш результат: {score}/10
           </p>
         )}*/}
-        <p className="pixel-text mt-1 text-sm text-zinc-300">
+        <p className="pixel-text text-sm text-zinc-300 text-center">
           Следующий дейлик завтра
         </p>
       </div>
@@ -57,7 +57,7 @@ export function DailyPlayButton() {
   return (
     <Link
       href="/daily"
-      className="pixel-btn inline-block bg-yellow-400 border-4 border-black px-6 sm:px-8 py-3 sm:py-4 text-black text-base sm:text-lg md:text-xl 2xl:text-2xl 4xl:text-3xl hover:bg-yellow-300 mt-4 sm:mt-6 2xl:mt-8 2xl:px-12 2xl:py-6 4xl:px-16 4xl:py-8"
+      className="pixel-btn inline-flex items-center justify-center gap-1.5 sm:gap-2 2xl:gap-3 4xl:gap-4 px-2 sm:px-4 py-1.5 sm:py-2 2xl:px-6 2xl:py-3 4xl:px-8 4xl:py-4 text-xs sm:text-sm md:text-base 2xl:text-xl 4xl:text-2xl"
     >
       Дейлик!
     </Link>

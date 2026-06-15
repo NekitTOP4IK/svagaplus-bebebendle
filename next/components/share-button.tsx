@@ -29,7 +29,7 @@ export function ShareButton({ userAnswers, score }: ShareButtonProps) {
   return (
     <button
       onClick={handleCopy}
-      className="pixel-btn inline-flex items-center gap-2 bg-blue-500 border-4 border-black px-6 py-3 text-white text-lg hover:bg-blue-400 mt-4"
+      className="pixel-btn inline-flex items-center gap-2 px-6 py-3 text-lg mt-4"
     >
       {copied ? (
         <>
