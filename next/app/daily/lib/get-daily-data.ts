@@ -43,6 +43,7 @@ export async function getDailyData(): Promise<DailyData | null> {
           price: scranA.price,
           numberOfLikes: scranA.numberOfLikes,
           numberOfDislikes: scranA.numberOfDislikes,
+          icon: scranA.icon ?? "Cooked_Cod.png",
         },
         scranB: {
           id: scranB.id,
@@ -52,9 +53,10 @@ export async function getDailyData(): Promise<DailyData | null> {
           price: scranB.price,
           numberOfLikes: scranB.numberOfLikes,
           numberOfDislikes: scranB.numberOfDislikes,
+          icon: scranB.icon ?? "Cooked_Cod.png",
         },
       };
-    })
+    }),
   );
 
   return {

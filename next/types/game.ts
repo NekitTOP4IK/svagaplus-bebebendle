@@ -11,6 +11,7 @@ export interface Scran {
   numberOfLikes: number;
   numberOfDislikes: number;
   approved?: boolean;
+  icon: string;
 }
 
 export interface Round {
@@ -52,4 +53,9 @@ export type GameState =
   | { type: "already-played"; result: DailyResult }
   | { type: "error"; message: string }
   | { type: "playing"; data: DailyData }
-  | { type: "complete"; score: number; averageScore: number | null; scoreDistribution: ScoreDistributionItem[] };
+  | {
+      type: "complete";
+      score: number;
+      averageScore: number | null;
+      scoreDistribution: ScoreDistributionItem[];
+    };

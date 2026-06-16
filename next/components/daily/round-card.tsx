@@ -7,59 +7,12 @@ interface RoundCardProps {
     name: string;
     description: string | null;
     price: number;
+    icon: string;
   };
   onVote: () => void;
   isVoting: boolean;
   position: "left" | "right";
 }
-
-const targetUrls = [
-  "Apple_1.14.png",
-  "EggNew.png",
-  "PumpkinPieNew.png",
-  "BeetrootSoupNew.png",
-  "EnchantedGoldenAppleNew.gif",
-  "RabbitStewNew.png",
-  "Beetroot_1.14.png",
-  "GlisteringMelonNew.png",
-  "RawBeefNew.png",
-  "BreadNew.png",
-  "GoldenAppleNew.png",
-  "RawChickenNew.png",
-  "BrownMushroomNew.png",
-  "GoldenCarrotNew.png",
-  "RawFish.png",
-  "CakeNew.png",
-  "Honey_Bottle.png",
-  "RawPorkchopNew.png",
-  "Carrot_Updated.png",
-  "Kelp.png",
-  "Raw_Mutton_new.png",
-  "CocoaBeans.png",
-  "MelonNew.png",
-  "Raw_Rabbit.png",
-  "CookedChickenNew.png",
-  "MelonSliceNew.png",
-  "RedMushroomNew.png",
-  "CookedPorkchopNew.png",
-  "MilkNew.png",
-  "RottenFleshNew.png",
-  "Cooked_Cod.png",
-  "MushroomStewNew.png",
-  "SpiderEyeNew.png",
-  "Cooked_Mutton_new.png",
-  "New_Baked_PotatoB.png",
-  "SteakNew.png",
-  "Cooked_Rabbit.png",
-  "Poisonous_Potato_TextureUpdate.png",
-  "SugarCaneItemNew.png",
-  "CookieNew.png",
-  "Potato_TextureUpdate.png",
-  "SugarNew.png",
-  "Dried_Kelp.png",
-  "PumpkinNew.gif",
-  "WheatNew.png",
-];
 
 export function RoundCard({
   scran,
@@ -71,8 +24,6 @@ export function RoundCard({
     position === "left"
       ? "border-b-4 border-black md:border-b-0 md:border-r-4"
       : "";
-  const targetUrl = targetUrls[scran.id % targetUrls.length];
-
   return (
     <button
       onClick={onVote}
@@ -112,7 +63,7 @@ export function RoundCard({
           </div>
 
           <img
-            src={`/sprites/${targetUrl}`}
+            src={`/sprites/${scran.icon}`}
             alt=""
             className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 object-cover"
             style={{
