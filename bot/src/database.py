@@ -19,7 +19,7 @@ class Database:
         """Initialize database connection."""
         self.connection: Optional[asyncpg.Connection] = None
         self.pool: Optional[asyncpg.Pool] = None
-        self.emb_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        self.emb_model = SentenceTransformer("google/embeddinggemma-300m")
 
     async def connect(self) -> None:
         """Establish database connection pool."""
