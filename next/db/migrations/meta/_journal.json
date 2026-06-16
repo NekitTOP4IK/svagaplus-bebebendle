@@ -15,6 +15,20 @@
       "when": 1740163200000,
       "tag": "0001_add_telegram_id",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1750032000000,
+      "tag": "0003_add_icon_to_scrans",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1750032000000,
+      "tag": "0003_add_icon_to_scrans",
+      "breakpoints": true
     }
   ]
 }

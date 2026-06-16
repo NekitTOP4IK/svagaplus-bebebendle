@@ -35,6 +35,7 @@ export const scrans = pgTable("scrans", {
   numberOfDislikes: integer("number_of_dislikes").notNull().default(0),
   approved: boolean("approved").notNull().default(false),
   telegramId: text("telegram_id"),
+  icon: text("icon"),
 });
 
 export const dailyScrandles = pgTable("daily_scrandles", {

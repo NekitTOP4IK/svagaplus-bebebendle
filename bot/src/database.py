@@ -1,10 +1,13 @@
 """Database module for connecting to the shared PostgreSQL database."""
 
+import json
 import logging
 import os
 from typing import Optional
 
 import asyncpg
+from scipy.spatial.distance import cosine
+from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,7 @@ class Database:
         """Initialize database connection."""
         self.connection: Optional[asyncpg.Connection] = None
         self.pool: Optional[asyncpg.Pool] = None
+        self.emb_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 
     async def connect(self) -> None:
         """Establish database connection pool."""
@@ -43,6 +47,21 @@ class Database:
             self.pool = None
             logger.debug("Database connection pool closed")
 
+    def get_icon(self, name: str, description: str):
+        full_name = name + "\n" + description
+        embeddings = self.emb_model.encode([full_name])
+        res = []
+
+        with open("src/emb_map.json") as j:
+            emb_map = json.load(j)
+
+        for k, v in emb_map.items():
+            res.append([k, 1 - cosine(embeddings[0], v)])
+
+        min_cos = max(res, key=lambda x: x[1])
+        print(min_cos)
+        return min_cos[0]
+
     async def insert_scran(
         self, image_url: str, name: str, description: str | None, price: float, telegram_id: str
     ) -> int:
@@ -61,13 +80,15 @@ class Database:
         if not self.pool:
             raise RuntimeError("Database not connected")
 
+        icon = self.get_icon(name, description or "")
+
         async with self.pool.acquire() as connection:
             scran_id = await connection.fetchval(
                 """
                 INSERT INTO scrans (
                     image_url, name, description, price,
-                    number_of_likes, number_of_dislikes, approved, telegram_id
-                ) VALUES ($1, $2, $3, $4, 0, 0, false, $5)
+                    number_of_likes, number_of_dislikes, approved, telegram_id, icon
+                ) VALUES ($1, $2, $3, $4, 0, 0, false, $5, $6)
                 RETURNING id
                 """,
                 image_url,
@@ -75,6 +96,7 @@ class Database:
                 description,
                 price,
                 telegram_id,
+                icon,
             )
 
         if scran_id is None:
@@ -113,12 +135,7 @@ class Database:
             )
 
         return [
-            {
-                "id": row["id"],
-                "name": row["name"],
-                "approved": row["approved"],
-                "date": row["date"]
-            }
+            {"id": row["id"], "name": row["name"], "approved": row["approved"], "date": row["date"]}
             for row in rows
         ]
 
