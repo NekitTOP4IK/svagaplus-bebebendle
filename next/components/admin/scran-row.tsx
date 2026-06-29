@@ -7,9 +7,10 @@ interface ScranRowProps {
   scran: Scran;
   onApprove: (id: number) => void;
   onBan: (id: number) => void;
+  onDelete: (scran: Scran) => void;
 }
 
-export function ScranRow({ scran, onApprove, onBan }: ScranRowProps) {
+export function ScranRow({ scran, onApprove, onBan, onDelete }: ScranRowProps) {
   const percentage = getLikesPercentage({
     numberOfLikes: scran.numberOfLikes,
     numberOfDislikes: scran.numberOfDislikes,
@@ -86,6 +87,13 @@ export function ScranRow({ scran, onApprove, onBan }: ScranRowProps) {
               Ban
             </button>
           )}
+          <button
+            onClick={() => onDelete(scran)}
+            className="pixel-btn bg-zinc-700 px-3 py-1 text-sm font-bold text-white hover:bg-zinc-600"
+            title="Удалить с уведомлением автору"
+          >
+            Удалить
+          </button>
         </div>
       </td>
     </tr>

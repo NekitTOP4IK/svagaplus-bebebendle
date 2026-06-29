@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { Scran } from "@/types/scran";
 import { ScranTable } from "@/components/admin/scran-table";
 import { Pagination } from "@/components/admin/pagination";
+import { DeleteScranModal } from "@/components/admin/delete-scran-modal";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
@@ -19,6 +21,7 @@ interface AdminDashboardProps {
   onPageChange: (page: number) => void;
   onApprove: (id: number) => void;
   onBan: (id: number) => void;
+  onDelete: (id: number, comment: string) => Promise<boolean>;
 }
 
 function LoadingState() {
@@ -40,7 +43,10 @@ export function AdminDashboard({
   onPageChange,
   onApprove,
   onBan,
+  onDelete,
 }: AdminDashboardProps) {
+  const [deletingScran, setDeletingScran] = useState<Scran | null>(null);
+
   return (
     <div className="retro-bg min-h-dvh">
       <div className="retro-overlay absolute inset-0" />
@@ -73,6 +79,7 @@ export function AdminDashboard({
               onSort={onSort}
               onApprove={onApprove}
               onBan={onBan}
+              onDelete={setDeletingScran}
             />
             <Pagination
               currentPage={currentPage}
@@ -82,6 +89,13 @@ export function AdminDashboard({
           </>
         )}
       </div>
+
+      <DeleteScranModal
+        key={deletingScran?.id ?? "none"}
+        scran={deletingScran}
+        onClose={() => setDeletingScran(null)}
+        onConfirm={onDelete}
+      />
     </div>
   );
 }

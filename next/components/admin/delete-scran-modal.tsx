@@ -1,0 +1,101 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { Scran } from "@/types/scran";
+
+interface DeleteScranModalProps {
+  scran: Scran | null;
+  onClose: () => void;
+  onConfirm: (id: number, comment: string) => Promise<boolean>;
+}
+
+export function DeleteScranModal({
+  scran,
+  onClose,
+  onConfirm,
+}: DeleteScranModalProps) {
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!scran) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !submitting) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [scran, onClose, submitting]);
+
+  if (!scran) return null;
+
+  const trimmed = comment.trim();
+  const canSubmit = trimmed.length > 0 && !submitting;
+
+  const handleConfirm = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    const ok = await onConfirm(scran.id, trimmed);
+    setSubmitting(false);
+    if (ok) {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      onClick={() => {
+        if (!submitting) onClose();
+      }}
+    >
+      <div
+        className="pixel-container w-full max-w-md rounded-none border-4 border-black bg-zinc-900 p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="pixel-text text-xl font-bold text-white">
+          Удалить блюдо
+        </h2>
+        <p className="mt-3 text-sm text-zinc-300">
+          Вы собираетесь удалить{" "}
+          <span className="font-bold text-white">«{scran.name}»</span>.
+          Действие необратимо.
+        </p>
+        <label
+          htmlFor="delete-comment"
+          className="pixel-text mt-4 block text-sm font-bold text-white"
+        >
+          Комментарий (обязателен, отправится автору в Telegram):
+        </label>
+        <textarea
+          id="delete-comment"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          autoFocus
+          rows={4}
+          placeholder="Укажите причину удаления..."
+          className="mt-2 w-full resize-none rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:border-yellow-400 focus:outline-none"
+          disabled={submitting}
+        />
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="pixel-btn bg-zinc-700 px-4 py-2 text-sm font-bold text-white hover:bg-zinc-600 disabled:opacity-50"
+          >
+            Отмена
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!canSubmit}
+            className="pixel-btn bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? "Удаление..." : "Удалить"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -16,6 +16,7 @@ export default function AdminPage() {
     login,
     approveScran,
     banScran,
+    deleteScran,
     handleSort,
     setCurrentPage,
   } = useAdmin();
@@ -36,6 +37,7 @@ export default function AdminPage() {
       onPageChange={setCurrentPage}
       onApprove={approveScran}
       onBan={banScran}
+      onDelete={deleteScran}
     />
   );
 }

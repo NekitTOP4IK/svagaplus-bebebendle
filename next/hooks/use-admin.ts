@@ -23,6 +23,7 @@ interface UseAdminReturn {
   logout: () => void;
   approveScran: (id: number) => Promise<void>;
   banScran: (id: number) => Promise<void>;
+  deleteScran: (id: number, comment: string) => Promise<boolean>;
   handleSort: (field: SortField) => void;
   setCurrentPage: (page: number) => void;
   refresh: () => void;
@@ -51,7 +52,7 @@ export function useAdmin(): UseAdminReturn {
   });
 
   // Mutations
-  const { approveScran, banScran } = useScranMutations({
+  const { approveScran, banScran, deleteScran } = useScranMutations({
     adminPassword,
     onUnauthorized: logout,
     onSuccess: refetch,
@@ -70,6 +71,7 @@ export function useAdmin(): UseAdminReturn {
     logout,
     approveScran,
     banScran,
+    deleteScran,
     handleSort,
     setCurrentPage,
     refresh: refetch,

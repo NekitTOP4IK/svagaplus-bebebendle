@@ -13,6 +13,7 @@ interface ScranTableProps {
   onSort: (field: SortField) => void;
   onApprove: (id: number) => void;
   onBan: (id: number) => void;
+  onDelete: (scran: Scran) => void;
 }
 
 function SortableHeader({ 
@@ -40,13 +41,14 @@ function SortableHeader({
   );
 }
 
-export function ScranTable({ 
-  scrans, 
-  sortField, 
-  sortOrder, 
+export function ScranTable({
+  scrans,
+  sortField,
+  sortOrder,
   onSort,
   onApprove,
-  onBan 
+  onBan,
+  onDelete,
 }: ScranTableProps) {
   return (
     <div className="pixel-container overflow-hidden rounded-none border-4 border-black bg-zinc-900/80">
@@ -113,6 +115,7 @@ export function ScranTable({
               scran={scran}
               onApprove={onApprove}
               onBan={onBan}
+              onDelete={onDelete}
             />
           ))}
         </tbody>

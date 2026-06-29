@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { approveScran as approveScranAction } from "@/app/admin/actions";
+import { approveScran as approveScranAction, deleteScran as deleteScranAction } from "@/app/admin/actions";
 
 interface UseScranMutationsParams {
   adminPassword: string;
@@ -13,6 +13,7 @@ interface UseScranMutationsParams {
 interface UseScranMutationsReturn {
   approveScran: (id: number) => Promise<void>;
   banScran: (id: number) => Promise<void>;
+  deleteScran: (id: number, comment: string) => Promise<boolean>;
 }
 
 export function useScranMutations({
@@ -68,8 +69,38 @@ export function useScranMutations({
     [adminPassword, onUnauthorized, onSuccess]
   );
 
+  const deleteScran = useCallback(
+    async (id: number, comment: string): Promise<boolean> => {
+      try {
+        const result = await deleteScranAction(id, comment);
+
+        if (result.success) {
+          toast.success("Блюдо удалено! Уведомление отправлено автору.", {
+            description: `ID: ${id}`,
+          });
+          onSuccess();
+          return true;
+        } else {
+          toast.error("Ошибка удаления", {
+            description: result.message,
+          });
+          console.error("Failed to delete scran:", result.message);
+          return false;
+        }
+      } catch (error) {
+        console.error("Error deleting scran:", error);
+        toast.error("Ошибка удаления", {
+          description: "Не удалось удалить блюдо",
+        });
+        return false;
+      }
+    },
+    [onSuccess]
+  );
+
   return {
     approveScran,
     banScran,
+    deleteScran,
   };
 }
