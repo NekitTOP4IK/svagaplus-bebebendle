@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Github } from "lucide-react";
+import { Github, Database } from "lucide-react";
 
 export default function Home() {
   return (
@@ -15,23 +15,32 @@ export default function Home() {
 
 Спасибо всем за вклад в этот проект, вы пупсики и сладусики.
 
-В течение пары дней тут появится ссылка на скачивание архивной и статистической информации за время существования бебендла. Эта страница будет доступна до 12.07.2026.
-
-Новые дейлики уже в планах, есть идеи и наработки, но пока автору нужен небольшой отпуск после всего того экзистенциального ужаса, биологических масс и продуктов нурглитов, которые попадали к нему на модерацию.
+Новые дейлики уже в планах, есть идеи и наработки, но пока автору нужен небольшой отпуск после всего того экзистенциального ужаса, биологических масс и продуктов норглитов, которые попадали к нему на модерацию.
 
 Всем пока!
           </p>
         </div>
 
-        <Link
-          href="https://github.com/catlilface"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="pixel-btn inline-flex items-center gap-2 sm:gap-3 bg-gray-800 border-2 sm:border-4 border-white px-4 sm:px-6 py-2 sm:py-3 text-white text-sm sm:text-base md:text-lg 2xl:text-xl hover:bg-gray-700 w-fit"
-        >
-          <Github className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 2xl:w-8 2xl:h-8" />
-          <span>github</span>
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-center justify-center w-fit mx-auto">
+          <Link
+            href="https://github.com/catlilface/bebebendle"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pixel-btn inline-flex items-center gap-2 sm:gap-3 bg-gray-800 border-2 sm:border-4 border-white px-4 sm:px-6 py-2 sm:py-3 text-white text-sm sm:text-base md:text-lg 2xl:text-xl hover:bg-gray-700 w-fit"
+          >
+            <Github className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 2xl:w-8 2xl:h-8" />
+            <span>github</span>
+          </Link>
+          <Link
+            href="https://db.bebebendle.ru"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pixel-btn inline-flex items-center gap-2 sm:gap-3 bg-gray-800 border-2 sm:border-4 border-white px-4 sm:px-6 py-2 sm:py-3 text-white text-sm sm:text-base md:text-lg 2xl:text-xl hover:bg-gray-700 w-fit"
+          >
+            <Database className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 2xl:w-8 2xl:h-8" />
+            <span>База данных (12MB)</span>
+          </Link>
+        </div>
       </main>
     </div>
   );
