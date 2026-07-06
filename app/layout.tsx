@@ -20,8 +20,8 @@ const pressStart2P = Press_Start_2P({
 });
 
 export const metadata: Metadata = {
-  title: "Бабабандл",
-  description: "Бебебендл от catlilface",
+  title: "Bebebendle — Прощайте",
+  description: "Проект закрывается. Спасибо всем за вклад.",
 };
 
 export default function RootLayout({

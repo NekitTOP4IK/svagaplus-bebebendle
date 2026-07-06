@@ -9,41 +9,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ./db:/app/db
-      - ./public/uploads:/app/public/uploads
       - next-cache:/app/.next/cache
-    restart: unless-stopped
-    depends_on:
-      - db
-
-  bot:
-    build:
-      context: ./bot
-      dockerfile: Dockerfile
-    container_name: bebebendle-bot
-    env_file:
-      - .env
-    volumes:
-      - ./public/uploads:/app/public/uploads
-    restart: unless-stopped
-    depends_on:
-      - frontend
-      - db
-    network_mode: bridge
-
-  db:
-    image: postgres:15
-    container_name: bebebendle-postgres
-    environment:
-      POSTGRES_DB: bebendle
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     restart: unless-stopped
 
 volumes:
   next-cache:
-  postgres_data:
