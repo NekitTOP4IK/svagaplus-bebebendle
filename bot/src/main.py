@@ -57,61 +57,46 @@ router = Router()
 # Initialize database
 db = Database()
 
-# Upload configuration
-UPLOADS_DIR = Path("/app/uploads")
+_uploads = os.getenv("UPLOADS_DIR")
+if _uploads:
+    UPLOADS_DIR = Path(_uploads)
+elif Path.cwd() == Path("/app"):
+    UPLOADS_DIR = Path("/app/uploads")
+else:
+    UPLOADS_DIR = Path.cwd().parent / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 async def save_uploaded_photo(file_id: str) -> str:
-    """Download photo from Telegram and save locally.
-
-    Args:
-        file_id: Telegram file ID
-
-    Returns:
-        Local URL path (e.g., /uploads/uuid.jpg)
-    """
-    # Get file info from Telegram
     file = await bot.get_file(file_id)
-
     if not file.file_path:
         raise ValueError("File path not available")
 
-    # Download file content
     file_content = await bot.download_file(file.file_path)
-
     if not file_content:
         raise ValueError("Failed to download file content")
 
-    # Generate unique filename
     file_ext = Path(file.file_path).suffix or ".jpg"
     filename = f"{uuid.uuid4()}{file_ext}"
     local_path = UPLOADS_DIR / filename
 
-    # Save file locally
     async with aiofiles.open(local_path, "wb") as f:
         await f.write(file_content.read())
 
-    # Return URL path (accessible via Next.js)
-    return f"/uploads/{filename}"
+    return f"/cdn/{filename}"
 
 
 def get_media_input(image_url: str) -> str | FSInputFile:
-    """Get proper media input for Telegram API.
-
-    Args:
-        image_url: Image URL (can be local path like /uploads/xxx.jpg or external URL)
-
-    Returns:
-        FSInputFile for local paths, or URL string for external URLs
-    """
+    if image_url.startswith("/cdn/"):
+        local_path = UPLOADS_DIR / image_url.replace("/cdn/", "")
+        return FSInputFile(str(local_path))
+    if image_url.startswith("/api/images/"):
+        local_path = UPLOADS_DIR / image_url.replace("/api/images/", "")
+        return FSInputFile(str(local_path))
     if image_url.startswith("/uploads/"):
-        # Local file - use FSInputFile
         local_path = UPLOADS_DIR / image_url.replace("/uploads/", "")
         return FSInputFile(str(local_path))
-    else:
-        # External URL - use as is
-        return image_url
+    return image_url
 
 
 class SuggestStates(StatesGroup):

@@ -4,6 +4,8 @@ FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim
 # Set working directory
 WORKDIR /app
 
+RUN mkdir -p /app/uploads
+
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
 
