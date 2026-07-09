@@ -10,7 +10,9 @@ Scrandle по еде зрителей стримера Olesha. Каждый де
 
 ## Развертывание
 
-Требования: Docker + Docker Compose
+Можно запускать двумя способами:
+- Через Docker (рекомендуется для продакшена)
+- Через PM2 без Docker (см. ниже)
 
 ```bash
 # Скопировать и настроить переменные окружения
@@ -26,6 +28,56 @@ make migrate
 
 Приложение доступно на http://localhost:3000
 
+## Запуск без Docker (PM2)
+
+Можно запускать без Docker (полезно для разработки или когда БД поднята отдельно).
+
+**Требования:**
+- Bun + Node.js
+- Python 3.11+ + [uv](https://docs.astral.sh/uv/)
+- PostgreSQL и Redis (можно поднять только их через Docker)
+- PM2: `npm install -g pm2`
+
+**Подготовка:**
+
+```bash
+# 1. Настрой .env в корне проекта (обязательно укажи POSTGRES_HOST=localhost и т.п.)
+cp .env.sample .env
+
+# 2. Подготовь фронтенд
+cd next
+bun install
+bun run build
+cd ..
+
+# 3. Подготовь бота
+cd bot
+uv sync
+cd ..
+```
+
+**Важно про переменные окружения:**
+- При запуске через PM2 .env из корня проекта может не подхватываться автоматически.
+- Рекомендуется либо экспортировать переменные, либо скопировать .env в `next/` и `bot/`.
+
+**Запуск:**
+
+```bash
+pm2 start ecosystem.config.js
+pm2 logs
+```
+
+**Остановка:**
+
+```bash
+pm2 stop ecosystem.config.js
+pm2 delete ecosystem.config.js
+```
+
+Приложение будет доступно на http://localhost:3000
+
+> **Примечание:** При запуске без Docker директория с загрузками — `./uploads` в корне проекта.
+
 ## Makefile команды
 
 | Команда | Описание |
@@ -35,6 +87,9 @@ make migrate
 | `make logs` | Просмотр логов |
 | `make migrate` | Применить миграции БД |
 | `make new-daily` | Сгенерировать новый дейлик вручную |
+| `make pm2-start` | Запустить через PM2 (без Docker) |
+| `make pm2-stop` | Остановить PM2 процессы |
+| `make pm2-logs` | Логи PM2 |
 
 ## Как работает
 
@@ -46,9 +101,10 @@ make migrate
 
 ## Структура
 
-- `app/` — Next.js фронтенд
-- `db/` — SQLite база данных + Drizzle ORM
-- `bot/` — Telegram бот для предложения новых блюд
+- `next/` — Next.js 16 + React 19 фронтенд
+- `bot/` — Python aiogram бот
+- `uploads/` — Загруженные изображения (динамически отдаются через /cdn/)
+- PostgreSQL + Redis (через Docker или локально)
 
 ## Лицензия
 

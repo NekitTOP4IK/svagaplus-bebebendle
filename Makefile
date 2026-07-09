@@ -110,3 +110,20 @@ migrate-data:
 # Run frontend tests
 test-next:
 	@cd next && bun test:run
+
+# === PM2 (run without Docker) ===
+
+pm2-start:
+	pm2 start ecosystem.config.js
+
+pm2-stop:
+	pm2 stop ecosystem.config.js
+
+pm2-restart:
+	pm2 restart ecosystem.config.js
+
+pm2-logs:
+	pm2 logs --lines 100
+
+pm2-status:
+	pm2 status

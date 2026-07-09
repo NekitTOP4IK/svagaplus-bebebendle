@@ -30,11 +30,16 @@ from aiogram.types import (
 )
 from aiogram.utils.media_group import MediaGroupBuilder
 from dotenv import load_dotenv
+from pathlib import Path
 
 from database import Database
 
-# Load environment variables
-load_dotenv()
+# Load .env from project root if available (for non-Docker runs)
+root_env = Path(__file__).resolve().parents[2] / ".env"
+if root_env.exists():
+    load_dotenv(root_env)
+else:
+    load_dotenv()
 
 # Configure logging
 logging.basicConfig(

@@ -23,7 +23,7 @@ class Database:
 
     async def connect(self) -> None:
         """Establish database connection pool."""
-        host = os.getenv("POSTGRES_HOST", "db")
+        host = os.getenv("POSTGRES_HOST", "localhost")
         port = int(os.getenv("POSTGRES_PORT", "5432"))
         database = os.getenv("POSTGRES_DB", "bebendle")
         user = os.getenv("POSTGRES_USER", "postgres")
