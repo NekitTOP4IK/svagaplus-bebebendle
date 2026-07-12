@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex, serial, bigint } from "drizzle-orm/pg-core";
 
 // Для локальной разработки используем переменные окружения или значения по умолчанию
 const client = new Client({
@@ -25,6 +25,21 @@ client.query = (...args: Parameters<typeof originalQuery>) => {
 
 export const db = drizzle(client);
 
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  telegramId: bigint("telegram_id", { mode: "number" }).notNull().unique(),
+  telegramUsername: text("telegram_username"),
+  displayName: text("display_name"),
+  role: text("role", { enum: ["player", "moderator", "admin"] }).notNull().default("player"),
+  svagaTelegramUserId: bigint("svaga_telegram_user_id", { mode: "number" }),
+  svagaUserId: text("svaga_user_id"),           // tribute_user_id from svagaplus
+  isSubscriber: boolean("is_subscriber").default(false),
+  lastSyncedAt: timestamp("last_synced_at"),
+  linkedAt: timestamp("linked_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const scrans = pgTable("scrans", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   imageUrl: text("image_url").notNull(),
@@ -36,6 +51,9 @@ export const scrans = pgTable("scrans", {
   approved: boolean("approved").notNull().default(false),
   telegramId: text("telegram_id"),
   icon: text("icon"),
+  submittedByUserId: integer("submitted_by_user_id").references(() => users.id),
+  isSubscriberAtSubmit: boolean("is_subscriber_at_submit").default(false),
+  subscriberCheckedAt: timestamp("subscriber_checked_at"),
 });
 
 export const dailyScrandles = pgTable("daily_scrandles", {
@@ -67,6 +85,7 @@ export const dailyUserResults = pgTable("daily_user_results", {
   fingerprintHash: text("fingerprint_hash"),
   score: integer("score").notNull(),
   createdAt: timestamp("created_at").notNull(),
+  userId: integer("user_id").references(() => users.id),
 }, (table) => ({
   uniqueResultPerDay: uniqueIndex("unique_user_result_per_day").on(table.sessionId, table.date),
 }));
