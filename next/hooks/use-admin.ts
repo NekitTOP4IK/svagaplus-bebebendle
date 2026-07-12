@@ -10,10 +10,11 @@ import type { Scran } from "@/types/scran";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
-type ViewMode = "list" | "queue";
+type ViewMode = "list" | "queue" | "users";
 
 interface UseAdminReturn {
   isAuthenticated: boolean;
+  role: "moderator" | "admin" | null;
   scrans: Scran[];
   loading: boolean;
   currentPage: number;
@@ -39,7 +40,7 @@ interface UseAdminReturn {
 
 export function useAdmin(): UseAdminReturn {
   // Compose smaller hooks
-  const { isAuthenticated, login, logout } = useAdminAuth();
+  const { isAuthenticated, role, login, logout } = useAdminAuth();
   const { sortField, sortOrder, handleSort } = useAdminSorting();
   const {
     currentPage,
@@ -90,6 +91,7 @@ export function useAdmin(): UseAdminReturn {
 
   return {
     isAuthenticated,
+    role,
     scrans,
     loading,
     currentPage,

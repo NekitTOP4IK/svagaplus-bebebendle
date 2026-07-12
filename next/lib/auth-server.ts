@@ -62,8 +62,9 @@ export async function requireRole(
     throw new Error("Unauthorized: no session");
   }
   // Allow the requested role or admin (admin can do moderator actions)
-  const allowed = role === "admin" ? ["admin"] : ["moderator", "admin"];
-  if (!allowed.includes(user.role)) {
+  const isModOrAdmin = ['moderator', 'admin'].includes(user.role);
+  const allowed = role === "admin" ? user.role === "admin" : isModOrAdmin;
+  if (!allowed) {
     throw new Error(`Unauthorized: requires ${role} role`);
   }
   return user;

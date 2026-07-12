@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth-server";
 export async function POST() {
   try {
     const user = await getCurrentUser();
-    if (user && (user.role === "moderator" || user.role === "admin")) {
+    if (user && ['moderator', 'admin'].includes(user.role)) {
       return NextResponse.json({ authenticated: true, role: user.role });
     }
     return NextResponse.json({ authenticated: false }, { status: 401 });

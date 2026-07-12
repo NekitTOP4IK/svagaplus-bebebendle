@@ -11,7 +11,7 @@ import {
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
+  if (!user || !['moderator', 'admin'].includes(user.role)) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401 }

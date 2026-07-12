@@ -5,13 +5,14 @@ import { ScranRow } from "@/components/admin/scran-row";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
-type ViewMode = "list" | "queue";
+type ViewMode = "list" | "queue" | "users";
 
 interface ScranTableProps {
   scrans: Scran[];
   sortField: SortField;
   sortOrder: SortOrder;
   view?: ViewMode;
+  role?: "moderator" | "admin" | null;
   onSort: (field: SortField) => void;
   onApprove: (id: number) => void;
   onBan: (id: number) => void;
@@ -48,6 +49,7 @@ export function ScranTable({
   sortField,
   sortOrder,
   view,
+  role,
   onSort,
   onApprove,
   onBan,
@@ -123,6 +125,7 @@ export function ScranTable({
               key={scran.id}
               scran={scran}
               view={view}
+              role={role}
               onApprove={onApprove}
               onBan={onBan}
               onDelete={onDelete}

@@ -7,6 +7,7 @@ import { AdminDashboard } from "@/components/admin/admin-dashboard";
 export default function AdminPage() {
   const {
     isAuthenticated,
+    role,
     scrans,
     loading,
     currentPage,
@@ -41,6 +42,7 @@ export default function AdminPage() {
       sortField={sortField}
       sortOrder={sortOrder}
       view={view}
+      role={role}
       subscriberOnly={subscriberOnly}
       subscriberCount={subscriberCount}
       regularCount={regularCount}

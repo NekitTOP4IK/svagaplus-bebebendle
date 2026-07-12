@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
-  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
+  if (!user || !['moderator', 'admin'].includes(user.role)) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401 }

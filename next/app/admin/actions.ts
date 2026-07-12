@@ -1,8 +1,8 @@
 "use server";
 
-import { db, scrans, telegramVotes, scrandleVotes, dailyScrandles } from "@/db/schema";
-import { eq, or } from "drizzle-orm";
-import { getCurrentUser } from "@/lib/auth-server";
+import { db, scrans, users, telegramVotes, scrandleVotes, dailyScrandles } from "@/db/schema";
+import { eq, or, desc } from "drizzle-orm";
+import { requireRole } from "@/lib/auth-server";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -12,8 +12,9 @@ interface ApproveScranResult {
 }
 
 export async function approveScran(id: number): Promise<ApproveScranResult> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
+  try {
+    await requireRole("moderator");
+  } catch {
     return { success: false, message: "Unauthorized" };
   }
 
@@ -73,8 +74,9 @@ export async function deleteScran(
   id: number,
   comment: string
 ): Promise<ApproveScranResult> {
-  const user = await getCurrentUser();
-  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
+  try {
+    await requireRole("admin");
+  } catch {
     return { success: false, message: "Unauthorized" };
   }
 
@@ -147,5 +149,77 @@ async function sendDeletionNotification(
   } catch (error) {
     console.error("Failed to send deletion notification:", error);
     // Don't fail the whole action if notification fails
+  }
+}
+
+// Minimal admin-only users management for Task 7 (admins only)
+export interface AdminUser {
+  id: number;
+  telegramId: number;
+  telegramUsername: string | null;
+  displayName: string | null;
+  role: "player" | "moderator" | "admin";
+  createdAt: Date | null;
+}
+
+export async function getUsers(): Promise<AdminUser[]> {
+  try {
+    await requireRole("admin");
+  } catch {
+    return [];
+  }
+
+  try {
+    const rows = await db
+      .select({
+        id: users.id,
+        telegramId: users.telegramId,
+        telegramUsername: users.telegramUsername,
+        displayName: users.displayName,
+        role: users.role,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .orderBy(desc(users.id))
+      .limit(200);
+
+    return rows.map((r) => ({
+      id: r.id,
+      telegramId: r.telegramId,
+      telegramUsername: r.telegramUsername,
+      displayName: r.displayName,
+      role: r.role as AdminUser["role"],
+      createdAt: r.createdAt,
+    }));
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return [];
+  }
+}
+
+export async function updateUserRole(
+  userId: number,
+  newRole: "player" | "moderator" | "admin"
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    await requireRole("admin");
+  } catch {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  if (!userId || userId <= 0) {
+    return { success: false, message: "Invalid user id" };
+  }
+
+  try {
+    await db
+      .update(users)
+      .set({ role: newRole, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    return { success: false, message: "Failed to update role" };
   }
 }

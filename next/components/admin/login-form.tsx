@@ -83,7 +83,7 @@ export function LoginForm({ onLogin }: LoginFormProps) {
           Admin Login
         </h1>
         <p className="mb-4 text-sm text-black">
-          Sign in with Telegram. Only users with moderator or admin role can access.
+          Sign in with Telegram widget. Only users with moderator or admin role can access the admin panel.
         </p>
 
         {error && (

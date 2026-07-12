@@ -11,7 +11,7 @@ interface UseScransDataParams {
   currentPage: number;
   sortField: SortField;
   sortOrder: SortOrder;
-  view?: "list" | "queue";
+  view?: "list" | "queue" | "users";
   subscriberOnly?: boolean;
   onUnauthorized: () => void;
   onTotalItems: (total: number) => void;
@@ -42,7 +42,10 @@ export function useScransData({
   const [regularCount, setRegularCount] = useState<number | undefined>(undefined);
 
   const fetchScrans = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || view === "users") {
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);

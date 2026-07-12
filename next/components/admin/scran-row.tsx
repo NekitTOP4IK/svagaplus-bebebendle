@@ -3,17 +3,18 @@
 import type { Scran } from "@/types/scran";
 import { getLikesPercentage } from "@/lib/scoring";
 
-type ViewMode = "list" | "queue";
+type ViewMode = "list" | "queue" | "users";
 
 interface ScranRowProps {
   scran: Scran;
   view?: ViewMode;
+  role?: "moderator" | "admin" | null;
   onApprove: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (scran: Scran) => void;
 }
 
-export function ScranRow({ scran, view, onApprove, onBan, onDelete }: ScranRowProps) {
+export function ScranRow({ scran, view, role, onApprove, onBan, onDelete }: ScranRowProps) {
   const percentage = getLikesPercentage({
     numberOfLikes: scran.numberOfLikes,
     numberOfDislikes: scran.numberOfDislikes,
@@ -118,13 +119,15 @@ export function ScranRow({ scran, view, onApprove, onBan, onDelete }: ScranRowPr
               Ban
             </button>
           )}
-          <button
-            onClick={() => onDelete(scran)}
-            className="pixel-btn bg-zinc-700 px-3 py-1 text-sm font-bold text-white hover:bg-zinc-600"
-            title="Удалить с уведомлением автору"
-          >
-            Удалить
-          </button>
+          {role === "admin" && (
+            <button
+              onClick={() => onDelete(scran)}
+              className="pixel-btn bg-zinc-700 px-3 py-1 text-sm font-bold text-white hover:bg-zinc-600"
+              title="Удалить с уведомлением автору (admin only)"
+            >
+              Удалить
+            </button>
+          )}
         </div>
       </td>
     </tr>
