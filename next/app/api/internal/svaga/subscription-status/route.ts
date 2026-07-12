@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSubscriberStatus } from "@/lib/svaga";
+import { checkRateLimit, getClientIp } from "@/app/api/middleware/rateLimit";
 
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET;
 
@@ -11,9 +12,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let telegramIdStrForLog: string | null = null;
   try {
     const { searchParams } = new URL(request.url);
     const telegramIdStr = searchParams.get("telegram_id");
+    telegramIdStrForLog = telegramIdStr;
+
+    // Rate limit internal endpoint (per-telegram-id to avoid abuse of SVAGA+ checks)
+    const rateKey = telegramIdStr
+      ? `internal-svaga:${telegramIdStr}`
+      : `internal-svaga-ip:${getClientIp(request)}`;
+    const rateLimitResult = await checkRateLimit(rateKey, 30, 60);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait." },
+        { status: 429 }
+      );
+    }
+
     if (!telegramIdStr) {
       return NextResponse.json(
         { error: "telegram_id query param is required" },
@@ -28,6 +44,8 @@ export async function GET(request: Request) {
         { status: 400 }
       );
     }
+
+    console.log(`[svaga-internal] subscriber check for telegramId=${telegramId}`);
 
     const now = new Date();
     const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -55,6 +73,7 @@ export async function GET(request: Request) {
 
       if (isStale) {
         // Refresh from SVAGA+
+        console.log(`[svaga-internal] status stale for ${telegramId}, refreshing from SVAGA+`);
         const fresh = await getSubscriberStatus(telegramId);
         isSubscriber = fresh.isSubscriber;
         tributeUserId = fresh.tributeUserId;
@@ -69,13 +88,16 @@ export async function GET(request: Request) {
             updatedAt: now,
           })
           .where(eq(users.telegramId, telegramId));
+        console.log(`[svaga-internal] refreshed for ${telegramId}: isSubscriber=${isSubscriber}`);
       } else {
         isSubscriber = row.isSubscriber ?? false;
         tributeUserId = row.svagaUserId ?? undefined;
+        console.log(`[svaga-internal] cache hit for ${telegramId}: isSubscriber=${isSubscriber}`);
       }
     } else {
       // No local user row yet (e.g. bot suggestion before site login)
       // Fetch fresh and cache by creating minimal user entry
+      console.log(`[svaga-internal] no local user for ${telegramId}, fetching fresh and upserting`);
       const fresh = await getSubscriberStatus(telegramId);
       isSubscriber = fresh.isSubscriber;
       tributeUserId = fresh.tributeUserId;
@@ -105,6 +127,7 @@ export async function GET(request: Request) {
             updatedAt: now,
           },
         });
+      console.log(`[svaga-internal] created/updated minimal user for ${telegramId}: isSubscriber=${isSubscriber}`);
     }
 
     return NextResponse.json({
@@ -112,7 +135,7 @@ export async function GET(request: Request) {
       tributeUserId,
     });
   } catch (error) {
-    console.error("Internal SVAGA subscription-status error:", error);
+    console.error(`[svaga-internal] Internal SVAGA subscription-status error for ${telegramIdStrForLog || 'unknown'}:`, error);
     return NextResponse.json(
       { error: "Failed to get subscription status" },
       { status: 500 }
