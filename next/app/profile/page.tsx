@@ -45,6 +45,7 @@ export default function ProfilePage(): JSX.Element {
   const [loading, setLoading] = useState(true);
   const [svagaLoading, setSvagaLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -91,6 +92,7 @@ export default function ProfilePage(): JSX.Element {
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setLinkError(null);
     await Promise.all([fetchProfile(), fetchHistory(), fetchSvagaStatus()]);
     setLoading(false);
   }, [fetchProfile, fetchHistory, fetchSvagaStatus]);
@@ -101,11 +103,14 @@ export default function ProfilePage(): JSX.Element {
 
   const handleSvagaAction = async () => {
     setSvagaLoading(true);
+    setLinkError(null);
     try {
       const res = await fetch("/api/svaga/link", { method: "POST" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "Не удалось связать/обновить SVAGA+");
+        const msg = err.error || "Не удалось связать/обновить SVAGA+";
+        setLinkError(msg);
+        return;
       }
       // Refresh status after link/refresh
       await fetchSvagaStatus();
@@ -113,7 +118,7 @@ export default function ProfilePage(): JSX.Element {
       await fetchProfile();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Ошибка SVAGA+";
-      alert(msg);
+      setLinkError(msg);
     } finally {
       setSvagaLoading(false);
     }
@@ -215,6 +220,17 @@ export default function ProfilePage(): JSX.Element {
           <div className="mt-1 text-[10px] text-zinc-500">
             Нажмите, чтобы связать аккаунт или обновить подписку из SVAGA+.
           </div>
+          {linkError && (
+            <div className="mt-2 rounded-none border-2 border-red-500 bg-red-900/30 p-2 text-sm text-red-300">
+              Ошибка привязки SVAGA+: {linkError}
+              <button
+                onClick={() => setLinkError(null)}
+                className="ml-2 text-xs underline"
+              >
+                скрыть
+              </button>
+            </div>
+          )}
         </div>
 
         {/* My Scrans */}
