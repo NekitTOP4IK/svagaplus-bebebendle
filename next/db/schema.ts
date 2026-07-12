@@ -105,3 +105,4 @@ export type DailyScrandle = typeof dailyScrandles.$inferSelect;
 export type ScrandleVote = typeof scrandleVotes.$inferSelect;
 export type DailyUserResult = typeof dailyUserResults.$inferSelect;
 export type TelegramVote = typeof telegramVotes.$inferSelect;
+export type User = typeof users.$inferSelect;

@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { approveScran as approveScranAction, deleteScran as deleteScranAction } from "@/app/admin/actions";
 
 interface UseScranMutationsParams {
-  adminPassword: string;
   onUnauthorized: () => void;
   onSuccess: () => void;
 }
@@ -17,7 +16,6 @@ interface UseScranMutationsReturn {
 }
 
 export function useScranMutations({
-  adminPassword,
   onUnauthorized,
   onSuccess,
 }: UseScranMutationsParams): UseScranMutationsReturn {
@@ -52,9 +50,7 @@ export function useScranMutations({
       try {
         const response = await fetch(`/api/admin/scrans/${id}/ban`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${adminPassword}`,
-          },
+          // No Authorization header: auth via httpOnly cookie
         });
 
         if (response.ok) {
@@ -66,7 +62,7 @@ export function useScranMutations({
         console.error("Error banning scran:", error);
       }
     },
-    [adminPassword, onUnauthorized, onSuccess]
+    [onUnauthorized, onSuccess]
   );
 
   const deleteScran = useCallback(

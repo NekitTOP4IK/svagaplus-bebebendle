@@ -2,6 +2,7 @@
 
 import { db, scrans, telegramVotes, scrandleVotes, dailyScrandles } from "@/db/schema";
 import { eq, or } from "drizzle-orm";
+import { getCurrentUser } from "@/lib/auth-server";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -11,6 +12,11 @@ interface ApproveScranResult {
 }
 
 export async function approveScran(id: number): Promise<ApproveScranResult> {
+  const user = await getCurrentUser();
+  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
+    return { success: false, message: "Unauthorized" };
+  }
+
   if (!BOT_TOKEN) {
     console.error("BOT_TOKEN is not set");
     return { success: false, message: "Bot token not configured" };
@@ -67,6 +73,11 @@ export async function deleteScran(
   id: number,
   comment: string
 ): Promise<ApproveScranResult> {
+  const user = await getCurrentUser();
+  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
+    return { success: false, message: "Unauthorized" };
+  }
+
   if (!BOT_TOKEN) {
     console.error("BOT_TOKEN is not set");
     return { success: false, message: "Bot token not configured" };

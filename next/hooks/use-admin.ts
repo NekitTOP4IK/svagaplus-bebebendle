@@ -18,8 +18,7 @@ interface UseAdminReturn {
   totalPages: number;
   sortField: SortField;
   sortOrder: SortOrder;
-  adminPassword: string;
-  login: (password: string) => Promise<boolean>;
+  login: (data: Record<string, string>) => Promise<boolean>;
   logout: () => void;
   approveScran: (id: number) => Promise<void>;
   banScran: (id: number) => Promise<void>;
@@ -31,7 +30,7 @@ interface UseAdminReturn {
 
 export function useAdmin(): UseAdminReturn {
   // Compose smaller hooks
-  const { isAuthenticated, adminPassword, login, logout } = useAdminAuth();
+  const { isAuthenticated, login, logout } = useAdminAuth();
   const { sortField, sortOrder, handleSort } = useAdminSorting();
   const {
     currentPage,
@@ -40,10 +39,9 @@ export function useAdmin(): UseAdminReturn {
     setTotalItems,
   } = useAdminPagination();
 
-  // Data fetching with dependencies
+  // Data fetching with dependencies (no longer needs password; uses cookie)
   const { scrans, loading, refetch } = useScransData({
     isAuthenticated,
-    adminPassword,
     currentPage,
     sortField,
     sortOrder,
@@ -51,9 +49,8 @@ export function useAdmin(): UseAdminReturn {
     onTotalItems: setTotalItems,
   });
 
-  // Mutations
+  // Mutations (no longer needs password; uses cookie for server auth)
   const { approveScran, banScran, deleteScran } = useScranMutations({
-    adminPassword,
     onUnauthorized: logout,
     onSuccess: refetch,
   });
@@ -66,7 +63,6 @@ export function useAdmin(): UseAdminReturn {
     totalPages,
     sortField,
     sortOrder,
-    adminPassword,
     login,
     logout,
     approveScran,

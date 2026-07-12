@@ -8,7 +8,6 @@ type SortOrder = "asc" | "desc";
 
 interface UseScransDataParams {
   isAuthenticated: boolean;
-  adminPassword: string;
   currentPage: number;
   sortField: SortField;
   sortOrder: SortOrder;
@@ -24,7 +23,6 @@ interface UseScransDataReturn {
 
 export function useScransData({
   isAuthenticated,
-  adminPassword,
   currentPage,
   sortField,
   sortOrder,
@@ -36,17 +34,13 @@ export function useScransData({
   const [shouldRefetch, setShouldRefetch] = useState(0);
 
   const fetchScrans = useCallback(async () => {
-    if (!isAuthenticated || !adminPassword) return;
+    if (!isAuthenticated) return;
 
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/admin/scrans?page=${currentPage}&limit=10&sort=${sortField}&order=${sortOrder}`,
-        {
-          headers: {
-            Authorization: `Bearer ${adminPassword}`,
-          },
-        }
+        `/api/admin/scrans?page=${currentPage}&limit=10&sort=${sortField}&order=${sortOrder}`
+        // Cookie sent automatically; server validates via getCurrentUser + role
       );
 
       if (response.ok) {
@@ -61,10 +55,10 @@ export function useScransData({
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, adminPassword, currentPage, sortField, sortOrder, onUnauthorized, onTotalItems]);
+  }, [isAuthenticated, currentPage, sortField, sortOrder, onUnauthorized, onTotalItems]);
 
   useEffect(() => {
-    if (isAuthenticated && adminPassword) {
+    if (isAuthenticated) {
       fetchScrans();
     }
   }, [isAuthenticated, fetchScrans, shouldRefetch]);

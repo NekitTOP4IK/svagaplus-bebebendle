@@ -1,23 +1,11 @@
 import { NextResponse } from "next/server";
 import { db, scrans } from "@/db/schema";
 import { asc, desc } from "drizzle-orm";
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-
-function checkAuth(request: Request): boolean {
-  if (!ADMIN_PASSWORD) return false;
-  
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return false;
-  }
-  
-  const password = authHeader.slice(7);
-  return password === ADMIN_PASSWORD;
-}
+import { getCurrentUser } from "@/lib/auth-server";
 
 export async function GET(request: Request) {
-  if (!checkAuth(request)) {
+  const user = await getCurrentUser();
+  if (!user || (user.role !== "moderator" && user.role !== "admin")) {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401 }
