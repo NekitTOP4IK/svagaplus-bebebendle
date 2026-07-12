@@ -5,11 +5,13 @@ import { ScranRow } from "@/components/admin/scran-row";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
+type ViewMode = "list" | "queue";
 
 interface ScranTableProps {
   scrans: Scran[];
   sortField: SortField;
   sortOrder: SortOrder;
+  view?: ViewMode;
   onSort: (field: SortField) => void;
   onApprove: (id: number) => void;
   onBan: (id: number) => void;
@@ -45,11 +47,13 @@ export function ScranTable({
   scrans,
   sortField,
   sortOrder,
+  view,
   onSort,
   onApprove,
   onBan,
   onDelete,
 }: ScranTableProps) {
+  const isQueue = view === "queue";
   return (
     <div className="pixel-container overflow-hidden rounded-none border-4 border-black bg-zinc-900/80">
       <table className="w-full">
@@ -72,6 +76,11 @@ export function ScranTable({
               currentOrder={sortOrder}
               onSort={onSort}
             />
+            {isQueue && (
+              <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-white">
+                Автор
+              </th>
+            )}
             <SortableHeader
               field="price"
               label="Price"
@@ -113,6 +122,7 @@ export function ScranTable({
             <ScranRow
               key={scran.id}
               scran={scran}
+              view={view}
               onApprove={onApprove}
               onBan={onBan}
               onDelete={onDelete}

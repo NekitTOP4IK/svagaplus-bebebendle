@@ -9,6 +9,7 @@ import { DeleteScranModal } from "@/components/admin/delete-scran-modal";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
+type ViewMode = "list" | "queue";
 
 interface AdminDashboardProps {
   scrans: Scran[];
@@ -17,11 +18,19 @@ interface AdminDashboardProps {
   totalPages: number;
   sortField: SortField;
   sortOrder: SortOrder;
+  // Queue view support (Task 5)
+  view?: ViewMode;
+  subscriberOnly?: boolean;
+  subscriberCount?: number;
+  regularCount?: number;
   onSort: (field: SortField) => void;
   onPageChange: (page: number) => void;
   onApprove: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (id: number, comment: string) => Promise<boolean>;
+  onSetView?: (mode: ViewMode) => void;
+  onSetSubscriberOnly?: (only: boolean) => void;
+  onToggleSubscriberOnly?: () => void;
 }
 
 function LoadingState() {
@@ -39,11 +48,18 @@ export function AdminDashboard({
   totalPages,
   sortField,
   sortOrder,
+  view = "list",
+  subscriberOnly = false,
+  subscriberCount,
+  regularCount,
   onSort,
   onPageChange,
   onApprove,
   onBan,
   onDelete,
+  onSetView,
+  onSetSubscriberOnly,
+  onToggleSubscriberOnly,
 }: AdminDashboardProps) {
   const [deletingScran, setDeletingScran] = useState<Scran | null>(null);
 
@@ -68,6 +84,39 @@ export function AdminDashboard({
           </Link>
         </div>
 
+        {/* Task 5: Hybrid queue controls + counts */}
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onSetView?.("queue")}
+              className={`pixel-btn px-3 py-1 text-sm font-bold ${view === "queue" ? "bg-yellow-400 text-black" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
+            >
+              Очередь модерации
+            </button>
+            <button
+              onClick={() => onSetView?.("list")}
+              className={`pixel-btn px-3 py-1 text-sm font-bold ${view === "list" ? "bg-yellow-400 text-black" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
+            >
+              Все записи
+            </button>
+          </div>
+
+          {view === "queue" && (
+            <>
+              <div className="pixel-text text-sm text-white/80">
+                Subscribers: <span className="font-bold text-white">{subscriberCount ?? "—"}</span> | Regular: <span className="font-bold text-white">{regularCount ?? "—"}</span>
+              </div>
+              <button
+                onClick={() => onToggleSubscriberOnly?.()}
+                className={`pixel-btn px-3 py-1 text-sm font-bold ${subscriberOnly ? "bg-green-600 text-white" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
+                title="Фильтр: только с is_subscriber_at_submit"
+              >
+                {subscriberOnly ? "✓ Только подписчики" : "Только подписчики"}
+              </button>
+            </>
+          )}
+        </div>
+
         {loading ? (
           <LoadingState />
         ) : (
@@ -76,6 +125,7 @@ export function AdminDashboard({
               scrans={scrans}
               sortField={sortField}
               sortOrder={sortOrder}
+              view={view}
               onSort={onSort}
               onApprove={onApprove}
               onBan={onBan}

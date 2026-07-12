@@ -141,13 +141,15 @@ export async function requireRole(role: 'moderator' | 'admin')
 
 ## Task 3: SVAGA+ Linking Endpoints & Logic
 
+**Status: COMPLETED** (by subagent 019f5755-fe44-73f1-afed-3c240a3be97b)
+
 **Files:**
 - `next/app/api/svaga/link/route.ts`
 - `next/app/api/svaga/status/route.ts` (public for user)
 - `next/lib/svaga.ts` (internal client)
 - Update `next/db/schema.ts` usage
 
-- [ ] **Step 1: Add internal SVAGA client**
+- [x] **Step 1: Add internal SVAGA client**
 
 ```ts
 // next/lib/svaga-client.ts
@@ -159,13 +161,13 @@ export async function getSubscriberStatus(telegramUserId: number): Promise<{
 
 Call svagaplus internal endpoint with `INTERNAL_SECRET`.
 
-- [ ] **Step 2: Implement linking endpoint**
+- [x] **Step 2: Implement linking endpoint**
 
 - Authenticated user calls it.
 - Calls svagaplus, stores `svaga_user_id`, `is_subscriber`, timestamps.
 - Returns current status.
 
-- [ ] **Step 3: Internal endpoint for bot**
+- [x] **Step 3: Internal endpoint for bot**
 
 `GET /api/internal/svaga/subscription-status?telegram_id=...`
 
@@ -173,9 +175,9 @@ Call svagaplus internal endpoint with `INTERNAL_SECRET`.
 - Returns cached or fresh status
 - Triggers refresh if stale (> 1 hour)
 
-- [ ] **Step 4: Add "Link SVAGA+" button + status display in profile (later task)**
+- [ ] **Step 4: Add "Link SVAGA+" button + status display in profile (later task)**  <!-- skipped per plan -->
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ---
 

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
-import { db, scrans } from "@/db/schema";
-import { asc, desc } from "drizzle-orm";
+import { db, scrans, users } from "@/db/schema";
+import { asc, desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth-server";
+import {
+  computeQueueScore,
+  interleaveQueue,
+  getAuthorKey,
+  type ScranWithMeta,
+} from "@/lib/moderation-queue";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -18,13 +24,102 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const sortField = searchParams.get("sort") || "id";
     const sortOrder = searchParams.get("order") || "desc";
+    const view = searchParams.get("view") || "list";
+    const subscriberOnly = searchParams.get("subscriber_only") === "true";
 
     const offset = (page - 1) * limit;
 
+    if (view === "queue") {
+      // === QUEUE MODE: pending only, score + 3:1 interleave ===
+      // Fetch ALL pending (reasonable for in-memory reorder; per design note)
+      const pendingRows = await db
+        .select({
+          scran: scrans,
+          user: {
+            id: users.id,
+            telegramUsername: users.telegramUsername,
+            displayName: users.displayName,
+          },
+        })
+        .from(scrans)
+        .leftJoin(users, eq(scrans.submittedByUserId, users.id))
+        .where(eq(scrans.approved, false));
+
+      // Enrich with author info
+      let allPending: ScranWithMeta[] = pendingRows.map((row) => {
+        const s = row.scran;
+        const u = row.user;
+        return {
+          ...s,
+          authorUsername: u?.telegramUsername ?? null,
+          authorDisplayName: u?.displayName ?? null,
+          isSubscriberAtSubmit: s.isSubscriberAtSubmit,
+          submittedByUserId: s.submittedByUserId,
+          telegramId: s.telegramId,
+        } as ScranWithMeta;
+      });
+
+      // Compute pending counts per author (for penalty + UI display)
+      const countMap = new Map<string, number>();
+      for (const p of allPending) {
+        const key = getAuthorKey(p);
+        countMap.set(key, (countMap.get(key) || 0) + 1);
+      }
+      for (const p of allPending) {
+        p.pendingCount = countMap.get(getAuthorKey(p)) || 1;
+      }
+
+      // Proxy "hours waiting" from id (no created_at on scrans table).
+      // Older (smaller id) waited longer. Scale chosen for meaningful aging.
+      const maxId = allPending.length > 0 ? Math.max(...allPending.map((p) => p.id)) : 0;
+
+      // Attach score for sorting within buckets
+      const scored = allPending.map((p) => {
+        const ageUnits = maxId - p.id;
+        const hoursWaiting = Math.max(0, ageUnits / 80);
+        const score = computeQueueScore(p, p.pendingCount || 1, hoursWaiting);
+        return { ...p, _score: score };
+      });
+
+      // Split
+      let subscriberList = scored.filter((p) => p.isSubscriberAtSubmit === true);
+      let regularList = scored.filter((p) => p.isSubscriberAtSubmit !== true);
+
+      // Sort each bucket by score desc (higher = higher priority)
+      subscriberList.sort((a, b) => ((b._score as number) ?? 0) - ((a._score as number) ?? 0));
+      regularList.sort((a, b) => ((b._score as number) ?? 0) - ((a._score as number) ?? 0));
+
+      // Interleave or filter-only
+      let ordered: ScranWithMeta[];
+      if (subscriberOnly) {
+        ordered = subscriberList.map(({ _score, ...rest }) => rest as ScranWithMeta);
+      } else {
+        const interleaved = interleaveQueue(subscriberList, regularList);
+        ordered = interleaved.map(({ _score, ...rest }) => rest as ScranWithMeta);
+      }
+
+      // Paginate the fair ordered list
+      const pageItems = ordered.slice(offset, offset + limit);
+      const total = ordered.length;
+      const subscriberCount = subscriberList.length;
+      const regularCount = regularList.length;
+
+      return NextResponse.json({
+        scrans: pageItems,
+        total,
+        page,
+        limit,
+        subscriberCount,
+        regularCount,
+        view: "queue",
+      });
+    }
+
+    // === DEFAULT / LIST MODE: original behavior (all scrans, sortable) ===
     // Build order by clause
     let orderBy;
     const orderFn = sortOrder === "asc" ? asc : desc;
-    
+
     switch (sortField) {
       case "name":
         orderBy = orderFn(scrans.name);
@@ -45,7 +140,7 @@ export async function GET(request: Request) {
         orderBy = orderFn(scrans.id);
     }
 
-    // Get total count
+    // Get total count (note: inefficient full scan kept for compatibility)
     const allScrans = await db.select().from(scrans);
     const total = allScrans.length;
 

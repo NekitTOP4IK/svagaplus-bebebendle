@@ -3,18 +3,28 @@
 import type { Scran } from "@/types/scran";
 import { getLikesPercentage } from "@/lib/scoring";
 
+type ViewMode = "list" | "queue";
+
 interface ScranRowProps {
   scran: Scran;
+  view?: ViewMode;
   onApprove: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (scran: Scran) => void;
 }
 
-export function ScranRow({ scran, onApprove, onBan, onDelete }: ScranRowProps) {
+export function ScranRow({ scran, view, onApprove, onBan, onDelete }: ScranRowProps) {
   const percentage = getLikesPercentage({
     numberOfLikes: scran.numberOfLikes,
     numberOfDislikes: scran.numberOfDislikes,
   });
+
+  const isQueue = view === "queue";
+  const isSub = scran.isSubscriberAtSubmit === true;
+  const authorLabel = scran.authorUsername || scran.authorDisplayName || (scran.telegramId ? `tg:${scran.telegramId}` : "аноним");
+  const pendingCount = typeof scran.pendingCount === "number" ? scran.pendingCount : undefined;
+  const pendingNote = pendingCount != null ? ` (${pendingCount} на модерации)` : "";
+  const overLimit = pendingCount != null && pendingCount > 6;
 
   return (
     <tr className="hover:bg-zinc-800/50">
@@ -31,13 +41,34 @@ export function ScranRow({ scran, onApprove, onBan, onDelete }: ScranRowProps) {
         )}
       </td>
       <td className="px-6 py-4">
-        <div className="text-sm font-bold text-white">{scran.name}</div>
+        <div className="flex items-center gap-2">
+          <div className="text-sm font-bold text-white">{scran.name}</div>
+          {isSub && (
+            <span className="inline-flex rounded-none bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-black">
+              SVAGA+
+            </span>
+          )}
+        </div>
         {scran.description && (
           <div className="text-xs text-zinc-400 line-clamp-1">
             {scran.description}
           </div>
         )}
       </td>
+      {isQueue && (
+        <td className="whitespace-nowrap px-6 py-4 text-sm text-white">
+          <span className="text-white/90">{authorLabel}</span>
+          {pendingNote && (
+            <span className={`ml-1 text-xs ${overLimit ? "text-red-400 font-bold" : "text-amber-400"}`}>
+              {pendingNote}
+              {overLimit && " ⚠️"}
+            </span>
+          )}
+          {overLimit && (
+            <span className="ml-2 inline rounded-none bg-red-600 px-1 py-0.5 text-[9px] font-bold text-white">>6</span>
+          )}
+        </td>
+      )}
       <td className="whitespace-nowrap px-6 py-4 text-sm text-white">
         {scran.price.toFixed(2)} ₽
       </td>

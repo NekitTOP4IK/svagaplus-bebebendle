@@ -13,12 +13,19 @@ export default function AdminPage() {
     totalPages,
     sortField,
     sortOrder,
+    view,
+    subscriberOnly,
+    subscriberCount,
+    regularCount,
     login,
     approveScran,
     banScran,
     deleteScran,
     handleSort,
     setCurrentPage,
+    setView,
+    setSubscriberOnly,
+    toggleSubscriberOnly,
   } = useAdmin();
 
   if (!isAuthenticated) {
@@ -33,11 +40,18 @@ export default function AdminPage() {
       totalPages={totalPages}
       sortField={sortField}
       sortOrder={sortOrder}
+      view={view}
+      subscriberOnly={subscriberOnly}
+      subscriberCount={subscriberCount}
+      regularCount={regularCount}
       onSort={handleSort}
       onPageChange={setCurrentPage}
       onApprove={approveScran}
       onBan={banScran}
       onDelete={deleteScran}
+      onSetView={setView}
+      onSetSubscriberOnly={setSubscriberOnly}
+      onToggleSubscriberOnly={toggleSubscriberOnly}
     />
   );
 }
