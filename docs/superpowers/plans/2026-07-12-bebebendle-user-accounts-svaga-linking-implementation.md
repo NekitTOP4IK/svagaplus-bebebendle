@@ -222,61 +222,65 @@ Add parameters and columns for `is_subscriber_at_submit`.
 
 ## Task 5: Hybrid Moderation Queue in Admin
 
+**Status: COMPLETED** (by subagent 019f576c-5ccf-7a62-8287-b8b2a9e581fd)
+
 **Files:**
 - `next/app/api/admin/scrans/route.ts` (add queue mode)
 - `next/components/admin/...` (update table or new queue view)
 - `next/lib/moderation-queue.ts` (pure logic for scoring + interleaving)
 
-- [ ] **Step 1: Implement queue scoring logic** (pure function, easy to test)
+- [x] **Step 1: Implement queue scoring logic** (pure function, easy to test)
 
 ```ts
 export function computeQueueScore(scran: ScranWithMeta, pendingCount: number, hoursWaiting: number)
 ```
 
-- [ ] **Step 2: Create interleaving merger**
+- [x] **Step 2: Create interleaving merger**
 
 Function that takes subscriber list + regular list and produces fair ordered list (3:1).
 
-- [ ] **Step 3: Update admin scrans API**
+- [x] **Step 3: Update admin scrans API**
 
 Support `?view=queue&subscriber_only=true/false`
 
 Fetch pending with joins to users for role/subscriber data, compute scores, interleave, paginate the result.
 
-- [ ] **Step 4: Show in UI**
+- [x] **Step 4: Show in UI**
   - Counts: "Subscribers: X | Regular: Y"
   - Badge for subscriber scrans
   - "(4 на модерации)" next to author
   - Simple filter toggle
 
-- [ ] **Step 5: Enforce max 6 pending per user** (in insert + in queue display warning)
+- [x] **Step 5: Enforce max 6 pending per user** (in insert + in queue display warning)
 
-- [ ] **Step 6: Add tests** for computeQueueScore and interleave functions
+- [x] **Step 6: Add tests** for computeQueueScore and interleave functions
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ---
 
 ## Task 6: User Profile & History
+
+**Status: COMPLETED** (by subagent 019f5776-fdc6-75e2-8299-93a7818505dd)
 
 **Files:**
 - `next/app/profile/page.tsx` (new)
 - `next/app/api/user/profile/route.ts`
 - `next/app/api/user/history/route.ts`
 
-- [ ] **Step 1: API to return user's scrans + play history**
+- [x] **Step 1: API to return user's scrans + play history**
 
 Join `daily_user_results` + daily scrandles for scores.
 
-- [ ] **Step 2: Create profile page**
+- [x] **Step 2: Create profile page**
 
 - List of my scrans (status, date if approved)
 - Play history table (date, score, link to results if possible)
 - SVAGA+ link status + "Refresh" / "Link" button
 
-- [ ] **Step 3: Wire linking button** to the endpoint from Task 3
+- [x] **Step 3: Wire linking button** to the endpoint from Task 3
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ---
 
