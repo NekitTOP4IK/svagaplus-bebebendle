@@ -87,9 +87,20 @@ pm2 delete ecosystem.config.js
 | `make logs` | Просмотр логов |
 | `make migrate` | Применить миграции БД |
 | `make new-daily` | Сгенерировать новый дейлик вручную |
+| `make backfill-users` | Backfill `submitted_by_user_id` для существующих scrans (по telegram_id) |
+| `make refresh-subscribers` | Обновить статус подписчика SVAGA+ для всех привязанных пользователей |
 | `make pm2-start` | Запустить через PM2 (без Docker) |
 | `make pm2-stop` | Остановить PM2 процессы |
 | `make pm2-logs` | Логи PM2 |
+
+### Data backfill & maintenance scripts
+
+After the users/SVAGA+ linking migration, use these to maintain data consistency:
+
+- `make backfill-users` — Matches legacy `scrans.telegram_id` to `users` and populates `submitted_by_user_id` for historical submissions. Idempotent and safe.
+- `make refresh-subscribers` — Re-fetches current subscriber status from SVAGA+ for every linked user and updates the cached `is_subscriber` + timestamps. Useful as a periodic job (cron) or after bulk linking.
+
+Both scripts run inside the `next` container using the shared DB. They can also be executed directly (with proper env) via `bun run scripts/<name>.ts` from `next/`.
 
 ## Как работает
 

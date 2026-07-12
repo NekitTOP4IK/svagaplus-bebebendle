@@ -286,45 +286,49 @@ Join `daily_user_results` + daily scrandles for scores.
 
 ## Task 7: Role-Based Access & Admin Hardening
 
+**Status: COMPLETED** (by subagent 019f5786-7136-7810-8b69-724e629f04e2)
+
 **Files:**
 - All admin routes and server actions
 - `next/hooks/use-admin-auth.ts` (now real user-based)
 - Middleware or layout protection
 
-- [ ] **Step 1: Replace old password auth with real user + role check**
+- [x] **Step 1: Replace old password auth with real user + role check**
 
 In admin APIs: `const user = await getCurrentUser(); if (!['moderator','admin'].includes(user.role)) ...`
 
-- [ ] **Step 2: Moderators see limited actions** (approve/ban only, no delete, no user management)
+- [x] **Step 2: Moderators see limited actions** (approve/ban only, no delete, no user management)
 
-- [ ] **Step 3: Update login form** to use Telegram widget instead of password
+- [x] **Step 3: Update login form** to use Telegram widget instead of password
 
-- [ ] **Step 4: Add "Users" tab in admin for admins** (list users, change roles) — minimal
+- [x] **Step 4: Add "Users" tab in admin for admins** (list users, change roles) — minimal
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ---
 
 ## Task 8: Backfill & Data Migration Scripts
 
+**Status: COMPLETED** (by subagent 019f578e-4451-7263-a14f-b14eaf8fcda6)
+
 **Files:**
 - `next/scripts/backfill-user-ids.ts`
 - `next/scripts/refresh-subscriber-status.ts`
 
-- [ ] **Step 1: Script to backfill `submitted_by_user_id`** for existing scrans by matching `telegram_id`
+- [x] **Step 1: Script to backfill `submitted_by_user_id`** for existing scrans by matching `telegram_id`
 
-- [ ] **Step 2: Script to refresh subscriber status** for all linked users (can be run via make or cron)
+- [x] **Step 2: Script to refresh subscriber status** for all linked users (can be run via make or cron)
 
-- [ ] **Step 3: Add to Makefile**
+- [x] **Step 3: Add to Makefile**
 
 ```makefile
 backfill-users:
 	docker compose exec next bun run scripts/backfill-user-ids.ts
 ```
 
-- [ ] **Step 4: Document in README**
+- [x] **Step 4: Document in README**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ---
 

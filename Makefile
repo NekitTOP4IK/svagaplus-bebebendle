@@ -1,6 +1,6 @@
 # Makefile for Bebebendle Docker operations
 
-.PHONY: help build up down logs shell test test-next clean
+.PHONY: help build up down logs shell test test-next clean backfill-users refresh-subscribers
 
 # Default target
 help:
@@ -17,6 +17,8 @@ help:
 	@echo "  make restart      - Restart all services"
 	@echo "  make migrate-data - Migrate data from SQLite to PostgreSQL"
 	@echo "  make test-next    - Run frontend tests"
+	@echo "  make backfill-users      - Backfill submitted_by_user_id on existing scrans"
+	@echo "  make refresh-subscribers - Refresh SVAGA+ subscriber status for linked users"
 
 # Build all images
 build:
@@ -106,6 +108,14 @@ new-daily-raw:
 # Migrate data from SQLite to PostgreSQL
 migrate-data:
 	docker compose exec next bun run scripts/migrate-data.ts
+
+# Backfill submitted_by_user_id on historical scrans by matching telegram_id
+backfill-users:
+	docker compose exec next bun run scripts/backfill-user-ids.ts
+
+# Refresh subscriber status for all linked users (run via make or cron)
+refresh-subscribers:
+	docker compose exec next bun run scripts/refresh-subscriber-status.ts
 
 # Run frontend tests
 test-next:
