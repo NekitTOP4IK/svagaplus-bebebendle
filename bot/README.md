@@ -20,7 +20,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ```bash
 cd bot
-cp .env.example .env
+cp ../.env.sample .env
 ```
 
 Edit `.env` and add your bot token from @BotFather:

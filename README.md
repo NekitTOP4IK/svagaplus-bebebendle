@@ -17,7 +17,7 @@ Scrandle по еде зрителей стримера Olesha. Каждый де
 ```bash
 # Скопировать и настроить переменные окружения
 cp .env.sample .env
-# Отредактировать .env (BOT_TOKEN, ADMIN_PASSWORD, CRON_SECRET)
+# Отредактировать .env (см. комментарии внутри .env.sample)
 
 # Собрать и запустить
 make up-build
@@ -41,7 +41,7 @@ make migrate
 **Подготовка:**
 
 ```bash
-# 1. Настрой .env в корне проекта (обязательно укажи POSTGRES_HOST=localhost и т.п.)
+# 1. Настрой .env в корне проекта (см. .env.sample — там все актуальные переменные с комментариями)
 cp .env.sample .env
 
 # 2. Подготовь фронтенд
