@@ -3,11 +3,25 @@ import { db, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth-server";
 import { getSubscriberStatus } from "@/lib/svaga";
+import { checkRateLimit } from "@/app/api/middleware/rateLimit";
 
 export async function POST() {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit linking/refresh per user (security polish, even though authenticated)
+  const rateLimitResult = await checkRateLimit(
+    `svaga-link:${user.telegramId}`,
+    5,
+    60
+  );
+  if (!rateLimitResult.allowed) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait." },
+      { status: 429 }
+    );
   }
 
   console.log(`[svaga-link] linking initiated for telegramId=${user.telegramId} (userId=${user.id})`);
