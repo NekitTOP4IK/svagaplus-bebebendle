@@ -68,14 +68,16 @@ bot/
 
 ## 🗄️ Database
 
-The bot connects to the same SQLite database as the Next.js frontend:
-- **Path**: `../db/bebendle.sqlite` (relative to bot directory)
-- **Table**: `scrans` with `telegram_id` field for tracking authors
-- **Library**: `aiosqlite` for async SQLite operations
+The bot connects to the shared PostgreSQL database (configured via env, typically via docker-compose):
+- **Engine**: asyncpg + POSTGRES_HOST/PORT/DB/USER/PASSWORD
+- **Tables involved**: `scrans` (incl. `telegram_id`, `is_subscriber_at_submit`, `subscriber_checked_at`, `submitted_by_user_id`), plus `users` table for accounts/linking
+- **Library**: asyncpg
 
 When a user suggests a scran:
-- `approved` is set to `0` (false)
+- `approved` is set to false
 - `telegram_id` stores the user's Telegram ID
+- `is_subscriber_at_submit` + `subscriber_checked_at` capture SVAGA+ status at submit time
+- `submitted_by_user_id` may be backfilled from `users` table
 - Admin can approve it via the web admin panel
 
 ## 🛠️ Development
@@ -112,6 +114,9 @@ uv run pytest
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `BOT_TOKEN` | Telegram bot token from @BotFather | Yes |
+| `BEBEBENDLE_INTERNAL_URL` | Base URL for bebebendle (e.g. http://next:3000) for internal SVAGA checks | No (defaults to docker service) |
+| `INTERNAL_SECRET` | Shared secret for calling bebebendle internal APIs (and receiving from svagaplus) | Yes for SVAGA+ features |
+| `POSTGRES_*` | Host/port/db/user/pass for the shared DB | Yes (in production/docker) |
 
 ### Bot Commands
 
@@ -132,16 +137,31 @@ help - Показать помощь
 4. Bot asks for description (optional, max 500 chars)
 5. Bot asks for price (0-1,000,000 rubles)
 6. Bot shows preview and asks for confirmation
-7. On confirmation, saves to database with `approved=false`
-8. Admin can approve via web panel at `/admin`
+7. On confirmation, bot fetches current SVAGA+ subscriber status via bebebendle internal API (for snapshot)
+8. On confirmation, saves to database with `approved=false` + `is_subscriber_at_submit`
+9. Admin can approve via web panel at `/admin` (sees subscriber badges and fair queue)
 
 ## 🔗 Integration with Frontend
 
-The bot and frontend share the same database:
+The bot and frontend share the same PostgreSQL DB:
 - Frontend reads scrans for the daily game
-- Bot inserts new scrans as "pending"
-- Admin panel (frontend) shows pending scrans for approval
+- Bot inserts new scrans as "pending" (with subscriber snapshot)
+- Admin panel (frontend) shows pending scrans for approval (hybrid queue with SVAGA+ priority)
 - Once approved, scran becomes available for the daily game
+
+## 🔗 SVAGA+ Subscriber Status (new flow)
+
+- On `/suggest` confirmation, bot calls bebebendle's protected internal endpoint:
+  `GET /api/internal/svaga/subscription-status?telegram_id=...`
+  (auth via `x-internal-secret` header)
+- Bebebendle returns cached or freshly-fetched `isSubscriber` (refreshes from SVAGA+ if stale >1h, creates minimal user row if needed)
+- Status is snapshotted into `scrans.is_subscriber_at_submit`
+- This enables fair moderation queue interleaving (sub vs regular)
+- Related env for bot: `BEBEBENDLE_INTERNAL_URL` (default http://next:3000), `INTERNAL_SECRET`
+- Logging: bot and bebebendle log subscriber checks and link actions (prefixed [svaga*])
+- Rate limiting applied to internal subscriber endpoint
+
+Anonymous play on the web is unaffected (uses fingerprint + session cookies only; no Telegram/SVAGA required).
 
 ## 📝 Notes
 

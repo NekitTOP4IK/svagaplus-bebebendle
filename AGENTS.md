@@ -129,7 +129,11 @@ make shell-frontend     # Open shell in frontend container
 
 ## Testing
 
-**Frontend:** No test framework configured
+**Frontend:** vitest + some component/lib tests (in next/tests/)
+```bash
+cd next
+# (bun test or npx vitest run)  -- note: bun required for full
+```
 
 **Backend:** pytest configured:
 ```bash
@@ -144,17 +148,19 @@ pytest -k test_name     # Run tests matching pattern
 next/                   # Next.js frontend
 ├── app/               # App Router pages
 │   ├── admin/        # Admin panel
-│   ├── api/          # API routes
+│   ├── api/          # API routes (incl. /svaga/* , /internal/svaga/* , /user/* )
 │   ├── components/   # React components
-│   └── lib/          # Utility functions
-├── db/               # Drizzle schema & migrations
+│   ├── profile/      # User profile (SVAGA link UI + history)
+│   └── lib/          # Utility functions (svaga.ts, auth-server.ts)
+├── db/               # Drizzle schema & migrations (users + svaga fields)
 ├── public/           # Static assets
-└── scripts/          # Utility scripts
+└── scripts/          # Utility scripts (backfill, refresh-subscribers)
+├── app/api/middleware/rateLimit.ts  # used for daily + now internal svaga
 
 bot/                   # Python Telegram bot
 ├── src/              # Source code
-│   ├── main.py       # Bot handlers
-│   └── database.py   # Database operations
+│   ├── main.py       # Bot handlers (get_svaga_subscriber_status on suggest)
+│   └── database.py   # Database operations (insert with is_subscriber_at_submit)
 └── pyproject.toml    # Dependencies & config
 ```
 
@@ -165,3 +171,16 @@ bot/                   # Python Telegram bot
 - Dark mode via `prefers-color-scheme`
 - Geist font for typography
 - Bun for frontend, UV for Python
+
+## New Flow (User Accounts + SVAGA+ Linking) - Task 9 Polish Notes
+
+- Optional Telegram login (via /admin widget for now) creates local `users` row.
+- SVAGA+ linking: profile page -> POST /api/svaga/link (uses lib/svaga.ts to call svagaplus internal).
+- Subscriber status: cached in users; bot calls GET /api/internal/svaga/subscription-status (X-Internal-Secret) before insert_scran to snapshot `is_subscriber_at_submit`.
+- Internal endpoint is rate-limited (using existing rateLimit.ts middleware, 30/60s per tg id).
+- Logging added: `[svaga]`, `[svaga-link]`, `[svaga-status]`, `[svaga-internal]` prefixes for checks and linking.
+- Error UI: profile shows inline red error box for SVAGA link failures (no more alert(); specific msgs like service unavailable).
+- Anonymous plays fully independent: daily uses only sessionId + fingerprint (see /api/daily/results, actions/daily.ts, no getCurrentUser calls). UserId optional in daily_user_results.
+- Bot README and AGENTS updated for the flow.
+- See design spec risks: cached status on SVAGA+ downtime; rate limits + interleaving for abuse.
+- Run `bun run lint` before commits. Multiple small commits for polish.
