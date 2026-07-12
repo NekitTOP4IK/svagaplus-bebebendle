@@ -32,7 +32,7 @@ export const users = pgTable("users", {
   displayName: text("display_name"),
   role: text("role", { enum: ["player", "moderator", "admin"] }).notNull().default("player"),
   svagaTelegramUserId: bigint("svaga_telegram_user_id", { mode: "number" }),
-  svagaUserId: text("svaga_user_id"),           // tribute_user_id from svagaplus
+  svagaUserId: text("svaga_user_id"),           // tribute_user_id from svagaplus (set via /api/svaga/link and internal sync)
   isSubscriber: boolean("is_subscriber").default(false),
   lastSyncedAt: timestamp("last_synced_at"),
   linkedAt: timestamp("linked_at"),

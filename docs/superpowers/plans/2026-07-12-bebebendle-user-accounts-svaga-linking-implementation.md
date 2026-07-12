@@ -99,13 +99,15 @@ git commit -m "feat(db): add users table + svaga linking fields + subscriber sna
 
 ## Task 2: Telegram Authentication on Next.js Site
 
+**Status: COMPLETED** (by subagent 019f574a-feb2-7ed3-97d9-79c577cda19a)
+
 **Files:**
 - `next/app/api/auth/telegram/route.ts` (or use next-auth if we add it later — keep simple for now)
 - `next/lib/auth.ts` (session helpers)
 - `next/app/login/page.tsx` or integrate into existing layout
 - Update `next/app/admin/...` and profile routes to use new auth
 
-- [ ] **Step 1: Create Telegram Login verification utility**
+- [x] **Step 1: Create Telegram Login verification utility**
 
 ```ts
 // next/lib/telegram-auth.ts
@@ -115,11 +117,11 @@ export function verifyTelegramAuth(data: Record<string, string>, botToken: strin
 export function parseTelegramUser(data: any): { telegramId: number; username?: string; firstName?: string }
 ```
 
-- [ ] **Step 2: Create auth endpoint**
+- [x] **Step 2: Create auth endpoint**
 
 `POST /api/auth/telegram` — receives data from widget, verifies, upserts user, sets httpOnly session cookie (or JWT).
 
-- [ ] **Step 3: Add server-side session helper**
+- [x] **Step 3: Add server-side session helper**
 
 ```ts
 // next/lib/auth-server.ts
@@ -127,13 +129,13 @@ export async function getCurrentUser() { ... }
 export async function requireRole(role: 'moderator' | 'admin')
 ```
 
-- [ ] **Step 4: Add simple login UI** (reuse or create minimal page with Telegram widget script)
+- [x] **Step 4: Add simple login UI** (reuse or create minimal page with Telegram widget script)
 
-- [ ] **Step 5: Protect existing admin routes** (replace old ADMIN_PASSWORD check with role check)
+- [x] **Step 5: Protect existing admin routes** (replace old ADMIN_PASSWORD check with role check)
 
-- [ ] **Step 6: Write basic tests** for verification function
+- [x] **Step 6: Write basic tests** for verification function
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ---
 
