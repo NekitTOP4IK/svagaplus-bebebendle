@@ -527,6 +527,15 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
 
         try:
             async with database_session() as database:
+                pending = await database.count_pending_scrans(data["telegram_id"])
+                if pending >= 6:
+                    await message.answer(
+                        "У тебя уже 6 или больше предложений на модерации. Дождись их рассмотрения, прежде чем предлагать новые.",
+                        reply_markup=ReplyKeyboardRemove(),
+                    )
+                    await state.clear()
+                    return
+
                 is_sub = await get_svaga_subscriber_status(data["telegram_id"])
                 await database.insert_scran(
                     image_url=data["photo_url"],

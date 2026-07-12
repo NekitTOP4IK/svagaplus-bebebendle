@@ -3,6 +3,7 @@ import { db, dailyUserResults } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { checkRateLimit, getClientIp } from "@/app/api/middleware/rateLimit";
+import { getCurrentUser } from "@/lib/auth-server";
 
 export async function POST(request: Request) {
   try {
@@ -43,6 +44,8 @@ export async function POST(request: Request) {
       });
     }
 
+    const user = await getCurrentUser();
+
     const existing = await db
       .select()
       .from(dailyUserResults)
@@ -61,12 +64,33 @@ export async function POST(request: Request) {
       });
     }
 
+    if (user) {
+      const byUser = await db
+        .select()
+        .from(dailyUserResults)
+        .where(
+          and(
+            eq(dailyUserResults.date, date),
+            eq(dailyUserResults.userId, user.id)
+          )
+        )
+        .limit(1);
+      if (byUser.length > 0) {
+        return NextResponse.json({
+          message: "Score already recorded",
+          score: byUser[0].score,
+        });
+      }
+    }
+
+    const user = await getCurrentUser();
     await db.insert(dailyUserResults).values({
       date,
       sessionId,
       fingerprintHash: fingerprint,
       score,
       createdAt: new Date(),
+      userId: user?.id ?? null,
     });
 
     return NextResponse.json({

@@ -5,6 +5,7 @@ import { db, scrans, dailyUserResults } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { checkRateLimit } from "@/app/api/middleware/rateLimit";
 import { getLikesPercentage } from "@/lib/scoring";
+import { getCurrentUser } from "@/lib/auth-server";
 
 async function getClientIpFromHeaders(): Promise<string> {
   const headersList = await headers();
@@ -107,6 +108,8 @@ export async function submitDailyResult(
   // Use fingerprint as session ID
   const sessionId = fingerprint || `anon-${clientIp}-${Date.now()}`;
 
+  const user = await getCurrentUser();
+
   const existing = await db
     .select()
     .from(dailyUserResults)
@@ -126,12 +129,34 @@ export async function submitDailyResult(
     };
   }
 
+  if (user) {
+    const byUser = await db
+      .select()
+      .from(dailyUserResults)
+      .where(
+        and(
+          eq(dailyUserResults.date, date),
+          eq(dailyUserResults.userId, user.id)
+        )
+      )
+      .limit(1);
+    if (byUser.length > 0) {
+      return {
+        message: "Score already recorded",
+        score: byUser[0].score,
+        alreadyPlayed: true,
+      };
+    }
+  }
+
+  const user = await getCurrentUser();
   await db.insert(dailyUserResults).values({
     date,
     sessionId,
     fingerprintHash: fingerprint,
     score,
     createdAt: new Date(),
+    userId: user?.id ?? null,
   });
 
   return { success: true, score, fingerprint };

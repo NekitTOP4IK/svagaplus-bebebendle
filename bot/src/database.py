@@ -62,6 +62,17 @@ class Database:
         print(min_cos)
         return min_cos[0]
 
+    async def count_pending_scrans(self, telegram_id: str) -> int:
+        """Count pending (not approved) scrans for a user."""
+        if not self.pool:
+            raise RuntimeError("Database not connected")
+        async with self.pool.acquire() as connection:
+            count = await connection.fetchval(
+                "SELECT COUNT(*) FROM scrans WHERE telegram_id = $1 AND approved = false",
+                telegram_id,
+            )
+            return count or 0
+
     async def insert_scran(
         self,
         image_url: str,

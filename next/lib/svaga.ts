@@ -6,12 +6,13 @@ export async function getSubscriberStatus(
 ): Promise<{
   isSubscriber: boolean;
   tributeUserId?: string;
+  success: boolean;
 }> {
   if (!SVAGAPLUS_INTERNAL_URL || !INTERNAL_SECRET) {
     console.warn(
       "SVAGA+ internal config missing (SVAGAPLUS_INTERNAL_URL or INTERNAL_SECRET)"
     );
-    return { isSubscriber: false };
+    return { isSubscriber: false, success: false };
   }
 
   console.log(`[svaga] subscriber check start for telegramUserId=${telegramUserId}`);
@@ -31,7 +32,7 @@ export async function getSubscriberStatus(
 
     if (!res.ok) {
       console.error(`[svaga] subscriber check failed for ${telegramUserId} with status:`, res.status);
-      return { isSubscriber: false };
+      return { isSubscriber: false, success: false };
     }
 
     const data = (await res.json()) as {
@@ -47,9 +48,10 @@ export async function getSubscriberStatus(
     return {
       isSubscriber,
       tributeUserId,
+      success: true,
     };
   } catch (error) {
     console.error(`[svaga] Error calling SVAGA+ internal endpoint for ${telegramUserId}:`, error);
-    return { isSubscriber: false };
+    return { isSubscriber: false, success: false };
   }
 }

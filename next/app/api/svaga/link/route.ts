@@ -29,18 +29,40 @@ export async function POST() {
     const status = await getSubscriberStatus(user.telegramId);
     const now = new Date();
 
-    // Fetch current linkedAt to preserve it on re-link/refresh
+    // Fetch current to preserve on failure or no-link
     const current = await db
-      .select({ linkedAt: users.linkedAt })
+      .select({
+        linkedAt: users.linkedAt,
+        svagaUserId: users.svagaUserId,
+        svagaTelegramUserId: users.svagaTelegramUserId,
+        isSubscriber: users.isSubscriber,
+      })
       .from(users)
       .where(eq(users.telegramId, user.telegramId))
       .limit(1);
 
-    // Only set svaga link fields + linkedAt if we actually received a tribute id (i.e. linked account on svagaplus)
+    if (!status.success) {
+      // Preserve on failure (downtime etc), just update lastSyncedAt as marker
+      await db
+        .update(users)
+        .set({
+          lastSyncedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(users.telegramId, user.telegramId));
+      console.log(`[svaga-link] preserved cache on SVAGA+ failure for telegramId=${user.telegramId}`);
+      return NextResponse.json({
+        success: false,
+        isSubscriber: current[0]?.isSubscriber ?? false,
+        tributeUserId: current[0]?.svagaUserId,
+      });
+    }
+
+    // Only set/clear svaga link fields if we got a successful response
     const hasLink = !!status.tributeUserId;
     const linkedAtValue = hasLink
       ? (current[0]?.linkedAt ?? now)
-      : current[0]?.linkedAt ?? null;
+      : null;  // explicit unlink only on confirmed no-link from upstream
 
     await db
       .update(users)

@@ -25,3 +25,6 @@ ALTER TABLE "daily_user_results" ADD COLUMN IF NOT EXISTS "user_id" integer;
 CREATE INDEX IF NOT EXISTS "scrans_submitted_by_user_id_idx" ON "scrans" ("submitted_by_user_id");
 CREATE INDEX IF NOT EXISTS "scrans_is_subscriber_at_submit_idx" ON "scrans" ("is_subscriber_at_submit");
 CREATE INDEX IF NOT EXISTS "daily_user_results_user_id_idx" ON "daily_user_results" ("user_id");
+
+CREATE UNIQUE INDEX IF NOT EXISTS "unique_session_result_per_day" ON "daily_user_results" ("session_id", "date");
+CREATE UNIQUE INDEX IF NOT EXISTS "unique_user_result_per_user_day" ON "daily_user_results" ("user_id", "date");

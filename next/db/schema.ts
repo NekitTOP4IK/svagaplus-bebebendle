@@ -87,7 +87,8 @@ export const dailyUserResults = pgTable("daily_user_results", {
   createdAt: timestamp("created_at").notNull(),
   userId: integer("user_id").references(() => users.id),
 }, (table) => ({
-  uniqueResultPerDay: uniqueIndex("unique_user_result_per_day").on(table.sessionId, table.date),
+  uniqueResultPerDay: uniqueIndex("unique_session_result_per_day").on(table.sessionId, table.date),
+  uniqueResultPerUserPerDay: uniqueIndex("unique_user_result_per_user_day").on(table.userId, table.date),
 }));
 
 export const telegramVotes = pgTable("telegram_votes", {

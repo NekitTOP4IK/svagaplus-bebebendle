@@ -75,20 +75,27 @@ export async function GET(request: Request) {
         // Refresh from SVAGA+
         console.log(`[svaga-internal] status stale for ${telegramId}, refreshing from SVAGA+`);
         const fresh = await getSubscriberStatus(telegramId);
-        isSubscriber = fresh.isSubscriber;
-        tributeUserId = fresh.tributeUserId;
+        if (fresh.success) {
+          isSubscriber = fresh.isSubscriber;
+          tributeUserId = fresh.tributeUserId;
 
-        await db
-          .update(users)
-          .set({
-            svagaTelegramUserId: tributeUserId ? telegramId : null,
-            svagaUserId: tributeUserId ?? null,
-            isSubscriber,
-            lastSyncedAt: now,
-            updatedAt: now,
-          })
-          .where(eq(users.telegramId, telegramId));
-        console.log(`[svaga-internal] refreshed for ${telegramId}: isSubscriber=${isSubscriber}`);
+          await db
+            .update(users)
+            .set({
+              svagaTelegramUserId: tributeUserId ? telegramId : null,
+              svagaUserId: tributeUserId ?? null,
+              isSubscriber,
+              lastSyncedAt: now,
+              updatedAt: now,
+            })
+            .where(eq(users.telegramId, telegramId));
+          console.log(`[svaga-internal] refreshed for ${telegramId}: isSubscriber=${isSubscriber}`);
+        } else {
+          // preserve cache on failure
+          isSubscriber = row.isSubscriber ?? false;
+          tributeUserId = row.svagaUserId ?? undefined;
+          console.log(`[svaga-internal] refresh failed, preserving cache for ${telegramId}`);
+        }
       } else {
         isSubscriber = row.isSubscriber ?? false;
         tributeUserId = row.svagaUserId ?? undefined;
@@ -109,9 +116,9 @@ export async function GET(request: Request) {
           telegramUsername: null,
           displayName: `user${telegramId}`,
           role: "player",
-          svagaTelegramUserId: tributeUserId ? telegramId : null,
-          svagaUserId: tributeUserId ?? null,
-          isSubscriber,
+          svagaTelegramUserId: fresh.success && tributeUserId ? telegramId : null,
+          svagaUserId: fresh.success ? tributeUserId ?? null : null,
+          isSubscriber: fresh.success ? isSubscriber : false,
           lastSyncedAt: now,
           linkedAt: null,
           createdAt: now,

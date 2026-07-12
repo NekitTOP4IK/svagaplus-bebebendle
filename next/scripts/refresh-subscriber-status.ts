@@ -62,6 +62,12 @@ async function refreshAllLinkedSubscriberStatuses() {
     try {
       const status = await getSubscriberStatus(u.telegramId);
 
+      if (!status.success) {
+        failed++;
+        console.log(`  [${i+1}/${linkedUsers.length}] ${display}: refresh failed, keeping previous`);
+        continue;
+      }
+
       const hasTribute = !!status.tributeUserId;
 
       await db
