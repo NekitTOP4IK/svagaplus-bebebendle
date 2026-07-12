@@ -63,7 +63,13 @@ class Database:
         return min_cos[0]
 
     async def insert_scran(
-        self, image_url: str, name: str, description: str | None, price: float, telegram_id: str
+        self,
+        image_url: str,
+        name: str,
+        description: str | None,
+        price: float,
+        telegram_id: str,
+        is_subscriber: bool = False,
     ) -> int:
         """Insert a new scran into the database.
 
@@ -73,6 +79,8 @@ class Database:
             description: Optional description
             price: Price in rubles
             telegram_id: Telegram user ID who suggested it
+            is_subscriber: Whether the suggester was a SVAGA+ subscriber at submit time
+                           (fetched via internal API and snapshotted to is_subscriber_at_submit)
 
         Returns:
             ID of the inserted scran
@@ -83,12 +91,24 @@ class Database:
         icon = self.get_icon(name, description or "")
 
         async with self.pool.acquire() as connection:
+            # Lookup user id (may have been created by the subscriber status check)
+            tg_int: int | None = None
+            try:
+                tg_int = int(telegram_id)
+            except (ValueError, TypeError):
+                pass
+            user_id = await connection.fetchval(
+                "SELECT id FROM users WHERE telegram_id = $1 LIMIT 1",
+                tg_int,
+            )
+
             scran_id = await connection.fetchval(
                 """
                 INSERT INTO scrans (
                     image_url, name, description, price,
-                    number_of_likes, number_of_dislikes, approved, telegram_id, icon
-                ) VALUES ($1, $2, $3, $4, 0, 0, false, $5, $6)
+                    number_of_likes, number_of_dislikes, approved, telegram_id, icon,
+                    is_subscriber_at_submit, subscriber_checked_at, submitted_by_user_id
+                ) VALUES ($1, $2, $3, $4, 0, 0, false, $5, $6, $7, NOW(), $8)
                 RETURNING id
                 """,
                 image_url,
@@ -97,11 +117,13 @@ class Database:
                 price,
                 telegram_id,
                 icon,
+                is_subscriber,
+                user_id,
             )
 
         if scran_id is None:
             raise RuntimeError("Failed to get ID after insert")
-        logger.info(f"Inserted scran with ID {scran_id}: {name}")
+        logger.info(f"Inserted scran with ID {scran_id}: {name} (is_subscriber_at_submit={is_subscriber})")
         return scran_id
 
     async def get_user_scrans(self, telegram_id: str) -> list[dict]:

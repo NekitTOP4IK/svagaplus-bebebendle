@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import aiofiles
+import aiohttp
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
@@ -30,7 +31,6 @@ from aiogram.types import (
 )
 from aiogram.utils.media_group import MediaGroupBuilder
 from dotenv import load_dotenv
-from pathlib import Path
 
 from database import Database
 
@@ -52,6 +52,10 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN environment variable is not set")
+
+# Internal bebebendle API config for SVAGA+ subscriber status (used by bot suggestions)
+BEBEBENDLE_INTERNAL_URL = os.getenv("BEBEBENDLE_INTERNAL_URL", "http://next:3000")
+INTERNAL_SECRET = os.getenv("INTERNAL_SECRET")
 
 # Initialize bot and dispatcher
 bot = Bot(token=BOT_TOKEN)
@@ -102,6 +106,48 @@ def get_media_input(image_url: str) -> str | FSInputFile:
         local_path = UPLOADS_DIR / image_url.replace("/uploads/", "")
         return FSInputFile(str(local_path))
     return image_url
+
+
+async def get_svaga_subscriber_status(telegram_id: str) -> bool:
+    """Fetch SVAGA+ subscriber status for a Telegram user via bebebendle's internal API.
+
+    This is called before saving a suggestion so that is_subscriber_at_submit is captured
+    at submit time.
+
+    Args:
+        telegram_id: Telegram user ID as string
+
+    Returns:
+        True if the user is a current SVAGA+ subscriber (or was at last sync), False otherwise.
+        Returns False on any error, missing config, or non-subscriber.
+    """
+    if not BEBEBENDLE_INTERNAL_URL or not INTERNAL_SECRET:
+        logger.warning("BEBEBENDLE_INTERNAL_URL or INTERNAL_SECRET not configured; treating as non-subscriber")
+        return False
+
+    url = f"{BEBEBENDLE_INTERNAL_URL.rstrip('/')}/api/internal/svaga/subscription-status"
+    params = {"telegram_id": telegram_id}
+    headers = {"x-internal-secret": INTERNAL_SECRET}
+    timeout = aiohttp.ClientTimeout(total=5.0)
+
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url, params=params, headers=headers) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    logger.warning(f"SVAGA status fetch failed for {telegram_id}: HTTP {response.status} {text[:200]}")
+                    return False
+
+                data = await response.json()
+                is_sub = bool(data.get("isSubscriber", False))
+                logger.info(f"Fetched SVAGA subscriber status for telegram_id={telegram_id}: isSubscriber={is_sub}")
+                return is_sub
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout fetching SVAGA subscriber status for {telegram_id}")
+        return False
+    except Exception as e:
+        logger.error(f"Error fetching SVAGA subscriber status for {telegram_id}: {e}")
+        return False
 
 
 class SuggestStates(StatesGroup):
@@ -481,19 +527,21 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
 
         try:
             async with database_session() as database:
+                is_sub = await get_svaga_subscriber_status(data["telegram_id"])
                 await database.insert_scran(
                     image_url=data["photo_url"],
                     name=data["name"],
                     description=data.get("description"),
                     price=data["price"],
                     telegram_id=data["telegram_id"],
+                    is_subscriber=is_sub,
                 )
 
             await message.answer(
                 "🎉 Отлично!\n\nТвоё предложение отправлено на рассмотрение администратору.",
                 reply_markup=ReplyKeyboardRemove(),
             )
-            logger.info(f"New scran suggested by user {data['telegram_id']}: {data['name']}")
+            logger.info(f"New scran suggested by user {data['telegram_id']}: {data['name']} (subscriber={is_sub})")
 
         except Exception as e:
             logger.error(f"Error saving scran: {e}")
