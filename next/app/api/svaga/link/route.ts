@@ -10,6 +10,7 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  console.log(`[svaga-link] linking initiated for telegramId=${user.telegramId} (userId=${user.id})`);
   try {
     const status = await getSubscriberStatus(user.telegramId);
     const now = new Date();
@@ -39,15 +40,20 @@ export async function POST() {
       })
       .where(eq(users.telegramId, user.telegramId));
 
+    console.log(`[svaga-link] link/refresh success for telegramId=${user.telegramId}: isSubscriber=${status.isSubscriber} hasLink=${hasLink}`);
     return NextResponse.json({
       success: true,
       isSubscriber: status.isSubscriber,
       tributeUserId: status.tributeUserId,
     });
   } catch (error) {
-    console.error("SVAGA+ link error:", error);
+    console.error(`[svaga-link] SVAGA+ link error for telegramId=${user.telegramId}:`, error);
+    // Provide more specific error for linking failures (e.g. upstream or db)
+    const msg = error instanceof Error && error.message.includes("fetch") 
+      ? "SVAGA+ service unavailable, please try again later" 
+      : "Failed to link SVAGA+ status";
     return NextResponse.json(
-      { error: "Failed to link SVAGA+ status" },
+      { error: msg },
       { status: 500 }
     );
   }

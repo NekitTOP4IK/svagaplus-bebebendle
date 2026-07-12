@@ -14,6 +14,7 @@ export async function getSubscriberStatus(
     return { isSubscriber: false };
   }
 
+  console.log(`[svaga] subscriber check start for telegramUserId=${telegramUserId}`);
   try {
     const res = await fetch(
       `${SVAGAPLUS_INTERNAL_URL.replace(/\/$/, "")}/internal/bebebendle/get-status`,
@@ -29,7 +30,7 @@ export async function getSubscriberStatus(
     );
 
     if (!res.ok) {
-      console.error("SVAGA+ status fetch failed with status:", res.status);
+      console.error(`[svaga] subscriber check failed for ${telegramUserId} with status:`, res.status);
       return { isSubscriber: false };
     }
 
@@ -40,12 +41,15 @@ export async function getSubscriberStatus(
       tributeUserId?: string;
     };
 
+    const isSubscriber = !!(data.is_subscriber ?? data.isSubscriber);
+    const tributeUserId = data.tribute_user_id ?? data.tributeUserId;
+    console.log(`[svaga] subscriber check result for ${telegramUserId}: isSubscriber=${isSubscriber} tributeUserId=${tributeUserId || 'none'}`);
     return {
-      isSubscriber: !!(data.is_subscriber ?? data.isSubscriber),
-      tributeUserId: data.tribute_user_id ?? data.tributeUserId,
+      isSubscriber,
+      tributeUserId,
     };
   } catch (error) {
-    console.error("Error calling SVAGA+ internal endpoint:", error);
+    console.error(`[svaga] Error calling SVAGA+ internal endpoint for ${telegramUserId}:`, error);
     return { isSubscriber: false };
   }
 }

@@ -9,6 +9,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  console.log(`[svaga-status] status query for telegramId=${user.telegramId}`);
   try {
     const result = await db
       .select({
@@ -38,7 +39,7 @@ export async function GET() {
       linkedAt: u.linkedAt,
     });
   } catch (error) {
-    console.error("Error fetching SVAGA status:", error);
+    console.error(`[svaga-status] Error fetching SVAGA status for ${user.telegramId}:`, error);
     return NextResponse.json(
       { error: "Failed to fetch status" },
       { status: 500 }
