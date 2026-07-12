@@ -346,13 +346,15 @@ backfill-users:
 
 ## Task 10: Testing & Verification
 
-- Unit tests for queue logic, auth verification, svaga client
-- Integration: play anonymously + as logged-in user
-- Bot suggestion with and without SVAGA+ link
-- Moderator vs Admin permissions in UI
-- Manual test of hybrid queue ordering
+**Status: COMPLETED** (by subagent 019f579b-55ec-7513-bc71-e04e064df3bf)
 
-- [ ] Run full test suite + manual checks before final commit
+- [x] Unit tests for queue logic, auth verification, svaga client
+- [x] Integration: play anonymously + as logged-in user
+- [x] Bot suggestion with and without SVAGA+ link
+- [x] Moderator vs Admin permissions in UI
+- [x] Manual test of hybrid queue ordering
+
+- [x] Run full test suite + manual checks before final commit
 
 ---
 

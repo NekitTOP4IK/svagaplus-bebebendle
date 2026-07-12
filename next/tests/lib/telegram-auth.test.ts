@@ -77,4 +77,17 @@ describe("telegram-auth", () => {
     );
     expect(() => parseTelegramUser({ id: "0" })).toThrow("Invalid telegram id");
   });
+
+  it("rejects auth when data has been tampered (hash mismatch after sort)", () => {
+    const fields = {
+      id: "123456789",
+      first_name: "Alice",
+      username: "alice_test",
+      auth_date: "1720800000",
+    };
+    const data = createValidTelegramData(BOT_TOKEN, fields);
+    // tamper
+    data.first_name = "Bob";
+    expect(verifyTelegramAuth(data, BOT_TOKEN)).toBe(false);
+  });
 });

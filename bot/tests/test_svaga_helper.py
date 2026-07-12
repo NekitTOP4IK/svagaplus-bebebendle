@@ -187,3 +187,48 @@ async def test_insert_scran_accepts_is_subscriber_kwarg():
     sig = inspect.signature(db.insert_scran)
     params = list(sig.parameters.keys())
     assert "is_subscriber" in params
+
+
+@pytest.mark.asyncio
+async def test_bot_suggestion_flow_with_svaga_subscriber_true():
+    """Simulates process_confirmation path: subscriber true leads to insert with is_subscriber=True."""
+    main_module = _load_main_module_safely()
+
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value={"isSubscriber": True})
+    mock_response.text = AsyncMock(return_value="")
+
+    mock_session = MagicMock()
+    mock_session.get.return_value.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_session.get.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    with patch.object(main_module, "BEBEBENDLE_INTERNAL_URL", "http://example.test"), \
+         patch.object(main_module, "INTERNAL_SECRET", "sekret"), \
+         patch("main.aiohttp.ClientSession", return_value=mock_session), \
+         patch.object(main_module, "logger"):
+        is_sub = await main_module.get_svaga_subscriber_status("555555")
+        assert is_sub is True
+        # In real: await database.insert_scran(..., is_subscriber=is_sub)
+
+
+@pytest.mark.asyncio
+async def test_bot_suggestion_flow_without_svaga_link_or_false():
+    """Simulates bot suggestion when no link or not subscriber -> is_subscriber=False (default path)."""
+    main_module = _load_main_module_safely()
+
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value={"isSubscriber": False})
+    mock_response.text = AsyncMock(return_value="")
+
+    mock_session = MagicMock()
+    mock_session.get.return_value.__aenter__ = AsyncMock(return_value=mock_response)
+    mock_session.get.return_value.__aexit__ = AsyncMock(return_value=False)
+
+    with patch.object(main_module, "BEBEBENDLE_INTERNAL_URL", "http://example.test"), \
+         patch.object(main_module, "INTERNAL_SECRET", "sekret"), \
+         patch("main.aiohttp.ClientSession", return_value=mock_session), \
+         patch.object(main_module, "logger"):
+        is_sub = await main_module.get_svaga_subscriber_status("666666")
+        assert is_sub is False

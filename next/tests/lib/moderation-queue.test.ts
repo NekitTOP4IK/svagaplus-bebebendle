@@ -147,4 +147,31 @@ describe("moderation-queue", () => {
       expect(canUserSubmitMore(undefined as any)).toBe(true);
     });
   });
+
+  describe("hybrid queue ordering (score + 3:1 interleave)", () => {
+    it("orders subscribers ahead within buckets then interleaves 3:1", () => {
+      const nowish = Date.now();
+      // Create scrans with different wait times (hoursWaiting simulated)
+      // subs should score higher due to 1200, regulars rely on wait
+      const subOld = baseScran({ id: 1, name: "sub-old", isSubscriberAtSubmit: true });
+      const subNew = baseScran({ id: 2, name: "sub-new", isSubscriberAtSubmit: true });
+      const regOld = baseScran({ id: 10, name: "reg-old", isSubscriberAtSubmit: false });
+      const regNew = baseScran({ id: 11, name: "reg-new", isSubscriberAtSubmit: false });
+
+      // simulate caller sorting each bucket by score desc
+      const subsSorted = [subOld, subNew].sort((a, b) =>
+        computeQueueScore(b, 1, 10) - computeQueueScore(a, 1, 10)
+      );
+      const regsSorted = [regOld, regNew].sort((a, b) =>
+        computeQueueScore(b, 1, 10) - computeQueueScore(a, 1, 10)
+      );
+
+      const queued = interleaveQueue(subsSorted, regsSorted);
+      // Expect subs prioritized in groups of 3 then regular
+      expect(queued.map((r) => r.name)).toEqual(["sub-old", "sub-new", "reg-old", "reg-new"]);
+      // subscriber scores are high
+      expect(computeQueueScore(subOld, 1, 0)).toBe(1200);
+      expect(computeQueueScore(regOld, 1, 0)).toBe(0);
+    });
+  });
 });

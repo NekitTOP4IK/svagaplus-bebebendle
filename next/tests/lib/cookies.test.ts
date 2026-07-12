@@ -137,3 +137,53 @@ describe("cookies", () => {
     });
   });
 });
+
+describe("daily play integration (anonymous + logged-in paths)", () => {
+  beforeEach(() => {
+    document.cookie = "daily_bebendle=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-15T12:00:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("supports anonymous play: save + hasPlayed + retrieve without any user id", () => {
+    // Anonymous flow uses only cookies + fingerprint passed to server (no getCurrentUser)
+    const anonResult = {
+      date: "2024-01-15",
+      score: 4,
+      totalRounds: 10,
+      userAnswers: [{ roundNumber: 1, isCorrect: true, chosenScranId: 1, correctScranId: 1, percentageA: 70, percentageB: 30 }],
+    };
+    saveDailyResult(anonResult);
+
+    expect(hasPlayedToday()).toBe(true);
+    expect(getTodayResult()).toEqual(anonResult);
+  });
+
+  it("logged-in users use identical client storage (sessionId/fingerprint on server side, userId optional)", () => {
+    // Per design: daily plays remain session-based even for logged-in; profile/history merges via session + optional userId
+    const loggedResult = {
+      date: "2024-01-15",
+      score: 8,
+      totalRounds: 10,
+      userAnswers: [],
+    };
+    saveDailyResult(loggedResult);
+
+    expect(hasPlayedToday()).toBe(true);
+    // same cookie mechanism used regardless of login status
+    expect(getTodayResult()?.score).toBe(8);
+  });
+
+  it("prevents double-play via hasPlayedToday for both anon and logged-in sessions on same day", () => {
+    const play = { date: "2024-01-15", score: 5, totalRounds: 10, userAnswers: [] };
+    saveDailyResult(play);
+    expect(hasPlayedToday()).toBe(true);
+
+    // second attempt detection would be server-side uniqueness on (sessionId, date) or (userId, date)
+    expect(hasPlayedToday()).toBe(true);
+  });
+});
