@@ -49,3 +49,13 @@ export function parseTelegramUser(data: Record<string, string>): {
     authDate: data.auth_date ? parseInt(data.auth_date, 10) : undefined,
   };
 }
+
+/** Max age 24h; reject auth_date more than 5 minutes in the future. */
+export function isTelegramAuthDateAcceptable(
+  authDateSeconds: number,
+  nowSeconds: number = Math.floor(Date.now() / 1000),
+): boolean {
+  if (authDateSeconds > nowSeconds + 5 * 60) return false;
+  if (nowSeconds - authDateSeconds > 86400) return false;
+  return true;
+}

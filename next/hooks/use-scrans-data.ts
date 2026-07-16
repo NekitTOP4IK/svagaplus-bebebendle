@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import type { Scran } from "@/types/scran";
+import { apiFetch } from "@/lib/api-client";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
@@ -51,7 +52,7 @@ export function useScransData({
       setLoading(true);
       const viewParam = view ? `&view=${view}` : "";
       const subParam = subscriberOnly ? `&subscriber_only=true` : "";
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/admin/scrans?page=${currentPage}&limit=10&sort=${sortField}&order=${sortOrder}${viewParam}${subParam}`
         // Cookie sent automatically; server validates via getCurrentUser + role
       );

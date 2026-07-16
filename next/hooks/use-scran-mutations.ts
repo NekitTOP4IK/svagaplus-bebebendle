@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { approveScran as approveScranAction, deleteScran as deleteScranAction } from "@/app/admin/actions";
+import { apiFetch } from "@/lib/api-client";
 
 interface UseScranMutationsParams {
   onUnauthorized: () => void;
@@ -22,18 +22,22 @@ export function useScranMutations({
   const approveScran = useCallback(
     async (id: number) => {
       try {
-        const result = await approveScranAction(id);
+        const response = await apiFetch(`/api/admin/scrans/${id}/approve`, {
+          method: "POST",
+        });
 
-        if (result.success) {
+        if (response.ok) {
           toast.success("Блюдо одобрено! Уведомление отправлено автору.", {
             description: `ID: ${id}`,
           });
           onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
         } else {
+          const data = await response.json().catch(() => ({}));
           toast.error("Ошибка одобрения", {
-            description: result.message,
+            description: (data as { error?: string }).error ?? "Не удалось одобрить блюдо",
           });
-          console.error("Failed to approve scran:", result.message);
         }
       } catch (error) {
         console.error("Error approving scran:", error);
@@ -42,15 +46,14 @@ export function useScranMutations({
         });
       }
     },
-    [onSuccess]
+    [onSuccess, onUnauthorized],
   );
 
   const banScran = useCallback(
     async (id: number) => {
       try {
-        const response = await fetch(`/api/admin/scrans/${id}/ban`, {
+        const response = await apiFetch(`/api/admin/scrans/${id}/ban`, {
           method: "POST",
-          // No Authorization header: auth via httpOnly cookie
         });
 
         if (response.ok) {
@@ -62,27 +65,36 @@ export function useScranMutations({
         console.error("Error banning scran:", error);
       }
     },
-    [onUnauthorized, onSuccess]
+    [onUnauthorized, onSuccess],
   );
 
   const deleteScran = useCallback(
     async (id: number, comment: string): Promise<boolean> => {
       try {
-        const result = await deleteScranAction(id, comment);
+        const response = await apiFetch(`/api/admin/scrans/${id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment }),
+        });
 
-        if (result.success) {
+        if (response.ok) {
           toast.success("Блюдо удалено! Уведомление отправлено автору.", {
             description: `ID: ${id}`,
           });
           onSuccess();
           return true;
-        } else {
-          toast.error("Ошибка удаления", {
-            description: result.message,
-          });
-          console.error("Failed to delete scran:", result.message);
+        }
+
+        if (response.status === 401) {
+          onUnauthorized();
           return false;
         }
+
+        const data = await response.json().catch(() => ({}));
+        toast.error("Ошибка удаления", {
+          description: (data as { error?: string }).error ?? "Не удалось удалить блюдо",
+        });
+        return false;
       } catch (error) {
         console.error("Error deleting scran:", error);
         toast.error("Ошибка удаления", {
@@ -91,7 +103,7 @@ export function useScranMutations({
         return false;
       }
     },
-    [onSuccess]
+    [onSuccess, onUnauthorized],
   );
 
   return {

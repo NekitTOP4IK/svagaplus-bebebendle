@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createHash, createHmac } from "crypto";
-import { verifyTelegramAuth, parseTelegramUser } from "../../lib/telegram-auth";
+import {
+  verifyTelegramAuth,
+  parseTelegramUser,
+  isTelegramAuthDateAcceptable,
+} from "../../lib/telegram-auth";
 
 function createValidTelegramData(
   botToken: string,
@@ -89,5 +93,17 @@ describe("telegram-auth", () => {
     // tamper
     data.first_name = "Bob";
     expect(verifyTelegramAuth(data, BOT_TOKEN)).toBe(false);
+  });
+
+  it("accepts auth_date within 24h and rejects stale data", () => {
+    const now = 1_800_000_000;
+    expect(isTelegramAuthDateAcceptable(now - 86400, now)).toBe(true);
+    expect(isTelegramAuthDateAcceptable(now - 86401, now)).toBe(false);
+  });
+
+  it("rejects auth_date more than five minutes in the future", () => {
+    const now = 1_800_000_000;
+    expect(isTelegramAuthDateAcceptable(now + 5 * 60, now)).toBe(true);
+    expect(isTelegramAuthDateAcceptable(now + 5 * 60 + 1, now)).toBe(false);
   });
 });

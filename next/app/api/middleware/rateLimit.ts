@@ -21,7 +21,8 @@ export interface RateLimitResult {
 export async function checkRateLimit(
   identifier: string,
   limit: number = 1,
-  windowSeconds: number = 5
+  windowSeconds: number = 5,
+  onRedisError: "open" | "closed" = "open",
 ): Promise<RateLimitResult> {
   const key = `ratelimit:${identifier}`;
 
@@ -42,6 +43,13 @@ export async function checkRateLimit(
     };
   } catch (error) {
     console.error("Rate limit check failed:", error);
+    if (onRedisError === "closed") {
+      return {
+        allowed: false,
+        remaining: 0,
+        resetAt: Date.now() + windowSeconds * 1000,
+      };
+    }
     return {
       allowed: true,
       remaining: limit,
