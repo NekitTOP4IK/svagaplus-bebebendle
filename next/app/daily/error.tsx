@@ -10,25 +10,25 @@ export default function DailyError({
   reset: () => void;
 }) {
   return (
-    <div className="retro-bg flex min-h-dvh items-center justify-center px-4">
-      <div className="retro-overlay absolute inset-0" />
-      <div className="relative z-10 text-center">
-        <h2 className="pixel-text mb-4 text-3xl font-bold text-white">
+    <div className="flex min-h-dvh items-center justify-center bg-zinc-950 px-4">
+      <div className="w-full max-w-md rounded-none border-4 border-black bg-white p-8 text-center text-black shadow-[6px_6px_0_#000]">
+        <h2 className="pixel-text-on-light mb-4 text-2xl font-bold">
           Что-то пошло не так!
         </h2>
-        <p className="pixel-text mb-8 text-lg text-white">
+        <p className="mb-8 text-base text-zinc-800">
           {error.message || "Не удалось загрузить дейлик"}
         </p>
-        <div className="flex gap-4 justify-center">
+        <div className="flex flex-wrap justify-center gap-4">
           <button
+            type="button"
             onClick={reset}
-            className="pixel-btn bg-yellow-400 border-4 border-black px-6 py-3 text-black hover:bg-yellow-300"
+            className="border-4 border-black bg-yellow-400 px-6 py-3 font-[family-name:var(--font-pixel)] text-sm text-black hover:bg-yellow-300"
           >
             Попробовать снова
           </button>
           <Link
             href="/"
-            className="pixel-btn bg-white border-4 border-black px-6 py-3 text-black hover:bg-gray-100"
+            className="border-4 border-black bg-zinc-100 px-6 py-3 font-[family-name:var(--font-pixel)] text-sm text-black hover:bg-white"
           >
             На главную
           </Link>
