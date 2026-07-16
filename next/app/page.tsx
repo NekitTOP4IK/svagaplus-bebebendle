@@ -4,6 +4,7 @@ import { DailyPlayButton } from "@/components/daily-play-button";
 import { SocialLinks } from "@/components/social-links";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { SplashText } from "@/components/splash-text";
+import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,9 @@ const splashTexts = [
   "Это был Пудонг"
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const dailyAvailable = await hasDailyForToday();
+
   return (
     <div
       className="relative flex min-h-dvh flex-col items-center justify-between overflow-hidden font-sans"
@@ -87,7 +90,7 @@ export default function HomePage() {
         </div>
 
         <div className="flex w-full max-w-[320px] flex-col gap-2 sm:max-w-[400px] sm:gap-4 2xl:max-w-[480px] 2xl:gap-5 4xl:max-w-[560px]">
-          <DailyPlayButton />
+          <DailyPlayButton available={dailyAvailable} />
           <Link
             href="/profile"
             className="pixel-btn flex min-h-11 items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
