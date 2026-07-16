@@ -1,15 +1,17 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
-import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex, serial, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex, serial, bigint, index } from "drizzle-orm/pg-core";
 
-// Для локальной разработки используем переменные окружения или значения по умолчанию
-const client = new Client({
-  host: process.env.POSTGRES_HOST || "localhost",
-  port: parseInt(process.env.POSTGRES_PORT || "5432"),
-  database: process.env.POSTGRES_DB || "bebendle",
-  user: process.env.POSTGRES_USER || "postgres",
-  password: process.env.POSTGRES_PASSWORD || "postgres",
-});
+// DATABASE_URL is authoritative in CI and on PM2 hosts; POSTGRES_* fallback for local Compose.
+const client = new Client(process.env.DATABASE_URL
+  ? { connectionString: process.env.DATABASE_URL }
+  : {
+      host: process.env.POSTGRES_HOST || "localhost",
+      port: parseInt(process.env.POSTGRES_PORT || "5432", 10),
+      database: process.env.POSTGRES_DB || "bebendle",
+      user: process.env.POSTGRES_USER || "postgres",
+      password: process.env.POSTGRES_PASSWORD || "postgres",
+    });
 
 // Connect lazily - only when first query is made
 let connected = false;
@@ -31,14 +33,34 @@ export const users = pgTable("users", {
   telegramUsername: text("telegram_username"),
   displayName: text("display_name"),
   role: text("role", { enum: ["player", "moderator", "admin"] }).notNull().default("player"),
+  // legacy svagaTelegramUserId/svagaUserId/linkedAt stay for rollback compatibility but are no longer written
   svagaTelegramUserId: bigint("svaga_telegram_user_id", { mode: "number" }),
-  svagaUserId: text("svaga_user_id"),           // tribute_user_id from svagaplus (set via /api/svaga/link and internal sync)
-  isSubscriber: boolean("is_subscriber").default(false),
+  svagaUserId: text("svaga_user_id"),
+  isSubscriber: boolean("is_subscriber"),
   lastSyncedAt: timestamp("last_synced_at"),
+  lastSyncAttemptAt: timestamp("last_sync_attempt_at"),
+  lastSyncError: text("last_sync_error"),
   linkedAt: timestamp("linked_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const userSessions = pgTable("user_sessions", {
+  id: text("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  refreshTokenHash: text("refresh_token_hash").notNull().unique(),
+  familyId: text("family_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  absoluteExpiresAt: timestamp("absolute_expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  replacedBySessionId: text("replaced_by_session_id"),
+  userAgentHash: text("user_agent_hash"),
+}, (table) => ({
+  familyIdx: index("user_sessions_family_id_idx").on(table.familyId),
+  userIdx: index("user_sessions_user_id_idx").on(table.userId),
+}));
 
 export const scrans = pgTable("scrans", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -52,7 +74,7 @@ export const scrans = pgTable("scrans", {
   telegramId: text("telegram_id"),
   icon: text("icon"),
   submittedByUserId: integer("submitted_by_user_id").references(() => users.id),
-  isSubscriberAtSubmit: boolean("is_subscriber_at_submit").default(false),
+  isSubscriberAtSubmit: boolean("is_subscriber_at_submit"),
   subscriberCheckedAt: timestamp("subscriber_checked_at"),
 });
 
@@ -107,3 +129,4 @@ export type ScrandleVote = typeof scrandleVotes.$inferSelect;
 export type DailyUserResult = typeof dailyUserResults.$inferSelect;
 export type TelegramVote = typeof telegramVotes.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type UserSession = typeof userSessions.$inferSelect;
