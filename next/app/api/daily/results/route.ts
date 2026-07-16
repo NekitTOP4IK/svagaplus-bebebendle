@@ -83,7 +83,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const user = await getCurrentUser();
     await db.insert(dailyUserResults).values({
       date,
       sessionId,

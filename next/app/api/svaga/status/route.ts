@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { db, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
 
 export async function GET() {
@@ -14,9 +14,9 @@ export async function GET() {
     const result = await db
       .select({
         isSubscriber: users.isSubscriber,
-        svagaUserId: users.svagaUserId,
         lastSyncedAt: users.lastSyncedAt,
-        linkedAt: users.linkedAt,
+        lastSyncAttemptAt: users.lastSyncAttemptAt,
+        lastSyncError: users.lastSyncError,
       })
       .from(users)
       .where(eq(users.telegramId, user.telegramId))
@@ -24,25 +24,35 @@ export async function GET() {
 
     if (result.length === 0) {
       return NextResponse.json({
-        isSubscriber: false,
-        svagaUserId: null,
+        status: "unknown",
+        isSubscriber: null,
         lastSyncedAt: null,
-        linkedAt: null,
+        lastSyncAttemptAt: null,
+        lastSyncError: null,
       });
     }
 
     const u = result[0];
+    let status: "subscriber" | "not_subscriber" | "unknown";
+    if (u.isSubscriber === true) status = "subscriber";
+    else if (u.isSubscriber === false) status = "not_subscriber";
+    else status = "unknown";
+
     return NextResponse.json({
-      isSubscriber: u.isSubscriber ?? false,
-      svagaUserId: u.svagaUserId,
+      status,
+      isSubscriber: u.isSubscriber,
       lastSyncedAt: u.lastSyncedAt,
-      linkedAt: u.linkedAt,
+      lastSyncAttemptAt: u.lastSyncAttemptAt,
+      lastSyncError: u.lastSyncError,
     });
   } catch (error) {
-    console.error(`[svaga-status] Error fetching SVAGA status for ${user.telegramId}:`, error);
+    console.error(
+      `[svaga-status] Error fetching SVAGA status for ${user.telegramId}:`,
+      error,
+    );
     return NextResponse.json(
       { error: "Failed to fetch status" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

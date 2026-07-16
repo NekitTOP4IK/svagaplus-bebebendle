@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
-import { db, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
+import { db, users, userSessions } from "@/db/schema";
+import { ACCESS_COOKIE } from "@/lib/session-cookies";
+import { verifyAccessToken } from "@/lib/session-token";
 
 export interface CurrentUser {
   id: number;
@@ -11,19 +13,24 @@ export interface CurrentUser {
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("bebebendle_session");
-
-  if (!sessionCookie?.value) {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
     return null;
   }
 
-  const telegramId = parseInt(sessionCookie.value, 10);
-  if (isNaN(telegramId) || telegramId <= 0) {
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get(ACCESS_COOKIE)?.value;
+  if (!accessToken) {
+    return null;
+  }
+
+  const claims = verifyAccessToken(accessToken, secret);
+  if (!claims) {
     return null;
   }
 
   try {
+    const now = new Date();
     const result = await db
       .select({
         id: users.id,
@@ -33,7 +40,15 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         role: users.role,
       })
       .from(users)
-      .where(eq(users.telegramId, telegramId))
+      .innerJoin(userSessions, eq(userSessions.userId, users.id))
+      .where(
+        and(
+          eq(users.id, claims.userId),
+          eq(userSessions.id, claims.sessionId),
+          isNull(userSessions.revokedAt),
+          gt(userSessions.absoluteExpiresAt, now),
+        ),
+      )
       .limit(1);
 
     if (result.length === 0) {
@@ -41,6 +56,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     }
 
     const u = result[0];
+    // Claims and DB must agree on Telegram identity.
+    if (String(u.telegramId) !== claims.telegramId) {
+      return null;
+    }
+
     return {
       id: u.id,
       telegramId: u.telegramId,

@@ -46,11 +46,11 @@ export function computeQueueScore(
  * Input lists should already be sorted by descending score (highest first).
  * Preserves relative order for equal-score items.
  */
-export function interleaveQueue(
-  subscriberScrans: ScranWithMeta[],
-  regularScrans: ScranWithMeta[]
-): ScranWithMeta[] {
-  const result: ScranWithMeta[] = [];
+export function interleaveQueue<T extends ScranWithMeta>(
+  subscriberScrans: T[],
+  regularScrans: T[]
+): T[] {
+  const result: T[] = [];
   let subIndex = 0;
   let regIndex = 0;
 

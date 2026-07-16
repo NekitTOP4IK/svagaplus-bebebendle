@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
-import { verifyTelegramAuth, parseTelegramUser } from "@/lib/telegram-auth";
+import { checkRateLimit, getClientIp } from "@/app/api/middleware/rateLimit";
 import { db, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { setSessionCookies } from "@/lib/session-cookies";
+import { createSessionManager } from "@/lib/session-manager";
+import { sessionRepository } from "@/lib/session-repository";
+import {
+  isTelegramAuthDateAcceptable,
+  parseTelegramUser,
+  verifyTelegramAuth,
+} from "@/lib/telegram-auth";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -10,6 +17,31 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Bot token not configured" },
       { status: 500 }
+    );
+  }
+
+  const rateLimitResult = await checkRateLimit(
+    `auth:${getClientIp(request)}`,
+    10,
+    60,
+    "closed",
+  );
+  if (!rateLimitResult.allowed) {
+    const retryAfter = Math.max(
+      1,
+      Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000),
+    );
+    return NextResponse.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } },
+    );
+  }
+
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    return NextResponse.json(
+      { error: "session_not_configured" },
+      { status: 503 },
     );
   }
 
@@ -24,10 +56,11 @@ export async function POST(request: Request) {
     }
 
     const parsed = parseTelegramUser(data);
-
-    // Basic freshness check (24h)
-    const now = Math.floor(Date.now() / 1000);
-    if (parsed.authDate && Math.abs(now - parsed.authDate) > 86400) {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (
+      !parsed.authDate
+      || !isTelegramAuthDateAcceptable(parsed.authDate, nowSeconds)
+    ) {
       return NextResponse.json(
         { error: "Auth data expired" },
         { status: 401 }
@@ -38,7 +71,6 @@ export async function POST(request: Request) {
       parsed.firstName || parsed.username || `user${parsed.telegramId}`;
     const username = parsed.username || null;
 
-    // Upsert user by telegramId (primary identity)
     const inserted = await db
       .insert(users)
       .values({
@@ -64,8 +96,13 @@ export async function POST(request: Request) {
       });
 
     const user = inserted[0];
+    const manager = createSessionManager(sessionRepository, { sessionSecret: secret });
+    const issued = await manager.create(
+      user.id,
+      String(parsed.telegramId),
+      request.headers.get("user-agent"),
+    );
 
-    // Set secure httpOnly session cookie (value = telegramId for lookup)
     const response = NextResponse.json({
       success: true,
       user: {
@@ -73,15 +110,7 @@ export async function POST(request: Request) {
         role: user.role,
       },
     });
-
-    response.cookies.set("bebebendle_session", String(parsed.telegramId), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-
+    setSessionCookies(response, issued);
     return response;
   } catch (error) {
     console.error("Telegram auth error:", error);
@@ -90,15 +119,4 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-}
-
-// Support logout by clearing the httpOnly session cookie
-export async function DELETE() {
-  const response = NextResponse.json({ success: true });
-  response.cookies.set("bebebendle_session", "", {
-    httpOnly: true,
-    expires: new Date(0),
-    path: "/",
-  });
-  return response;
 }

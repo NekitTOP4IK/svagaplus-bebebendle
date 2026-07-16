@@ -1,9 +1,11 @@
 """Database module for connecting to the shared PostgreSQL database."""
 
+from __future__ import annotations
+
 import json
 import logging
 import os
-from typing import Optional
+from datetime import datetime
 
 import asyncpg
 from scipy.spatial.distance import cosine
@@ -12,17 +14,31 @@ from sentence_transformers import SentenceTransformer
 logger = logging.getLogger(__name__)
 
 
+class PendingSuggestionLimitError(Exception):
+    """Raised when a user already has 6+ pending suggestions."""
+
+
 class Database:
     """Async database connection handler for PostgreSQL."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize database connection."""
-        self.connection: Optional[asyncpg.Connection] = None
-        self.pool: Optional[asyncpg.Pool] = None
+        self.connection: asyncpg.Connection | None = None
+        self.pool: asyncpg.Pool | None = None
         self.emb_model = SentenceTransformer("sergeyzh/rubert-mini-frida")
 
     async def connect(self) -> None:
         """Establish database connection pool."""
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            self.pool = await asyncpg.create_pool(
+                dsn=database_url,
+                min_size=1,
+                max_size=10,
+            )
+            logger.debug("Connected to PostgreSQL database via DATABASE_URL")
+            return
+
         host = os.getenv("POSTGRES_HOST", "localhost")
         port = int(os.getenv("POSTGRES_PORT", "5432"))
         database = os.getenv("POSTGRES_DB", "bebendle")
@@ -47,10 +63,10 @@ class Database:
             self.pool = None
             logger.debug("Database connection pool closed")
 
-    def get_icon(self, name: str, description: str):
+    def get_icon(self, name: str, description: str) -> str:
         full_name = name + "\n" + description
         embeddings = self.emb_model.encode([full_name])
-        res = []
+        res: list[list[object]] = []
 
         with open("src/emb_map.json") as j:
             emb_map = json.load(j)
@@ -58,9 +74,9 @@ class Database:
         for k, v in emb_map.items():
             res.append([k, 1 - cosine(embeddings[0], v)])
 
-        min_cos = max(res, key=lambda x: x[1])
+        min_cos = max(res, key=lambda x: x[1])  # type: ignore[arg-type, return-value]
         print(min_cos)
-        return min_cos[0]
+        return str(min_cos[0])
 
     async def count_pending_scrans(self, telegram_id: str) -> int:
         """Count pending (not approved) scrans for a user."""
@@ -80,37 +96,37 @@ class Database:
         description: str | None,
         price: float,
         telegram_id: str,
-        is_subscriber: bool = False,
+        is_subscriber: bool | None,
+        subscriber_checked_at: datetime | None,
     ) -> int:
         """Insert a new scran into the database.
 
-        Args:
-            image_url: URL to the scran image
-            name: Name of the scran
-            description: Optional description
-            price: Price in rubles
-            telegram_id: Telegram user ID who suggested it
-            is_subscriber: Whether the suggester was a SVAGA+ subscriber at submit time
-                           (fetched via internal API and snapshotted to is_subscriber_at_submit)
-
-        Returns:
-            ID of the inserted scran
+        Uses a transaction advisory lock so concurrent confirmations cannot both
+        pass the six-pending-suggestions cap.
         """
         if not self.pool:
             raise RuntimeError("Database not connected")
 
         icon = self.get_icon(name, description or "")
 
-        async with self.pool.acquire() as connection:
-            # Lookup user id (may have been created by the subscriber status check)
-            tg_int: int | None = None
+        async with self.pool.acquire() as connection, connection.transaction():
             try:
-                tg_int = int(telegram_id)
-            except (ValueError, TypeError):
-                pass
+                telegram_int = int(telegram_id)
+            except (ValueError, TypeError) as exc:
+                raise ValueError("Invalid telegram_id") from exc
+
+            await connection.execute("SELECT pg_advisory_xact_lock($1)", telegram_int)
+
+            pending = await connection.fetchval(
+                "SELECT COUNT(*) FROM scrans WHERE telegram_id = $1 AND approved = false",
+                telegram_id,
+            )
+            if pending is not None and pending >= 6:
+                raise PendingSuggestionLimitError()
+
             user_id = await connection.fetchval(
                 "SELECT id FROM users WHERE telegram_id = $1 LIMIT 1",
-                tg_int,
+                telegram_int,
             )
 
             scran_id = await connection.fetchval(
@@ -119,7 +135,7 @@ class Database:
                     image_url, name, description, price,
                     number_of_likes, number_of_dislikes, approved, telegram_id, icon,
                     is_subscriber_at_submit, subscriber_checked_at, submitted_by_user_id
-                ) VALUES ($1, $2, $3, $4, 0, 0, false, $5, $6, $7, NOW(), $8)
+                ) VALUES ($1, $2, $3, $4, 0, 0, false, $5, $6, $7, $8, $9)
                 RETURNING id
                 """,
                 image_url,
@@ -129,13 +145,17 @@ class Database:
                 telegram_id,
                 icon,
                 is_subscriber,
+                subscriber_checked_at,
                 user_id,
             )
 
         if scran_id is None:
             raise RuntimeError("Failed to get ID after insert")
-        logger.info(f"Inserted scran with ID {scran_id}: {name} (is_subscriber_at_submit={is_subscriber})")
-        return scran_id
+        logger.info(
+            f"Inserted scran with ID {scran_id}: {name} "
+            f"(is_subscriber_at_submit={is_subscriber})"
+        )
+        return int(scran_id)
 
     async def get_user_scrans(self, telegram_id: str) -> list[dict]:
         """Get all scrans suggested by a specific user.
@@ -172,7 +192,7 @@ class Database:
             for row in rows
         ]
 
-    async def get_scran_by_id(self, scran_id: int) -> Optional[dict]:
+    async def get_scran_by_id(self, scran_id: int) -> dict | None:
         """Get a scran by its ID.
 
         Args:

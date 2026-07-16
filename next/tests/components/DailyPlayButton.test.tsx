@@ -47,22 +47,24 @@ describe("DailyPlayButton", () => {
 
     render(<DailyPlayButton />);
 
-    expect(screen.getByText("Уже сыграно ✓")).toBeInTheDocument();
+    expect(screen.getByText("Уже сыграно")).toBeInTheDocument();
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
-  it("should display score when user has played today", () => {
+  it("should not display score on the home CTA when user has played today", () => {
     mockHasPlayedToday.mockReturnValue(true);
     mockGetTodayResult.mockReturnValue({
       date: "2024-01-15",
       score: 8,
       totalRounds: 10,
-      userAnswers: [],
+      userAnswers: Array.from({ length: 8 }, () => ({ isCorrect: true })),
     });
 
     render(<DailyPlayButton />);
 
-    expect(screen.getByText("Ваш результат: 8/10")).toBeInTheDocument();
+    // Score is intentionally not shown on the home button (only "Уже сыграно").
+    expect(screen.queryByText(/Ваш результат/)).not.toBeInTheDocument();
+    expect(screen.getByText("Уже сыграно")).toBeInTheDocument();
   });
 
   it("should show next daily message when played today", () => {
@@ -111,8 +113,7 @@ describe("DailyPlayButton", () => {
 
     const button = screen.getByRole("button");
     expect(button).toBeDisabled();
-    expect(button).toHaveClass("bg-gray-500");
-    expect(button).toHaveClass("cursor-not-allowed");
-    expect(button).toHaveClass("opacity-70");
+    expect(button).toHaveClass("pixel-btn");
+    expect(button).toHaveClass("w-full");
   });
 });

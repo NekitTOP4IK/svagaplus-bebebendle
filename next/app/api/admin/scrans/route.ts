@@ -46,7 +46,7 @@ export async function GET(request: Request) {
         .where(eq(scrans.approved, false));
 
       // Enrich with author info
-      let allPending: ScranWithMeta[] = pendingRows.map((row) => {
+      const allPending: ScranWithMeta[] = pendingRows.map((row) => {
         const s = row.scran;
         const u = row.user;
         return {
@@ -74,7 +74,8 @@ export async function GET(request: Request) {
       const maxId = allPending.length > 0 ? Math.max(...allPending.map((p) => p.id)) : 0;
 
       // Attach score for sorting within buckets
-      const scored = allPending.map((p) => {
+      type ScranWithScore = ScranWithMeta & { _score: number };
+      const scored: ScranWithScore[] = allPending.map((p) => {
         const ageUnits = maxId - p.id;
         const hoursWaiting = Math.max(0, ageUnits / 80);
         const score = computeQueueScore(p, p.pendingCount || 1, hoursWaiting);
@@ -82,20 +83,24 @@ export async function GET(request: Request) {
       });
 
       // Split
-      let subscriberList = scored.filter((p) => p.isSubscriberAtSubmit === true);
-      let regularList = scored.filter((p) => p.isSubscriberAtSubmit !== true);
+      const subscriberList = scored.filter((p) => p.isSubscriberAtSubmit === true);
+      const regularList = scored.filter((p) => p.isSubscriberAtSubmit !== true);
 
       // Sort each bucket by score desc (higher = higher priority)
-      subscriberList.sort((a, b) => ((b._score as number) ?? 0) - ((a._score as number) ?? 0));
-      regularList.sort((a, b) => ((b._score as number) ?? 0) - ((a._score as number) ?? 0));
+      subscriberList.sort((a, b) => b._score - a._score);
+      regularList.sort((a, b) => b._score - a._score);
 
-      // Interleave or filter-only
+      // Interleave or filter-only (strip internal _score before response)
+      const stripScore = (item: ScranWithScore): ScranWithMeta => {
+        const { _score, ...rest } = item;
+        void _score;
+        return rest;
+      };
       let ordered: ScranWithMeta[];
       if (subscriberOnly) {
-        ordered = subscriberList.map(({ _score, ...rest }) => rest as ScranWithMeta);
+        ordered = subscriberList.map(stripScore);
       } else {
-        const interleaved = interleaveQueue(subscriberList, regularList);
-        ordered = interleaved.map(({ _score, ...rest }) => rest as ScranWithMeta);
+        ordered = interleaveQueue(subscriberList, regularList).map(stripScore);
       }
 
       // Paginate the fair ordered list

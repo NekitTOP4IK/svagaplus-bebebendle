@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { apiFetch } from "@/lib/api-client";
 
 type AdminRole = "moderator" | "admin";
 
@@ -19,10 +20,9 @@ export function useAdminAuth(): UseAdminAuthReturn {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const res = await fetch("/api/admin/check-auth", {
+        const res = await apiFetch("/api/admin/check-auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // No body needed; server will read cookie
           body: JSON.stringify({}),
         });
         if (res.ok) {
@@ -36,11 +36,12 @@ export function useAdminAuth(): UseAdminAuthReturn {
         // ignore
       }
     };
-    checkSession();
+    void checkSession();
   }, []);
 
   const login = useCallback(async (data: Record<string, string>): Promise<boolean> => {
     try {
+      // Native fetch: avoid recursion with refresh wrapper on login itself.
       const response = await fetch("/api/auth/telegram", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,9 +49,8 @@ export function useAdminAuth(): UseAdminAuthReturn {
       });
 
       if (response.ok) {
-        // Verify with role check (Telegram login succeeds for players too; admin panel requires mod/admin role)
         try {
-          const checkRes = await fetch("/api/admin/check-auth", {
+          const checkRes = await apiFetch("/api/admin/check-auth", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({}),
@@ -78,7 +78,7 @@ export function useAdminAuth(): UseAdminAuthReturn {
     setIsAuthenticated(false);
     setRole(null);
     try {
-      await fetch("/api/auth/telegram", { method: "DELETE" });
+      await fetch("/api/auth/session", { method: "DELETE" });
     } catch {
       // ignore network error on logout
     }

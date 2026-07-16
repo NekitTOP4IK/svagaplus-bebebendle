@@ -2,40 +2,11 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1739683200000,
-      "tag": "0000_initial",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1740163200000,
-      "tag": "0001_add_telegram_id",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1750032000000,
-      "tag": "0003_add_icon_to_scrans",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1750032000000,
-      "tag": "0003_add_icon_to_scrans",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1752100000000,
-      "tag": "0004_add_users_and_svaga_linking",
-      "breakpoints": true
-    }
+    { "idx": 0, "version": "7", "when": 1739683200000, "tag": "0000_initial", "breakpoints": true },
+    { "idx": 1, "version": "7", "when": 1740163200000, "tag": "0001_add_telegram_id", "breakpoints": true },
+    { "idx": 2, "version": "7", "when": 1740249600000, "tag": "0002_add_fingerprint_and_unique_indexes", "breakpoints": true },
+    { "idx": 3, "version": "7", "when": 1750032000000, "tag": "0003_add_icon_to_scrans", "breakpoints": true },
+    { "idx": 4, "version": "7", "when": 1752100000000, "tag": "0004_add_users_and_svaga_linking", "breakpoints": true },
+    { "idx": 5, "version": "7", "when": 1784203200000, "tag": "0005_secure_sessions_and_svaga_status", "breakpoints": true }
   ]
 }
