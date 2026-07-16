@@ -49,6 +49,11 @@ export function ScranRow({ scran, view, role, onApprove, onBan, onDelete }: Scra
               SVAGA+
             </span>
           )}
+          {scran.isSubscriberAtSubmit === null && (
+            <span className="inline-flex rounded-none bg-zinc-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              Не проверено
+            </span>
+          )}
         </div>
         {scran.description && (
           <div className="text-xs text-zinc-400 line-clamp-1">
@@ -66,7 +71,7 @@ export function ScranRow({ scran, view, role, onApprove, onBan, onDelete }: Scra
             </span>
           )}
           {overLimit && (
-            <span className="ml-2 inline rounded-none bg-red-600 px-1 py-0.5 text-[9px] font-bold text-white">>6</span>
+            <span className="ml-2 inline rounded-none bg-red-600 px-1 py-0.5 text-[9px] font-bold text-white">{">6"}</span>
           )}
         </td>
       )}
@@ -106,7 +111,7 @@ export function ScranRow({ scran, view, role, onApprove, onBan, onDelete }: Scra
           {!scran.approved && (
             <button
               onClick={() => onApprove(scran.id)}
-              className="pixel-btn bg-green-500 px-3 py-1 text-sm font-bold text-white hover:bg-green-600"
+              className="pixel-btn min-h-11 min-w-11 bg-green-500 px-3 py-1 text-sm font-bold text-white hover:bg-green-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
             >
               Approve
             </button>
@@ -114,7 +119,7 @@ export function ScranRow({ scran, view, role, onApprove, onBan, onDelete }: Scra
           {scran.approved && (
             <button
               onClick={() => onBan(scran.id)}
-              className="pixel-btn bg-red-500 px-3 py-1 text-sm font-bold text-white hover:bg-red-600"
+              className="pixel-btn min-h-11 min-w-11 bg-red-500 px-3 py-1 text-sm font-bold text-white hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
             >
               Ban
             </button>
@@ -122,7 +127,7 @@ export function ScranRow({ scran, view, role, onApprove, onBan, onDelete }: Scra
           {role === "admin" && (
             <button
               onClick={() => onDelete(scran)}
-              className="pixel-btn bg-zinc-700 px-3 py-1 text-sm font-bold text-white hover:bg-zinc-600"
+              className="pixel-btn min-h-11 min-w-11 bg-zinc-700 px-3 py-1 text-sm font-bold text-white hover:bg-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300"
               title="Удалить с уведомлением автору (admin only)"
             >
               Удалить

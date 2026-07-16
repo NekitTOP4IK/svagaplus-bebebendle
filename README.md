@@ -88,17 +88,33 @@ pm2 delete ecosystem.config.js
 | `make migrate` | Применить миграции БД |
 | `make new-daily` | Сгенерировать новый дейлик вручную |
 | `make backfill-users` | Backfill `submitted_by_user_id` для существующих scrans (по telegram_id) |
-| `make refresh-subscribers` | Обновить статус подписчика SVAGA+ для всех привязанных пользователей |
+| `make refresh-subscribers` | Обновить кэш подписки СВАГА+ (только confirmed checks) |
 | `make pm2-start` | Запустить через PM2 (без Docker) |
 | `make pm2-stop` | Остановить PM2 процессы |
 | `make pm2-logs` | Логи PM2 |
 
 ### Data backfill & maintenance scripts
 
-After the users/SVAGA+ linking migration, use these to maintain data consistency:
+After the users/SVAGA+ session migration, use these to maintain data consistency:
 
 - `make backfill-users` — Matches legacy `scrans.telegram_id` to `users` and populates `submitted_by_user_id` for historical submissions. Idempotent and safe.
-- `make refresh-subscribers` — Re-fetches current subscriber status from SVAGA+ for every linked user and updates the cached `is_subscriber` + timestamps. Useful as a periodic job (cron) or after bulk linking.
+- `make refresh-subscribers` — Re-fetches Olesha-scoped subscription status from SVAGA+ for users with a prior successful check. Failures never invent a non-subscriber result.
+
+### Auth and SVAGA+ secrets (see `.env.sample`)
+
+| Variable | Purpose |
+|----------|---------|
+| `SESSION_SECRET` | HMAC secret for signed access tokens (≥32 chars) |
+| `SVAGAPLUS_INTERNAL_URL` | SVAGA+ server base URL |
+| `SVAGAPLUS_INTERNAL_SECRET` | Bebebendle → SVAGA+ caller secret |
+| `SVAGA_TARGET_USER_ID` | SVAGA+ `users.id` for Olesha (required scope) |
+| `BEBEBENDLE_INTERNAL_SECRET` | Bot → Bebebendle internal API secret |
+| `BEBEBENDLE_INTERNAL_URL` | Bebebendle base URL used by the bot |
+| `DATABASE_URL` | Authoritative PostgreSQL DSN |
+
+Do not reuse `BOT_SECRET` or a single shared `INTERNAL_SECRET` across both hops.
+
+After rollout, legacy raw `bebebendle_session` cookies are rejected; users sign in once via Telegram on `/profile` or the admin panel.
 
 Both scripts run inside the `next` container using the shared DB. They can also be executed directly (with proper env) via `bun run scripts/<name>.ts` from `next/`.
 

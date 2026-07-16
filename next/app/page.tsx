@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { DailyPlayButton } from "@/components/daily-play-button";
 import { SocialLinks } from "@/components/social-links";
 import { CountdownTimer } from "@/components/countdown-timer";
@@ -87,6 +88,12 @@ export default function HomePage() {
 
         <div className="flex w-full max-w-[320px] flex-col gap-2 sm:max-w-[400px] sm:gap-4 2xl:max-w-[480px] 2xl:gap-5 4xl:max-w-[560px]">
           <DailyPlayButton />
+          <Link
+            href="/profile"
+            className="pixel-btn flex min-h-11 items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+          >
+            Профиль / СВАГА+
+          </Link>
           <SocialLinks />
         </div>
       </main>

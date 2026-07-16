@@ -134,4 +134,23 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
     );
     expect(screen.getByText("SVAGA+")).toBeInTheDocument();
   });
+
+  it("shows Не проверено badge for null subscriber snapshot", () => {
+    const unknownScran = { ...baseScran, isSubscriberAtSubmit: null };
+    render(
+      <table>
+        <tbody>
+          <ScranRow
+            scran={unknownScran}
+            role="moderator"
+            onApprove={onApprove}
+            onBan={onBan}
+            onDelete={onDelete}
+          />
+        </tbody>
+      </table>
+    );
+    expect(screen.getByText("Не проверено")).toBeInTheDocument();
+    expect(screen.queryByText("SVAGA+")).not.toBeInTheDocument();
+  });
 });

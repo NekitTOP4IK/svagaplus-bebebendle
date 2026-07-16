@@ -79,9 +79,9 @@ describe("CountdownTimer", () => {
       vi.advanceTimersByTime(10);
     });
     
-    // Should be in format HH:MM:SS
-    const timeText = screen.getByText(/\d{2}:\d{2}:\d{2}/).textContent;
-    expect(timeText).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    // After mount the label and countdown share one line.
+    const timeText = screen.getByText(/До следующего дейлика \d{2}:\d{2}:\d{2}/).textContent;
+    expect(timeText).toMatch(/До следующего дейлика \d{2}:\d{2}:\d{2}/);
   });
 
   it("should cleanup interval on unmount", async () => {
