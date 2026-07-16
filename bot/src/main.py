@@ -4,15 +4,17 @@ import asyncio
 import logging
 import os
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import datetime
 from html import escape
 from pathlib import Path
-from typing import Any
+from typing import Literal
 
 import aiofiles
 import aiohttp
 from aiogram import Bot, Dispatcher, F, Router
-from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -23,16 +25,14 @@ from aiogram.types import (
     FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    InputMediaPhoto,
     KeyboardButton,
     Message,
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
 )
-from aiogram.utils.media_group import MediaGroupBuilder
 from dotenv import load_dotenv
 
-from database import Database
+from database import Database, PendingSuggestionLimitError
 
 # Load .env from project root if available (for non-Docker runs)
 root_env = Path(__file__).resolve().parents[2] / ".env"
@@ -55,7 +55,7 @@ if not BOT_TOKEN:
 
 # Internal bebebendle API config for SVAGA+ subscriber status (used by bot suggestions)
 BEBEBENDLE_INTERNAL_URL = os.getenv("BEBEBENDLE_INTERNAL_URL", "http://next:3000")
-INTERNAL_SECRET = os.getenv("INTERNAL_SECRET")
+BEBEBENDLE_INTERNAL_SECRET = os.getenv("BEBEBENDLE_INTERNAL_SECRET")
 
 # Initialize bot and dispatcher
 bot = Bot(token=BOT_TOKEN)
@@ -108,46 +108,83 @@ def get_media_input(image_url: str) -> str | FSInputFile:
     return image_url
 
 
-async def get_svaga_subscriber_status(telegram_id: str) -> bool:
+@dataclass(frozen=True)
+class SubscriberSnapshot:
+    is_subscriber: bool | None
+    checked_at: datetime | None
+    source: Literal["fresh", "cache", "stale_cache", "unknown"]
+
+
+def _unknown_snapshot() -> SubscriberSnapshot:
+    return SubscriberSnapshot(None, None, "unknown")
+
+
+def _parse_checked_at(value: object) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+async def get_svaga_subscriber_status(telegram_id: str) -> SubscriberSnapshot:
     """Fetch SVAGA+ subscriber status for a Telegram user via bebebendle's internal API.
 
-    This is called before saving a suggestion so that is_subscriber_at_submit is captured
-    at submit time.
-
-    Args:
-        telegram_id: Telegram user ID as string
-
-    Returns:
-        True if the user is a current SVAGA+ subscriber (or was at last sync), False otherwise.
-        Returns False on any error, missing config, or non-subscriber.
+    Never converts outages into a confirmed non-subscriber result.
     """
-    if not BEBEBENDLE_INTERNAL_URL or not INTERNAL_SECRET:
-        logger.warning("BEBEBENDLE_INTERNAL_URL or INTERNAL_SECRET not configured; treating as non-subscriber")
-        return False
+    if not BEBEBENDLE_INTERNAL_URL or not BEBEBENDLE_INTERNAL_SECRET:
+        logger.warning(
+            "BEBEBENDLE_INTERNAL_URL or BEBEBENDLE_INTERNAL_SECRET not configured; status unknown"
+        )
+        return _unknown_snapshot()
 
     url = f"{BEBEBENDLE_INTERNAL_URL.rstrip('/')}/api/internal/svaga/subscription-status"
     params = {"telegram_id": telegram_id}
-    headers = {"x-internal-secret": INTERNAL_SECRET}
+    headers = {"X-Internal-Secret": BEBEBENDLE_INTERNAL_SECRET}
     timeout = aiohttp.ClientTimeout(total=5.0)
 
     try:
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url, params=params, headers=headers) as response:
-                if response.status != 200:
-                    text = await response.text()
-                    logger.warning(f"SVAGA status fetch failed for {telegram_id}: HTTP {response.status} {text[:200]}")
-                    return False
+        async with (
+            aiohttp.ClientSession(timeout=timeout) as session,
+            session.get(url, params=params, headers=headers) as response,
+        ):
+            if response.status != 200:
+                text = await response.text()
+                logger.warning(
+                    "SVAGA status fetch failed for %s: HTTP %s %s",
+                    telegram_id,
+                    response.status,
+                    text[:200],
+                )
+                return _unknown_snapshot()
 
-                data = await response.json()
-                is_sub = bool(data.get("isSubscriber", False))
-                logger.info(f"Fetched SVAGA subscriber status for telegram_id={telegram_id}: isSubscriber={is_sub}")
-                return is_sub
-    except asyncio.TimeoutError:
+            data = await response.json()
+            source = data.get("source")
+            if source not in ("fresh", "cache", "stale_cache", "unknown"):
+                return _unknown_snapshot()
+
+            raw_sub = data.get("isSubscriber")
+            if source == "unknown":
+                return SubscriberSnapshot(None, None, "unknown")
+            if not isinstance(raw_sub, bool):
+                return _unknown_snapshot()
+
+            checked_at = _parse_checked_at(data.get("checkedAt"))
+            logger.info(
+                "Fetched SVAGA subscriber status for telegram_id=%s: "
+                "isSubscriber=%s source=%s",
+                telegram_id,
+                raw_sub,
+                source,
+            )
+            return SubscriberSnapshot(raw_sub, checked_at, source)
+    except TimeoutError:
         logger.error(f"Timeout fetching SVAGA subscriber status for {telegram_id}")
-        return False
+        return _unknown_snapshot()
     except Exception as e:
         logger.error(f"Error fetching SVAGA subscriber status for {telegram_id}: {e}")
-        return False
+        return _unknown_snapshot()
 
 
 class SuggestStates(StatesGroup):
@@ -161,7 +198,7 @@ class SuggestStates(StatesGroup):
 
 
 @asynccontextmanager
-async def database_session():
+async def database_session() -> AsyncIterator[Database]:
     """Async context manager for database sessions."""
     await db.connect()
     try:
@@ -276,7 +313,7 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
                 reply_markup=keyboard,
                 parse_mode="HTML",
             )
-            logger.error(f"Готово")
+            logger.error("Готово")
 
     except Exception as e:
         logger.error(f"Error in vote command: {e}")
@@ -303,8 +340,8 @@ async def process_vote(callback: CallbackQuery) -> None:
             await callback.answer("Ошибка в данных голосования")
             return
 
-        _, scran_id, vote_type = data_parts
-        scran_id = int(scran_id)
+        _, scran_id_raw, vote_type = data_parts
+        scran_id = int(scran_id_raw)
         is_like = vote_type == "like"
 
         async with database_session() as database:
@@ -464,7 +501,8 @@ async def process_description(message: Message, state: FSMContext) -> None:
 
     status = "✅ Описание получено" if description else "✅ Без описания"
     await message.answer(
-        f"{status}\n\nШаг 4/4: Отправь примерную себестоимость в рублях (только число, например: 299.99)",
+        f"{status}\n\nШаг 4/4: Отправь примерную себестоимость в рублях "
+        f"(только число, например: 299.99)",
         reply_markup=cancel_keyboard,
     )
     await state.set_state(SuggestStates.price)
@@ -530,28 +568,41 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
                 pending = await database.count_pending_scrans(data["telegram_id"])
                 if pending >= 6:
                     await message.answer(
-                        "У тебя уже 6 или больше предложений на модерации. Дождись их рассмотрения, прежде чем предлагать новые.",
+                        "У тебя уже 6 или больше предложений на модерации. "
+                        "Дождись их рассмотрения, прежде чем предлагать новые.",
                         reply_markup=ReplyKeyboardRemove(),
                     )
                     await state.clear()
                     return
 
-                is_sub = await get_svaga_subscriber_status(data["telegram_id"])
+                snapshot = await get_svaga_subscriber_status(data["telegram_id"])
                 await database.insert_scran(
                     image_url=data["photo_url"],
                     name=data["name"],
                     description=data.get("description"),
                     price=data["price"],
                     telegram_id=data["telegram_id"],
-                    is_subscriber=is_sub,
+                    is_subscriber=snapshot.is_subscriber,
+                    subscriber_checked_at=snapshot.checked_at,
                 )
 
             await message.answer(
                 "🎉 Отлично!\n\nТвоё предложение отправлено на рассмотрение администратору.",
                 reply_markup=ReplyKeyboardRemove(),
             )
-            logger.info(f"New scran suggested by user {data['telegram_id']}: {data['name']} (subscriber={is_sub})")
+            logger.info(
+                f"New scran suggested by user {data['telegram_id']}: {data['name']} "
+                f"(subscriber={snapshot.is_subscriber}, source={snapshot.source})"
+            )
 
+        except PendingSuggestionLimitError:
+            await message.answer(
+                "У тебя уже 6 или больше предложений на модерации. "
+                "Дождись их рассмотрения, прежде чем предлагать новые.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            await state.clear()
+            return
         except Exception as e:
             logger.error(f"Error saving scran: {e}")
             await message.answer(
@@ -620,7 +671,8 @@ async def cmd_status(message: Message) -> None:
 async def handle_unknown(message: Message) -> None:
     """Handle unknown messages."""
     await message.answer(
-        "Я не понимаю это сообщение. Используй /suggest чтобы предложить блюдо или /help для помощи."
+        "Я не понимаю это сообщение. Используй /suggest чтобы предложить блюдо "
+        "или /help для помощи."
     )
 
 

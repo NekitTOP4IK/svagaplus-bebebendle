@@ -69,15 +69,15 @@ bot/
 ## 🗄️ Database
 
 The bot connects to the shared PostgreSQL database (configured via env, typically via docker-compose):
-- **Engine**: asyncpg + POSTGRES_HOST/PORT/DB/USER/PASSWORD
-- **Tables involved**: `scrans` (incl. `telegram_id`, `is_subscriber_at_submit`, `subscriber_checked_at`, `submitted_by_user_id`), plus `users` table for accounts/linking
+- **Engine**: asyncpg via `DATABASE_URL` (preferred) or `POSTGRES_*` fallback
+- **Tables involved**: `scrans` (incl. `telegram_id`, nullable `is_subscriber_at_submit`, `subscriber_checked_at`, `submitted_by_user_id`), plus `users` for accounts/cache
 - **Library**: asyncpg
 
 When a user suggests a scran:
 - `approved` is set to false
 - `telegram_id` stores the user's Telegram ID
-- `is_subscriber_at_submit` + `subscriber_checked_at` capture SVAGA+ status at submit time
-- `submitted_by_user_id` may be backfilled from `users` table
+- `is_subscriber_at_submit` is `true`/`false` when confirmed, or `null` when status is unknown
+- pending suggestions are capped at 6 with a transaction advisory lock to close races
 - Admin can approve it via the web admin panel
 
 ## 🛠️ Development
@@ -114,9 +114,10 @@ uv run pytest
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `BOT_TOKEN` | Telegram bot token from @BotFather | Yes |
-| `BEBEBENDLE_INTERNAL_URL` | Base URL for bebebendle (e.g. http://next:3000) for internal SVAGA checks | No (defaults to docker service) |
-| `INTERNAL_SECRET` | Shared secret for calling bebebendle internal APIs (and receiving from svagaplus) | Yes for SVAGA+ features |
-| `POSTGRES_*` | Host/port/db/user/pass for the shared DB | Yes (in production/docker) |
+| `BEBEBENDLE_INTERNAL_URL` | Base URL for bebebendle (e.g. http://next:3000) | No (defaults to docker service) |
+| `BEBEBENDLE_INTERNAL_SECRET` | Secret for calling Bebebendle internal APIs | Yes for SVAGA+ features |
+| `DATABASE_URL` | Authoritative PostgreSQL DSN | Preferred |
+| `POSTGRES_*` | Host/port/db/user/pass fallback when `DATABASE_URL` is unset | Local Compose |
 
 ### Bot Commands
 
@@ -137,31 +138,30 @@ help - Показать помощь
 4. Bot asks for description (optional, max 500 chars)
 5. Bot asks for price (0-1,000,000 rubles)
 6. Bot shows preview and asks for confirmation
-7. On confirmation, bot fetches current SVAGA+ subscriber status via bebebendle internal API (for snapshot)
-8. On confirmation, saves to database with `approved=false` + `is_subscriber_at_submit`
-9. Admin can approve via web panel at `/admin` (sees subscriber badges and fair queue)
+7. On confirmation, bot fetches Olesha-scoped SVAGA+ status via Bebebendle internal API
+8. Saves with `approved=false` and a nullable `is_subscriber_at_submit` snapshot
+9. Admin can approve via web panel at `/admin` (subscriber badges, null = «Не проверено»)
 
 ## 🔗 Integration with Frontend
 
 The bot and frontend share the same PostgreSQL DB:
 - Frontend reads scrans for the daily game
-- Bot inserts new scrans as "pending" (with subscriber snapshot)
-- Admin panel (frontend) shows pending scrans for approval (hybrid queue with SVAGA+ priority)
+- Bot inserts new scrans as "pending" (with nullable subscriber snapshot)
+- Admin panel shows pending scrans (hybrid queue; only confirmed subscribers get priority)
 - Once approved, scran becomes available for the daily game
 
-## 🔗 SVAGA+ Subscriber Status (new flow)
+## 🔗 SVAGA+ Subscriber Status
 
-- On `/suggest` confirmation, bot calls bebebendle's protected internal endpoint:
+- On `/suggest` confirmation, bot calls:
   `GET /api/internal/svaga/subscription-status?telegram_id=...`
-  (auth via `x-internal-secret` header)
-- Bebebendle returns cached or freshly-fetched `isSubscriber` (refreshes from SVAGA+ if stale >1h, creates minimal user row if needed)
-- Status is snapshotted into `scrans.is_subscriber_at_submit`
-- This enables fair moderation queue interleaving (sub vs regular)
-- Related env for bot: `BEBEBENDLE_INTERNAL_URL` (default http://next:3000), `INTERNAL_SECRET`
-- Logging: bot and bebebendle log subscriber checks and link actions (prefixed [svaga*])
-- Rate limiting applied to internal subscriber endpoint
+  with `X-Internal-Secret: $BEBEBENDLE_INTERNAL_SECRET`
+- Response contract: `{ isSubscriber, source, checkedAt, error }` where
+  `source` is `fresh` | `cache` | `stale_cache` | `unknown`
+- `unknown` / outages become `is_subscriber_at_submit = null` (never invented `false`)
+- Six-pending cap is enforced with a transactional advisory lock
+- Profile UI checks subscription via «Проверить подписку» (not «link account»)
 
-Anonymous play on the web is unaffected (uses fingerprint + session cookies only; no Telegram/SVAGA required).
+Anonymous play on the web is unaffected (fingerprint + session only).
 
 ## 📝 Notes
 
