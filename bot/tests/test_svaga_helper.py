@@ -5,7 +5,7 @@ from __future__ import annotations
 import inspect
 import os
 import sys
-from datetime import UTC, datetime
+from datetime import datetime
 from types import ModuleType
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -112,7 +112,8 @@ async def test_fresh_true_snapshot():
         result = await main_module.get_svaga_subscriber_status("987654321")
         assert result.is_subscriber is True
         assert result.source == "fresh"
-        assert result.checked_at == datetime(2026, 7, 16, 12, 0, tzinfo=UTC)
+        # naive UTC for asyncpg timestamp without time zone
+        assert result.checked_at == datetime(2026, 7, 16, 12, 0)
         session = await mock_session.__aenter__()
         call_kwargs = session.get.call_args.kwargs
         assert call_kwargs["params"] == {"telegram_id": "987654321"}
@@ -140,7 +141,7 @@ async def test_stale_cache_preserves_boolean_and_timestamp():
         result = await main_module.get_svaga_subscriber_status("111")
         assert result.is_subscriber is False
         assert result.source == "stale_cache"
-        assert result.checked_at == datetime(2026, 7, 16, 10, 0, tzinfo=UTC)
+        assert result.checked_at == datetime(2026, 7, 16, 10, 0)
 
 
 @pytest.mark.asyncio
