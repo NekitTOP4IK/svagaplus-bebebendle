@@ -88,8 +88,8 @@ jobs:
         with:
           bun-version-file: .bun-version
       - run: bun install --frozen-lockfile
-      - run: bunx drizzle-kit migrate
-      - run: bunx drizzle-kit migrate
+      - run: bun run db:migrate
+      - run: bun run db:migrate
       - name: Verify required schema
         run: |
           sudo apt-get update -qq
