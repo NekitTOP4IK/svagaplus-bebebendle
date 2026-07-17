@@ -47,6 +47,27 @@ file_hash() {
   sha256sum "$1" | awk '{print $1}'
 }
 
+dir_hash() {
+  local dir=$1
+  if [[ ! -d "$dir" ]]; then
+    echo "missing"
+    return 0
+  fi
+  (
+    cd "$dir"
+    find . -type f \
+      ! -path './node_modules/*' \
+      ! -path './.next/*' \
+      ! -path './.venv/*' \
+      ! -path './.git/*' \
+      -print0 2>/dev/null |
+      sort -z |
+      xargs -0 sha256sum 2>/dev/null |
+      sha256sum |
+      awk '{print $1}'
+  )
+}
+
 clone_tree() {
   local src=$1
   local dst=$2
@@ -148,6 +169,9 @@ AVAILABLE_KB=$(df -Pk "$ROOT" | awk 'NR==2 {print $4}')
   exit 1
 }
 
+PREV_RELEASE=""
+[[ -L "$ROOT/current" ]] && PREV_RELEASE="$(readlink -f "$ROOT/current")"
+
 rm -rf "$RELEASE"
 mkdir -p "$RELEASE"
 tar -xzf "$ARCHIVE" -C "$RELEASE"
@@ -167,7 +191,7 @@ NEXT_LOCK_HASH="$(
 NEXT_NM_CACHE="$CACHE_DIR/node_modules/$NEXT_LOCK_HASH"
 cd "$RELEASE/next"
 if [[ -d "$NEXT_NM_CACHE" ]]; then
-  echo "    reusing node_modules cache $NEXT_LOCK_HASH"
+  echo "    reusing node_modules $NEXT_LOCK_HASH"
   clone_tree "$NEXT_NM_CACHE" "$RELEASE/next/node_modules"
 else
   echo "    bun install (cold)"
@@ -178,7 +202,19 @@ else
 fi
 
 echo "==> next build"
-run_low_prio bun run build
+NEW_NEXT_SRC="$(dir_hash "$RELEASE/next")"
+SKIP_NEXT_BUILD=0
+if [[ -n "$PREV_RELEASE" && -d "$PREV_RELEASE/next/.next" ]]; then
+  PREV_NEXT_SRC="$(dir_hash "$PREV_RELEASE/next")"
+  if [[ "$NEW_NEXT_SRC" == "$PREV_NEXT_SRC" && "$NEW_NEXT_SRC" != "missing" ]]; then
+    echo "    next sources unchanged — reusing .next"
+    clone_tree "$PREV_RELEASE/next/.next" "$RELEASE/next/.next"
+    SKIP_NEXT_BUILD=1
+  fi
+fi
+if [[ "$SKIP_NEXT_BUILD" -eq 0 ]]; then
+  run_low_prio bun run build
+fi
 
 echo "==> bot dependencies"
 BOT_LOCK_HASH="$(file_hash "$RELEASE/bot/uv.lock")"
@@ -196,8 +232,8 @@ ln -sfn "$BOT_VENV" "$RELEASE/bot/.venv"
 
 echo "==> prune unused bot venvs"
 PREV_BOT_HASH=""
-if [[ -L "$ROOT/current/bot/uv.lock" || -f "$ROOT/current/bot/uv.lock" ]]; then
-  PREV_BOT_HASH="$(file_hash "$ROOT/current/bot/uv.lock" 2>/dev/null || true)"
+if [[ -n "$PREV_RELEASE" && -f "$PREV_RELEASE/bot/uv.lock" ]]; then
+  PREV_BOT_HASH="$(file_hash "$PREV_RELEASE/bot/uv.lock" 2>/dev/null || true)"
 fi
 shopt -s nullglob
 for venv_path in "$VENVS_DIR"/bot-*; do
@@ -216,17 +252,27 @@ BACKUP="$BACKUP_DIR/pre-$RELEASE_SHA-$(date -u +%Y%m%dT%H%M%SZ).dump"
 run_low_prio pg_dump --format=custom --file="$BACKUP" "$DATABASE_URL"
 
 echo "==> migrate"
-cd "$RELEASE/next"
-if [[ -x "$RELEASE/next/node_modules/.bin/drizzle-kit" ]]; then
-  "$RELEASE/next/node_modules/.bin/drizzle-kit" migrate
-elif [[ -f "$RELEASE/next/package.json" ]] && grep -q '"db:migrate"' "$RELEASE/next/package.json"; then
-  bun run db:migrate
-else
-  bun x drizzle-kit migrate
+NEW_MIG_HASH="$(dir_hash "$RELEASE/next/db/migrations")"
+SKIP_MIGRATE=0
+if [[ -n "$PREV_RELEASE" && -d "$PREV_RELEASE/next/db/migrations" ]]; then
+  PREV_MIG_HASH="$(dir_hash "$PREV_RELEASE/next/db/migrations")"
+  if [[ "$NEW_MIG_HASH" == "$PREV_MIG_HASH" ]]; then
+    echo "    migrations unchanged — skip"
+    SKIP_MIGRATE=1
+  fi
+fi
+if [[ "$SKIP_MIGRATE" -eq 0 ]]; then
+  cd "$RELEASE/next"
+  if [[ -x "$RELEASE/next/node_modules/.bin/drizzle-kit" ]]; then
+    "$RELEASE/next/node_modules/.bin/drizzle-kit" migrate
+  elif [[ -f "$RELEASE/next/package.json" ]] && grep -q '"db:migrate"' "$RELEASE/next/package.json"; then
+    bun run db:migrate
+  else
+    bun x drizzle-kit migrate
+  fi
 fi
 
-OLD_RELEASE=""
-[[ -L "$ROOT/current" ]] && OLD_RELEASE="$(readlink -f "$ROOT/current")"
+OLD_RELEASE="$PREV_RELEASE"
 SWITCHED=0
 
 rollback() {
@@ -254,7 +300,6 @@ SWITCHED=1
 
 echo "==> pm2 reload"
 export PATH="${HOME}/.bun/bin:${HOME}/bin:/usr/local/bin:${PATH}"
-# startOrReload keeps old pm_cwd/script paths; force rebind to this release.
 pm2 delete bebebendle-next bebebendle-bot >/dev/null 2>&1 || true
 pm2 start "$ROOT/current/ecosystem.config.cjs"
 pm2 save
