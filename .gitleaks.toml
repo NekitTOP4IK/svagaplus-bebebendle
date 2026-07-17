@@ -1,0 +1,19 @@
+# Gitleaks config — scan application code, not design docs / runbooks.
+# Docs often contain example secrets, hex tokens, and "SECRET=" placeholders.
+
+title = "bebebendle"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation, samples, and lockfiles"
+paths = [
+  '''(^|/)docs/''',
+  '''(^|/)\.md$''',
+  '''(^|/)\.env\.sample$''',
+  '''(^|/)ops/tests/''',
+  '''(^|/)bot/uv\.lock$''',
+  '''(^|/)next/bun\.lock$''',
+  '''(^|/)next/bun\.lockb$''',
+]

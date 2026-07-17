@@ -9,8 +9,17 @@ name: Bebebendle Pipeline
 on:
   push:
     branches: [dev, staging, main]
+    paths-ignore:
+      # Docs-only pushes must not burn the full gate / gitleaks noise
+      - "docs/**"
+      - "**/*.md"
+      - "!.github/workflows/**"
   pull_request:
     branches: [dev, staging, main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "!.github/workflows/**"
   workflow_dispatch:
 
 permissions:
