@@ -43,11 +43,23 @@ export async function GET(request: Request) {
         throw new Error(`Scran not found for round ${round.roundNumber}`);
       }
 
+      const mapScran = (s: typeof scranA) => ({
+        id: s.id,
+        imageUrl: s.imageUrl,
+        name: s.name,
+        description: s.description,
+        price: s.price,
+        numberOfLikes: s.numberOfLikes,
+        numberOfDislikes: s.numberOfDislikes,
+        icon: s.icon ?? "Cooked_Cod.png",
+        isSubscriberAtSubmit: s.isSubscriberAtSubmit ?? null,
+      });
+
       return {
         roundNumber: round.roundNumber,
         scrandleId: round.id,
-        scranA,
-        scranB,
+        scranA: mapScran(scranA),
+        scranB: mapScran(scranB),
       };
     });
 

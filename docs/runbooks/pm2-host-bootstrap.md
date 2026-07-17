@@ -208,7 +208,116 @@ See [`deploy-and-rollback.md`](./deploy-and-rollback.md).
 
 ---
 
+## Production host (current)
+
+| Item | Value |
+|------|--------|
+| Host | `185.184.123.237` (`vm197765.hosted-by.u1host.com`) |
+| SSH | `ssh -i ~/.ssh/svagaplus_deploy deploy@185.184.123.237` |
+| Domain | `bebebendle.svagaplus.qzz.io` |
+| Co-located | SVAGA+ under `/opt/svagaplus` (ports 5015/5016, PM2 currently **root**-owned) |
+| Postgres / Redis / Nginx | already active |
+| App ports | `3000` (Next), `3011` (bot health) — free as of prep |
+
+### Already done (as `deploy`, no root)
+
+- [x] SSH access as `deploy` with prod deploy key (`~/.ssh/svagaplus_deploy`)
+- [x] Bun `1.3.14` user-local: `~/.bun/bin/bun`
+- [x] uv `0.11.26` user-local: `~/.local/bin/uv`
+- [x] Home tree: `/home/deploy/bebebendle/{releases,shared/{uploads,logs,cache,venvs},incoming,backups/daily}`
+- [x] `/home/deploy/bebebendle/shared/.env.example` (`APP_ENV=production`, mode 600)
+- [x] Root one-shot script: `/home/deploy/bootstrap-bebebendle-root.sh`  
+  (repo copy: `ops/bootstrap/bootstrap-bebebendle-root.production.sh`)
+
+### Blocked without root/sudo (password required)
+
+Same as staging: `deploy` is in `sudo` but needs an interactive password. Cannot create `/opt/bebebendle`, PostgreSQL role/DB, or nginx sudoers without one elevated run.
+
+### One command you must run (sudo password once)
+
+```bash
+ssh -t -i ~/.ssh/svagaplus_deploy deploy@185.184.123.237 \
+  'sudo bash /home/deploy/bootstrap-bebebendle-root.sh'
+```
+
+That script will:
+
+1. Install unzip/rsync/curl/git/jq/gettext-base  
+2. Create `/opt/bebebendle/...` and rsync from `/home/deploy/bebebendle`  
+3. `chown -R deploy:deploy /opt/bebebendle`  
+4. Create PostgreSQL role `bebebendle` + DB `bebebendle_production` (idempotent)  
+5. Write one-time DB URL to `/home/deploy/bebebendle-db-pass-once.txt` (mode 600) if the role was new  
+6. Add narrow NOPASSWD sudo for nginx reload/status/restart only  
+7. Ensure `/var/www/certbot` exists for later TLS  
+
+Then:
+
+```bash
+ssh -i ~/.ssh/svagaplus_deploy deploy@185.184.123.237 '
+  set -e
+  test -f /opt/bebebendle/shared/.env || cp /opt/bebebendle/shared/.env.example /opt/bebebendle/shared/.env
+  chmod 600 /opt/bebebendle/shared/.env
+  ls -la /opt/bebebendle
+  cat /home/deploy/bebebendle-db-pass-once.txt 2>/dev/null || true
+'
+```
+
+Fill `/opt/bebebendle/shared/.env` (never paste secrets into chat). **Generate every secret independently from staging** — do not copy staging `.env`.
+
+```dotenv
+APP_ENV=production
+NODE_ENV=production
+SESSION_SECRET=<64 hex, new>
+DATABASE_URL=postgresql://bebebendle:...@127.0.0.1:5432/bebebendle_production
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+SVAGAPLUS_INTERNAL_URL=http://127.0.0.1:5016
+SVAGAPLUS_INTERNAL_SECRET=<prod SVAGA+ BEBEBENDLE_INTERNAL_SECRET>
+SVAGA_TARGET_USER_ID=<Olesha users.id on prod SVAGA+>
+BEBEBENDLE_INTERNAL_SECRET=<new, bot→bebebendle only>
+BEBEBENDLE_INTERNAL_URL=http://127.0.0.1:3000
+BOT_TOKEN=<prod bot>
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=<prod bot username>
+UPLOADS_DIR=/opt/bebebendle/shared/uploads
+PORT=3000
+BOT_HEALTH_PORT=3011
+```
+
+```bash
+ssh -i ~/.ssh/svagaplus_deploy deploy@185.184.123.237 \
+  'rm -f /home/deploy/bebebendle-db-pass-once.txt'
+```
+
+### Production notes (PM2 ownership)
+
+On this host SVAGA+ PM2 processes currently run as **root**. Bebebendle should still start under user `deploy` (deploy script / first `pm2 start` as deploy). That means two PM2 daemons until SVAGA+ is migrated to `deploy` — acceptable short-term if ports do not collide (`3000`/`3011` free; SVAGA uses `5015`/`5016`). Do **not** start Bebebendle as root.
+
+### After root bootstrap + .env
+
+1. DNS A record: `bebebendle.svagaplus.qzz.io` → `185.184.123.237`  
+2. Nginx site from `ops/nginx/bebebendle.svagaplus.qzz.io.conf` → enable + `certbot --nginx`  
+3. GitHub Environment `production`: `DEPLOY_HOST=185.184.123.237`, `DEPLOY_USER=deploy`, `DEPLOY_PATH=/opt/bebebendle`, key, known_hosts, variable `APP_URL=https://bebebendle.svagaplus.qzz.io`  
+4. Required reviewers on Environment `production`  
+5. Merge verified staging → `main` → approve deploy  
+6. Smoke: [`svaga-integration-smoke.md`](./svaga-integration-smoke.md)
+
+### Verify after root bootstrap
+
+```bash
+ssh -i ~/.ssh/svagaplus_deploy deploy@185.184.123.237 '
+  set -e
+  test -w /opt/bebebendle
+  ls -la /opt/bebebendle
+  ~/.bun/bin/bun -v
+  ~/.local/bin/uv -V
+  pm2 -v
+'
+```
+
+---
+
 ## Why not “PM2 for both root and deploy”
 
 PM2 is global binary; the **daemon** must be owned by one user. Root + deploy both running apps → port fights, split process lists, broken `pm2 save` on reboot.  
-This host correctly runs SVAGA+ under `deploy` already — Bebebendle joins the same model.
+**Staging** correctly runs SVAGA+ under `deploy` already — Bebebendle joins that model.  
+**Production** currently has SVAGA+ under root PM2; Bebebendle still deploys as `deploy`. Long-term: move SVAGA+ to the `deploy` PM2 daemon so only one daemon owns all apps.

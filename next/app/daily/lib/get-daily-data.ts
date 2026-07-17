@@ -59,6 +59,7 @@ export async function getDailyData(): Promise<DailyData | null> {
           numberOfLikes: scranA.numberOfLikes,
           numberOfDislikes: scranA.numberOfDislikes,
           icon: scranA.icon ?? "Cooked_Cod.png",
+          isSubscriberAtSubmit: scranA.isSubscriberAtSubmit ?? null,
         },
         scranB: {
           id: scranB.id,
@@ -69,6 +70,7 @@ export async function getDailyData(): Promise<DailyData | null> {
           numberOfLikes: scranB.numberOfLikes,
           numberOfDislikes: scranB.numberOfDislikes,
           icon: scranB.icon ?? "Cooked_Cod.png",
+          isSubscriberAtSubmit: scranB.isSubscriberAtSubmit ?? null,
         },
       };
     }),

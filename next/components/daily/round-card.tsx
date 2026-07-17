@@ -8,6 +8,7 @@ interface RoundCardProps {
     description: string | null;
     price: number;
     icon: string;
+    isSubscriberAtSubmit?: boolean | null;
   };
   onVote: () => void;
   isVoting: boolean;
@@ -24,12 +25,16 @@ export function RoundCard({
     position === "left"
       ? "border-b-4 border-black md:border-b-0 md:border-r-4"
       : "";
+  const isSvaga = scran.isSubscriberAtSubmit === true;
+
   return (
     <button
       onClick={onVote}
       disabled={isVoting}
       className={`group relative h-1/2 w-full overflow-hidden ${borderClass} disabled:cursor-default md:h-full md:w-1/2`}
+      type="button"
     >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={scran.imageUrl}
         alt={scran.name}
@@ -38,7 +43,7 @@ export function RoundCard({
 
       <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
         <div
-          className="relative flex items-center gap-3 sm:gap-4 w-full text-left p-3 sm:p-4"
+          className="relative flex w-full items-center gap-3 p-3 text-left sm:gap-4 sm:p-4"
           style={{
             backgroundColor: "#1b1b1b",
             border: "6px solid #555555",
@@ -47,7 +52,18 @@ export function RoundCard({
             imageRendering: "pixelated",
           }}
         >
-          <div className="absolute -top-3 -right-3 z-10">
+          {isSvaga ? (
+            <div className="absolute -left-3 -top-3 z-10">
+              <div
+                className="svaga-dish-badge pixel-text px-2 py-1 text-[10px] font-bold sm:text-xs"
+                title="Блюдо от платного подписчика СВАГА+"
+              >
+                СВАГА+
+              </div>
+            </div>
+          ) : null}
+
+          <div className="absolute -right-3 -top-3 z-10">
             <div
               className="pixel-text px-2 py-1 text-xs font-bold sm:text-sm"
               style={{
@@ -62,10 +78,11 @@ export function RoundCard({
             </div>
           </div>
 
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={`/sprites/${scran.icon}`}
             alt=""
-            className="h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 object-cover"
+            className="h-10 w-10 flex-shrink-0 object-cover sm:h-12 sm:w-12"
             style={{
               imageRendering: "pixelated",
               filter: "drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.6))",

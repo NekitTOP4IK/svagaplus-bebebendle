@@ -223,6 +223,74 @@ body {
         0 0 12px rgba(212, 160, 40, 0.35);
 }
 
+/* Daily dish badge: paid SVAGA+ subscriber submission */
+.svaga-dish-badge {
+    position: relative;
+    overflow: hidden;
+    color: #3d2a08;
+    border: 3px solid #8a6a12;
+    box-shadow:
+        3px 3px 0 rgba(0, 0, 0, 0.45),
+        0 0 10px rgba(245, 200, 80, 0.55);
+    background: linear-gradient(
+        110deg,
+        #8a6a12 0%,
+        #d4a028 18%,
+        #ffe9a0 38%,
+        #f0c040 52%,
+        #d4a028 68%,
+        #ffe9a0 82%,
+        #8a6a12 100%
+    );
+    background-size: 220% 100%;
+    animation: svaga-gold-shimmer 2.4s linear infinite;
+    text-shadow:
+        0 0 4px rgba(255, 240, 180, 0.85),
+        1px 1px 0 rgba(255, 255, 255, 0.35);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.svaga-dish-badge::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        105deg,
+        transparent 35%,
+        rgba(255, 255, 255, 0.55) 48%,
+        transparent 62%
+    );
+    background-size: 200% 100%;
+    animation: svaga-gold-sheen 2.4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes svaga-gold-shimmer {
+    0% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: -100% 50%;
+    }
+}
+
+@keyframes svaga-gold-sheen {
+    0% {
+        background-position: 120% 0;
+    }
+    100% {
+        background-position: -120% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .svaga-dish-badge,
+    .svaga-dish-badge::after {
+        animation: none;
+    }
+}
+
 /*
  * Dark-surface pixel label: white fill + black outline.
  * Never pair with text-black (outline+fill both black).

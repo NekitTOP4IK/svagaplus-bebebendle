@@ -12,6 +12,8 @@ export interface Scran {
   numberOfDislikes: number;
   approved?: boolean;
   icon: string;
+  /** Snapshot at submit: true = paid SVAGA+ subscriber dish */
+  isSubscriberAtSubmit?: boolean | null;
 }
 
 export interface Round {
