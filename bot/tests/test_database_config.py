@@ -50,3 +50,17 @@ async def test_connect_uses_database_url_when_set(monkeypatch):
     assert kwargs["dsn"] == "postgresql://user:pass@dbhost:5432/bebendle"
     assert kwargs["min_size"] == 1
     assert kwargs["max_size"] == 3
+
+
+@pytest.mark.asyncio
+async def test_connect_is_idempotent(monkeypatch):
+    database_module = _load_database_module()
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@dbhost:5432/bebendle")
+    create_pool = AsyncMock(return_value=MagicMock())
+
+    with patch.object(database_module.asyncpg, "create_pool", create_pool):
+        db = database_module.Database()
+        await db.connect()
+        await db.connect()
+
+    create_pool.assert_awaited_once()

@@ -207,12 +207,14 @@ class SuggestStates(StatesGroup):
 
 @asynccontextmanager
 async def database_session() -> AsyncIterator[Database]:
-    """Async context manager for database sessions."""
+    """Yield the process-wide DB pool (connected at bot startup).
+
+    Does not open/close per request — closing the global pool after each
+    handler left `db.pool is None` for paths that used `db` without this
+    context manager (e.g. ban check on /suggest).
+    """
     await db.connect()
-    try:
-        yield db
-    finally:
-        await db.close()
+    yield db
 
 
 # Reminder shown on /start and at the start of /suggest.
@@ -435,7 +437,8 @@ async def process_vote(callback: CallbackQuery) -> None:
 async def _deny_if_banned(message: Message, telegram_id: str) -> bool:
     """If user is banned, send notice and return True (caller should stop)."""
     try:
-        reason = await db.get_active_ban_reason(telegram_id)
+        async with database_session() as database:
+            reason = await database.get_active_ban_reason(telegram_id)
     except Exception as e:
         logger.error("ban check failed for %s: %s", telegram_id, str(e))
         return False
@@ -816,6 +819,7 @@ async def main() -> None:
     dp.include_router(router)
 
     await bot.get_me()
+    await db.connect()
     health_host = os.getenv("BOT_HEALTH_HOST", "127.0.0.1")
     health_port = int(os.getenv("BOT_HEALTH_PORT", "3011"))
     health_server = await start_health_server(health_host, health_port)
@@ -827,6 +831,7 @@ async def main() -> None:
     finally:
         health_server.close()
         await health_server.wait_closed()
+        await db.close()
 
 
 if __name__ == "__main__":

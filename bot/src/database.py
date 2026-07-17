@@ -51,7 +51,10 @@ class Database:
         return self._emb_model
 
     async def connect(self) -> None:
-        """Establish database connection pool."""
+        """Establish database connection pool (idempotent)."""
+        if self.pool is not None:
+            return
+
         pool_max = int(os.getenv("DB_POOL_MAX", "3"))
         database_url = os.getenv("DATABASE_URL")
         if database_url:
