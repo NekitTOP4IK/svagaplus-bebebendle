@@ -71,8 +71,23 @@ dir_hash() {
 force_rm() {
   local path=$1
   [[ -e "$path" || -L "$path" ]] || return 0
+  if [[ -L "$path" ]]; then
+    rm -f "$path" 2>/dev/null || true
+    return 0
+  fi
+  # Drop nested symlinks first so we never chmod/rm into shared venvs via link.
+  find "$path" -xdev -type l -delete 2>/dev/null || true
   chmod -R u+w "$path" 2>/dev/null || true
-  rm -rf "$path"
+  if rm -rf "$path" 2>/dev/null; then
+    return 0
+  fi
+  if command -v sudo >/dev/null && sudo -n true 2>/dev/null; then
+    sudo -n rm -rf "$path" 2>/dev/null || true
+  fi
+  if [[ -e "$path" ]]; then
+    echo "warn: could not remove $path (likely root-owned; run: sudo chown -R deploy:deploy /opt/bebebendle)" >&2
+  fi
+  return 0
 }
 
 clone_tree() {
