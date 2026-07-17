@@ -28,6 +28,10 @@ jobs:
         working-directory: next
     steps:
       - uses: actions/checkout@v4
+      # Next.js 16 requires Node >= 20.9 even when invoked via Bun
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
@@ -78,6 +82,9 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/bebendle_test
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
