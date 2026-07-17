@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
-# Atomic PM2 release deploy for Bebebendle.
-#
-# Secrets model:
-#   - Application runtime secrets live ONLY in $ROOT/shared/.env on the host.
-#   - CI/CD must never upload BOT_TOKEN, SESSION_SECRET, DB passwords, etc.
-#   - GitHub Environment secrets are for deploy transport only
-#     (DEPLOY_HOST/USER/PATH/SSH_KEY/KNOWN_HOSTS + vars.APP_URL).
-#
-# Usage (on host):
-#   BEBEBENDLE_DEPLOY_ROOT=/opt/bebebendle \
-#     bash ops/deploy-release.sh <40-char-sha> <staging|production> <app-url>
+# Usage: BEBEBENDLE_DEPLOY_ROOT=/opt/bebebendle bash deploy-release.sh <sha40> <staging|production> <app-url>
+# App secrets: host $ROOT/shared/.env only (not GitHub).
 set -Eeuo pipefail
 
 RELEASE_SHA="${1:?release sha is required}"
@@ -33,15 +24,13 @@ RELEASE="$ROOT/releases/$RELEASE_SHA"
 ENV_FILE="$ROOT/shared/.env"
 BACKUP_DIR="$ROOT/backups"
 
-# Prefer an already-configured PATH (CI stubs, interactive shells), then user installs.
-# Next.js 16 requires Node >= 20.9; load nvm default when present (PM2 hosts).
 export NVM_DIR="${HOME}/.nvm"
 if [[ -s "${NVM_DIR}/nvm.sh" ]]; then
   # shellcheck disable=SC1091
   . "${NVM_DIR}/nvm.sh"
   nvm use default >/dev/null 2>&1 || true
 fi
-export PATH="${HOME}/bin:${HOME}/.bun/bin:${HOME}/.local/bin:/usr/local/bin:${PATH}"
+export PATH="${PATH}:${HOME}/bin:${HOME}/.bun/bin:${HOME}/.local/bin:/usr/local/bin"
 
 mkdir -p "$ROOT/releases" "$ROOT/shared/uploads" "$ROOT/shared/logs" "$BACKUP_DIR" "$INCOMING"
 exec 9>"$ROOT/deploy.lock"
@@ -185,7 +174,6 @@ wait_for() {
 wait_for "http://127.0.0.1:${PORT:-3000}/api/health/live"
 wait_for "http://127.0.0.1:${PORT:-3000}/api/health/ready"
 wait_for "http://127.0.0.1:${BOT_HEALTH_PORT:-3011}/health"
-# Public/app URL check (on-host). Use http://127.0.0.1:3000 until DNS/TLS exists.
 wait_for "${APP_URL%/}/api/health/live"
 
 SWITCHED=0

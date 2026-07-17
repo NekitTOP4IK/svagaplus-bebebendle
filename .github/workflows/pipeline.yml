@@ -1,16 +1,9 @@
 name: Bebebendle Pipeline
 
-# Quality gate on dev/staging/main.
-# Application secrets are NOT injected from GitHub.
-# Staging/production runtime config lives on the host:
-#   /opt/bebebendle/shared/.env
-# GitHub Environment secrets are deploy transport only.
-
 on:
   push:
     branches: [dev, staging, main]
     paths-ignore:
-      # Docs-only pushes must not burn the full gate / gitleaks
       - "docs/**"
       - "**/*.md"
   pull_request:
@@ -35,7 +28,6 @@ jobs:
         working-directory: next
     steps:
       - uses: actions/checkout@v4
-      # Next.js 16 requires Node >= 20.9 even when invoked via Bun
       - uses: actions/setup-node@v4
         with:
           node-version: "20"

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Offline dry-run tests for deploy-release.sh (stubs real tools).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -10,7 +9,6 @@ STUBS="$TMP/stubs"
 mkdir -p "$STUBS"
 export PATH="$STUBS:$PATH"
 
-# Minimal stubs used by deploy-release.sh
 cat >"$STUBS/bun" <<'EOF'
 #!/usr/bin/env bash
 exit 0
@@ -38,7 +36,6 @@ exit 0
 EOF
 cat >"$STUBS/curl" <<'EOF'
 #!/usr/bin/env bash
-# Fail until "health ready" marker file exists (simulates startup).
 if [[ -f "${BEBEBENDLE_TEST_HEALTH_OK:-/tmp/bebe-health-ok}" ]]; then
   exit 0
 fi
@@ -46,28 +43,10 @@ exit 1
 EOF
 cat >"$STUBS/tar" <<'EOF'
 #!/usr/bin/env bash
-# emulate: tar -xzf archive -C dest
-dest=""
-archive=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -C) dest=$2; shift 2 ;;
-    -xzf|-xzf*) archive=${1#-xzf}; [[ -z "$archive" ]] && { archive=$2; shift; }; shift ;;
-    *) shift ;;
-  esac
-done
-# real args form: tar -xzf ARCHIVE -C DEST
-# re-parse from original simpler path
-exit 0
-EOF
-# Better tar stub that actually extracts using system tar under another name
-cat >"$STUBS/tar" <<'EOF'
-#!/usr/bin/env bash
 exec /usr/bin/tar "$@"
 EOF
-cat >"$STUBS/flock" <<'EOF'
+cat >"$STUBS/bunx" <<'EOF'
 #!/usr/bin/env bash
-# flock -n FD → rest not used; we just succeed
 exit 0
 EOF
 chmod +x "$STUBS"/*
@@ -90,9 +69,6 @@ PORT=3000
 BOT_HEALTH_PORT=3011
 EOF
 
-# Build a tiny fake release archive with required layout
-SHA="$(printf 'a%.0s' {1..40})"
-# use real 40 hex
 SHA="$(python3 - <<'PY'
 print("a"*40)
 PY
@@ -112,21 +88,11 @@ echo '#!/usr/bin/env bash' >"$WORK/scripts/run-bot.sh"
 echo 'module.exports={apps:[]}' >"$WORK/ecosystem.config.cjs"
 cp "$ROOT/ops/deploy-release.sh" "$WORK/ops/deploy-release.sh"
 
-ARCHIVE="$DEPLOY_ROOT/incoming/bebebendle-$SHA.tar.gz"
 ARCHIVE_MASTER="$TMP/bebebendle-master.tar.gz"
 tar -czf "$ARCHIVE_MASTER" -C "$WORK" .
-cp "$ARCHIVE_MASTER" "$ARCHIVE"
+cp "$ARCHIVE_MASTER" "$DEPLOY_ROOT/incoming/bebebendle-$SHA.tar.gz"
 (cd "$DEPLOY_ROOT/incoming" && sha256sum "bebebendle-$SHA.tar.gz" >"bebebendle-$SHA.tar.gz.sha256")
 
-# Override bun install/build and uv sync and migrate inside a wrapper of deploy
-# by patching PATH so bun/uv succeed; also stub drizzle via bunx
-cat >"$STUBS/bunx" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
-chmod +x "$STUBS/bunx"
-
-# Health becomes ok after a short delay in background
 rm -f /tmp/bebe-health-ok
 (
   sleep 1
@@ -135,11 +101,6 @@ rm -f /tmp/bebe-health-ok
 
 export BEBEBENDLE_DEPLOY_ROOT="$DEPLOY_ROOT"
 export BEBEBENDLE_TEST_HEALTH_OK=/tmp/bebe-health-ok
-
-# flock in script uses exec 9>file; real flock may be needed - use system flock
-rm -f "$STUBS/flock"
-# use system sha256sum
-# use system bash
 
 bash "$ROOT/ops/deploy-release.sh" "$SHA" staging "http://127.0.0.1:3000"
 
@@ -153,7 +114,6 @@ target="$(readlink -f "$DEPLOY_ROOT/current")"
   exit 1
 }
 
-# Bad checksum stops before extract
 SHA2="$(python3 - <<'PY'
 print("b"*40)
 PY
@@ -166,7 +126,6 @@ if bash "$ROOT/ops/deploy-release.sh" "$SHA2" staging "http://127.0.0.1:3000"; t
   exit 1
 fi
 
-# Missing env key
 mv "$DEPLOY_ROOT/shared/.env" "$DEPLOY_ROOT/shared/.env.bak"
 echo "APP_ENV=staging" >"$DEPLOY_ROOT/shared/.env"
 SHA3="$(python3 - <<'PY'
