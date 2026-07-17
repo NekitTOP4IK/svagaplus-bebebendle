@@ -11,6 +11,7 @@ export default function AdminPage() {
     scrans,
     loading,
     currentPage,
+    totalItems,
     totalPages,
     sortField,
     sortOrder,
@@ -51,6 +52,7 @@ export default function AdminPage() {
       scrans={scrans}
       loading={loading}
       currentPage={currentPage}
+      totalItems={totalItems}
       totalPages={totalPages}
       sortField={sortField}
       sortOrder={sortOrder}

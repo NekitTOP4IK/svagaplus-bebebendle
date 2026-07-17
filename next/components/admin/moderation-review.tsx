@@ -6,6 +6,7 @@ import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
 
 type Props = Readonly<{
   scrans: Scran[];
+  totalCount?: number;
   role?: "moderator" | "admin" | null;
   busy?: boolean;
   onApprove: (id: number) => void | Promise<void>;
@@ -98,6 +99,7 @@ function StatusBadge({ scran }: { scran: Scran }) {
 
 export function ModerationReview({
   scrans,
+  totalCount,
   busy = false,
   onApprove,
   onReject,
@@ -118,7 +120,11 @@ export function ModerationReview({
   );
 
   const current = queue[index] ?? null;
-  const remaining = Math.max(queue.length - index, 0);
+  const remaining =
+    totalCount == null
+      ? Math.max(queue.length - index, 0)
+      : Math.max(totalCount - index - skippedIds.size, 0);
+  const totalVisible = totalCount ?? queue.length;
 
   useEffect(() => {
     if (queue.length === 0) {
@@ -250,7 +256,7 @@ export function ModerationReview({
         >
           <span className="text-white/55">Осталось:</span>{" "}
           <span className="text-amber-300">{remaining}</span>
-          <span className="text-white/40"> / {queue.length}</span>
+          <span className="text-white/40"> / {totalVisible}</span>
           {skippedIds.size > 0 && (
             <span className="ml-2 text-white/40">· skip {skippedIds.size}</span>
           )}

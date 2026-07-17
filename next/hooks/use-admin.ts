@@ -28,6 +28,7 @@ interface UseAdminReturn {
   scrans: Scran[];
   loading: boolean;
   currentPage: number;
+  totalItems: number;
   totalPages: number;
   sortField: SortField;
   sortOrder: SortOrder;
@@ -75,7 +76,8 @@ interface UseAdminReturn {
 export function useAdmin(): UseAdminReturn {
   const { isAuthenticated, role, login, logout } = useAdminAuth();
   const { sortField, sortOrder, handleSort } = useAdminSorting();
-  const { currentPage, totalPages, setCurrentPage, setTotalItems } = useAdminPagination();
+  const { currentPage, totalItems, totalPages, setCurrentPage, setTotalItems } =
+    useAdminPagination();
 
   const [view, setViewState] = useState<ViewMode>("queue");
   const [subscriberOnly, setSubscriberOnlyState] = useState(false);
@@ -165,6 +167,7 @@ export function useAdmin(): UseAdminReturn {
     scrans,
     loading,
     currentPage,
+    totalItems,
     totalPages,
     sortField,
     sortOrder,
