@@ -33,7 +33,9 @@ setup_path() {
     . "${NVM_DIR}/nvm.sh"
     nvm use default >/dev/null 2>&1 || nvm use 20 >/dev/null 2>&1 || true
   fi
-  export PATH="${HOME}/.bun/bin:${HOME}/bin:/usr/local/bin:${PATH}"
+  # User-local tools: bun installer, uv (pipx/cargo/curl), optional ~/bin wrappers.
+  # Non-interactive SSH does not source .profile, so PATH must be explicit here.
+  export PATH="${HOME}/.bun/bin:${HOME}/.local/bin:${HOME}/bin:/usr/local/bin:${PATH}"
 }
 
 require_cmd() {
@@ -380,7 +382,7 @@ mv -Tf "$ROOT/current.next" "$ROOT/current"
 SWITCHED=1
 
 echo "==> pm2 reload"
-export PATH="${HOME}/.bun/bin:${HOME}/bin:/usr/local/bin:${PATH}"
+export PATH="${HOME}/.bun/bin:${HOME}/.local/bin:${HOME}/bin:/usr/local/bin:${PATH}"
 pm2 delete bebebendle-next bebebendle-bot >/dev/null 2>&1 || true
 pm2 start "$ROOT/current/ecosystem.config.cjs"
 pm2 save
