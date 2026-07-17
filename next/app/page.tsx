@@ -3,7 +3,7 @@ import { DailyPlayButton } from "@/components/daily-play-button";
 import { SocialLinks } from "@/components/social-links";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { SplashText } from "@/components/splash-text";
-import { HomeProfileRow, HomeUserMenu } from "@/components/home-user-menu";
+import { HomeUserMenu } from "@/components/home-user-menu";
 import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
 import { getDailyPublicStatus } from "@/lib/app-settings";
 
@@ -97,7 +97,6 @@ export default async function HomePage() {
             unavailableReason={dailyStatus.reason}
           />
           <HomeUserMenu />
-          <HomeProfileRow />
           <SocialLinks />
         </div>
       </main>

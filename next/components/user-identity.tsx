@@ -17,6 +17,10 @@ type Props = Readonly<{
   size?: "sm" | "lg";
   className?: string;
   meta?: string | null;
+  /** Append · admin / · СВАГА+ to meta (default true). */
+  showMetaSuffix?: boolean;
+  /** Nick color/glow by role (default true). Set false for plain white nick. */
+  nickGlow?: boolean;
 }>;
 
 /**
@@ -30,8 +34,11 @@ export function UserIdentity({
   size = "sm",
   className = "",
   meta,
+  showMetaSuffix = true,
+  nickGlow = true,
 }: Props): ReactElement {
   const tone = resolveIdentityTone(role, isSubscriber);
+  const nickTone = nickGlow ? tone : "default";
   const badge = identityBadgeSrc(tone);
   const title = identityBadgeTitle(tone);
   const nameClass =
@@ -44,7 +51,7 @@ export function UserIdentity({
   return (
     <div className={`min-w-0 ${className}`}>
       <div className="flex min-w-0 items-center gap-1.5 overflow-visible py-0.5">
-        <span className={`user-nick-glow user-nick-glow--${tone} min-w-0`}>
+        <span className={`user-nick-glow user-nick-glow--${nickTone} min-w-0`}>
           <span className={`user-nick-text ${nameClass} font-bold`}>{name}</span>
         </span>
         {badge ? (
@@ -60,7 +67,7 @@ export function UserIdentity({
       {meta != null && meta !== "" ? (
         <span className="mt-0.5 block truncate text-[10px] leading-tight text-white/60">
           {meta}
-          {identityMetaSuffix(role, isSubscriber)}
+          {showMetaSuffix ? identityMetaSuffix(role, isSubscriber) : null}
         </span>
       ) : null}
     </div>

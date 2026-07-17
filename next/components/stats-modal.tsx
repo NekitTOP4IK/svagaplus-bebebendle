@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Twitch, Github } from "lucide-react";
 
 interface StatsData {
   approvedScransCount: number;
@@ -116,6 +116,29 @@ export function StatsModal({ isOpen, onClose }: StatsModalProps) {
                   Не удалось загрузить статистику
                 </div>
               )}
+
+              <div className="mt-5 flex flex-col gap-2 sm:gap-3">
+                <a
+                  href="https://www.twitch.tv/olesha"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pixel-btn pixel-btn-twitch inline-flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs sm:gap-2 sm:px-4 sm:py-2 sm:text-sm md:text-base"
+                >
+                  <Twitch className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                  <span className="hidden sm:inline">olesha</span>
+                  <span className="sm:hidden">twitch</span>
+                </a>
+                <a
+                  href="https://github.com/NekitTOP4IK/svagaplus-bebebendle/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pixel-btn inline-flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs sm:gap-2 sm:px-4 sm:py-2 sm:text-sm md:text-base"
+                >
+                  <Github className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5" />
+                  <span className="hidden sm:inline">github</span>
+                  <span className="sm:hidden">git</span>
+                </a>
+              </div>
             </div>
           </motion.div>
         </>

@@ -38,7 +38,12 @@ async function fetchSessionUser(): Promise<SessionUser | null> {
   }
 }
 
-export function HomeUserMenu(): ReactElement | null {
+/**
+ * Single profile entry on home:
+ * - logged out → «Профиль / СВАГА+»
+ * - logged in → avatar + nick (+ badge) + meta «Профиль / СВАГА+» (no chip glow)
+ */
+export function HomeUserMenu(): ReactElement {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
 
   useEffect(() => {
@@ -51,22 +56,41 @@ export function HomeUserMenu(): ReactElement | null {
     };
   }, []);
 
-  if (user === undefined || user === null) {
-    return null;
+  // Loading: same footprint as CTA to avoid layout jump
+  if (user === undefined) {
+    return (
+      <div
+        className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold opacity-50"
+        aria-hidden
+      >
+        …
+      </div>
+    );
+  }
+
+  if (user === null) {
+    return (
+      <Link
+        href="/profile"
+        className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+      >
+        Профиль / СВАГА+
+      </Link>
+    );
   }
 
   const name = user.displayName || user.telegramUsername || `tg:${user.telegramId}`;
   const staff = user.role === "admin" || user.role === "moderator";
   const panel = panelLabel(user.role);
   const tone = resolveIdentityTone(user.role, user.isSubscriber);
-  const chipClass = tone === "default" ? "" : `user-chip--${tone}`;
+  // Avatar ring only — no glowing chip on the whole button
   const avatarClass = tone === "default" ? "" : `user-avatar--${tone}`;
 
   return (
-    <div className="flex w-full flex-col gap-2 overflow-visible">
+    <div className="flex w-full flex-col gap-2">
       <Link
         href="/profile"
-        className={`pixel-btn flex min-h-11 items-center gap-3 overflow-visible px-3 py-2 text-left ${chipClass}`}
+        className="pixel-btn flex min-h-11 items-center gap-3 overflow-visible px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
       >
         {user.telegramPhotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -89,7 +113,9 @@ export function HomeUserMenu(): ReactElement | null {
           isSubscriber={user.isSubscriber}
           size="sm"
           className="min-w-0 flex-1"
-          meta={user.telegramUsername ? `@${user.telegramUsername}` : "профиль"}
+          meta="Профиль / СВАГА+"
+          showMetaSuffix={false}
+          nickGlow
         />
       </Link>
 
@@ -105,29 +131,17 @@ export function HomeUserMenu(): ReactElement | null {
   );
 }
 
-/** Profile CTA only (logout lives next to info at the bottom of the column). */
+/** @deprecated Use HomeUserMenu only — kept as alias for any old imports. */
 export function HomeProfileRow(): ReactElement {
-  return (
-    <Link
-      href="/profile"
-      className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-    >
-      Профиль / СВАГА+
-    </Link>
-  );
+  return <HomeUserMenu />;
 }
 
 type LogoutButtonProps = Readonly<{
-  /** When true, only render if session exists (home bottom row). */
-  hideWhenLoggedOut?: boolean;
   className?: string;
 }>;
 
-/** Shared logout control for home bottom row and profile page. */
-export function LogoutButton({
-  hideWhenLoggedOut = false,
-  className = "",
-}: LogoutButtonProps): ReactElement | null {
+/** Logout control for profile page only. */
+export function LogoutButton({ className = "" }: LogoutButtonProps): ReactElement | null {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -151,14 +165,7 @@ export function LogoutButton({
     window.location.href = "/";
   }, []);
 
-  if (user === undefined) {
-    // Avoid layout jump: reserve nothing until we know
-    return null;
-  }
-  if (hideWhenLoggedOut && user === null) {
-    return null;
-  }
-  if (user === null) {
+  if (user === undefined || user === null) {
     return null;
   }
 
