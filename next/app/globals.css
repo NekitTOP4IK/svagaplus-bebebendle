@@ -208,6 +208,8 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #fff;
+    font-family: var(--font-pixel), monospace;
+    image-rendering: pixelated;
 }
 
 .user-nick-glow--subscriber {

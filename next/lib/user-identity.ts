@@ -27,6 +27,7 @@ export function identityBadgeTitle(tone: IdentityTone): string {
   return "";
 }
 
+/** Single tone label for meta line (never duplicate role already in meta). */
 export function identityMetaSuffix(
   role: UserRole | string | null | undefined,
   isSubscriber: boolean | null | undefined,
@@ -34,5 +35,6 @@ export function identityMetaSuffix(
   if (role === "admin") return " · admin";
   if (role === "moderator") return " · moderator";
   if (isSubscriber === true) return " · СВАГА+";
+  if (role === "player") return "";
   return "";
 }

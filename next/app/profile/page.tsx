@@ -209,7 +209,7 @@ export default function ProfilePage(): ReactElement {
               isSubscriber={user.isSubscriber ?? null}
               size="lg"
               className="min-w-0 flex-1"
-              meta={`ID: ${user.telegramId} · роль: ${user.role}`}
+              meta={`ID: ${user.telegramId}`}
             />
           </div>
         </div>

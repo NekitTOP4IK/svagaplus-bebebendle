@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { auditActionLabel, auditDetailsPreview } from "@/lib/audit-labels";
 import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
+import { UserIdentity } from "@/components/user-identity";
+import { resolveIdentityTone } from "@/lib/user-identity";
 
 type ScranDetail = {
   scran: {
@@ -174,33 +176,10 @@ function ScranDetailInner(): ReactElement {
               </div>
             </div>
 
-            <div className="pixel-container border-4 border-black bg-zinc-900/90 p-4 text-white">
+            <div className="pixel-container overflow-visible border-4 border-black bg-zinc-900/90 p-4 text-white">
               <h3 className="pixel-text mb-3 text-lg font-bold">Автор</h3>
               {data.author ? (
-                <div className="flex items-center gap-3 text-sm">
-                  {data.author.telegramPhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={data.author.telegramPhotoUrl}
-                      alt=""
-                      className="h-12 w-12 border-2 border-black object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <span className="flex h-12 w-12 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold">
-                      TG
-                    </span>
-                  )}
-                  <div>
-                    <p className="font-bold">
-                      {data.author.displayName || data.author.telegramUsername || "—"}
-                    </p>
-                    <p className="text-xs text-white/50">
-                      @{data.author.telegramUsername || "—"} · {data.author.role}
-                      {data.author.isSubscriber === true ? " · SVAGA+" : ""}
-                    </p>
-                  </div>
-                </div>
+                <AuthorBlock author={data.author} telegramId={data.scran.telegramId} />
               ) : (
                 <p className="text-sm text-white/50">
                   Локальный user не привязан
@@ -256,6 +235,54 @@ function ScranDetailInner(): ReactElement {
           />
         )}
       </div>
+    </div>
+  );
+}
+
+function AuthorBlock({
+  author,
+  telegramId,
+}: {
+  author: NonNullable<ScranDetail["author"]>;
+  telegramId: string | null;
+}): ReactElement {
+  const name =
+    author.displayName || author.telegramUsername || (telegramId ? `tg:${telegramId}` : "—");
+  const tone = resolveIdentityTone(author.role, author.isSubscriber);
+  const avatarRing = tone === "default" ? "" : `user-avatar--${tone}`;
+  // Role/SVAGA label comes once from identityMetaSuffix — don't put role here
+  const meta = [
+    author.telegramUsername ? `@${author.telegramUsername}` : null,
+    telegramId ? `tg:${telegramId}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="flex min-w-0 items-center gap-3 overflow-visible text-sm">
+      {author.telegramPhotoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={author.telegramPhotoUrl}
+          alt=""
+          className={`h-12 w-12 shrink-0 border-2 border-black object-cover ${avatarRing}`}
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <span
+          className={`flex h-12 w-12 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold ${avatarRing}`}
+        >
+          TG
+        </span>
+      )}
+      <UserIdentity
+        name={name}
+        role={author.role}
+        isSubscriber={author.isSubscriber}
+        size="sm"
+        className="min-w-0 flex-1"
+        meta={meta}
+      />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, type ReactElement } from "react";
 import { apiFetch } from "@/lib/api-client";
+import { UserIdentity } from "@/components/user-identity";
+import { resolveIdentityTone } from "@/lib/user-identity";
 
 type AuthorPayload = {
   telegramId: string;
@@ -105,37 +107,7 @@ export function AuthorCardModal({
 
         {data && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              {data.user?.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={data.user.photoUrl}
-                  alt=""
-                  className="h-12 w-12 border-2 border-black object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <span className="flex h-12 w-12 items-center justify-center border-2 border-black bg-zinc-800 text-sm font-bold text-white">
-                  TG
-                </span>
-              )}
-              <div className="min-w-0">
-                <p className="truncate font-bold text-white">
-                  {data.user?.displayName || data.user?.username || `tg:${data.telegramId}`}
-                </p>
-                <p className="text-xs text-white/50">
-                  id {data.telegramId}
-                  {data.user?.username ? ` · @${data.user.username}` : ""}
-                  {data.user?.role ? ` · ${data.user.role}` : ""}
-                </p>
-                {data.banned && (
-                  <p className="mt-1 text-xs font-bold text-red-400">
-                    🚫 ЗАБАНЕН
-                    {data.ban?.reason ? `: ${data.ban.reason}` : ""}
-                  </p>
-                )}
-              </div>
-            </div>
+            <AuthorHeader data={data} />
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {(
@@ -239,6 +211,57 @@ export function AuthorCardModal({
               </ul>
             </div>
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AuthorHeader({ data }: { data: AuthorPayload }): ReactElement {
+  const displayName =
+    data.user?.displayName || data.user?.username || `tg:${data.telegramId}`;
+  const tone = resolveIdentityTone(
+    data.user?.role,
+    data.user?.isSubscriber ?? null,
+  );
+  const avatarRing = tone === "default" ? "" : `user-avatar--${tone}`;
+  const meta = [
+    `id ${data.telegramId}`,
+    data.user?.username ? `@${data.user.username}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div className="flex min-w-0 items-center gap-3 overflow-visible">
+      {data.user?.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={data.user.photoUrl}
+          alt=""
+          className={`h-12 w-12 shrink-0 border-2 border-black object-cover ${avatarRing}`}
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <span
+          className={`flex h-12 w-12 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-sm font-bold text-white ${avatarRing}`}
+        >
+          TG
+        </span>
+      )}
+      <div className="min-w-0 flex-1 overflow-visible">
+        <UserIdentity
+          name={displayName}
+          role={data.user?.role}
+          isSubscriber={data.user?.isSubscriber ?? null}
+          size="sm"
+          meta={meta}
+        />
+        {data.banned && (
+          <p className="mt-1 text-xs font-bold text-red-400">
+            🚫 ЗАБАНЕН
+            {data.ban?.reason ? `: ${data.ban.reason}` : ""}
+          </p>
         )}
       </div>
     </div>
