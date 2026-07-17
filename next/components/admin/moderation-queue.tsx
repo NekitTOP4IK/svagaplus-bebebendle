@@ -44,8 +44,10 @@ export function ModerationQueue({
   if (scrans.length === 0) {
     return (
       <div className="pixel-container border-4 border-black bg-zinc-900/80 px-6 py-16 text-center">
-        <p className="pixel-text text-lg text-white">Очередь пуста</p>
-        <p className="mt-2 text-sm text-white/60">Новых блюд на проверку нет</p>
+        <p className="pixel-text text-lg">Очередь пуста</p>
+        <p className="mt-3 text-sm font-bold text-white/65">
+          Новых блюд на проверку нет
+        </p>
       </div>
     );
   }
@@ -53,9 +55,16 @@ export function ModerationQueue({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-white/70">
-          В списке: <span className="font-bold text-white">{scrans.length}</span>
-        </p>
+        <div
+          className="border-2 border-black px-3 py-1.5 text-sm font-bold text-white"
+          style={{
+            background: "#27272a",
+            boxShadow: "inset 2px 2px 0 #52525b, inset -2px -2px 0 #18181b",
+          }}
+        >
+          <span className="text-white/55">В списке:</span>{" "}
+          <span className="text-amber-300">{scrans.length}</span>
+        </div>
         <button
           type="button"
           onClick={onStartReview}
