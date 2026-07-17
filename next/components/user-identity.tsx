@@ -1,0 +1,68 @@
+"use client";
+
+import type { ReactElement } from "react";
+import {
+  identityBadgeSrc,
+  identityBadgeTitle,
+  identityMetaSuffix,
+  resolveIdentityTone,
+  type UserRole,
+} from "@/lib/user-identity";
+
+type Props = Readonly<{
+  name: string;
+  role?: UserRole | string | null;
+  isSubscriber?: boolean | null;
+  /** smaller = home menu chip; larger = profile header */
+  size?: "sm" | "lg";
+  className?: string;
+  meta?: string | null;
+}>;
+
+/**
+ * Nick + role/SVAGA badge with glow that is not clipped by truncate.
+ * Glow uses filter on an outer layer; ellipsis lives on an inner span.
+ */
+export function UserIdentity({
+  name,
+  role,
+  isSubscriber,
+  size = "sm",
+  className = "",
+  meta,
+}: Props): ReactElement {
+  const tone = resolveIdentityTone(role, isSubscriber);
+  const badge = identityBadgeSrc(tone);
+  const title = identityBadgeTitle(tone);
+  const nameClass =
+    size === "lg" ? "text-lg sm:text-xl" : "text-sm leading-snug";
+  const badgeClass =
+    size === "lg"
+      ? "h-5 w-5 sm:h-6 sm:w-6"
+      : "h-4 w-4 sm:h-[1.15rem] sm:w-[1.15rem]";
+
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <div className="flex min-w-0 items-center gap-1.5 overflow-visible py-0.5">
+        <span className={`user-nick-glow user-nick-glow--${tone} min-w-0`}>
+          <span className={`user-nick-text ${nameClass} font-bold`}>{name}</span>
+        </span>
+        {badge ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={badge}
+            alt=""
+            title={title}
+            className={`user-role-badge user-role-badge--${tone} ${badgeClass} shrink-0`}
+          />
+        ) : null}
+      </div>
+      {meta != null && meta !== "" ? (
+        <span className="mt-0.5 block truncate text-[10px] leading-tight text-white/60">
+          {meta}
+          {identityMetaSuffix(role, isSubscriber)}
+        </span>
+      ) : null}
+    </div>
+  );
+}

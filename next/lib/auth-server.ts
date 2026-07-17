@@ -80,6 +80,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 }
 
+/** Staff = moderator or admin (admin panel access). */
+export function isStaffRole(role: string | null | undefined): boolean {
+  return role === "moderator" || role === "admin";
+}
+
 export async function requireRole(
   role: "moderator" | "admin"
 ): Promise<CurrentUser> {
@@ -88,10 +93,14 @@ export async function requireRole(
     throw new Error("Unauthorized: no session");
   }
   // Allow the requested role or admin (admin can do moderator actions)
-  const isModOrAdmin = ['moderator', 'admin'].includes(user.role);
-  const allowed = role === "admin" ? user.role === "admin" : isModOrAdmin;
+  const allowed = role === "admin" ? user.role === "admin" : isStaffRole(user.role);
   if (!allowed) {
     throw new Error(`Unauthorized: requires ${role} role`);
   }
   return user;
+}
+
+/** Session required and role is moderator or admin. */
+export async function requireStaff(): Promise<CurrentUser> {
+  return requireRole("moderator");
 }

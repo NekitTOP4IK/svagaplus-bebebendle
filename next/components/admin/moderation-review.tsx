@@ -10,6 +10,8 @@ type Props = Readonly<{
   busy?: boolean;
   onApprove: (id: number) => void | Promise<void>;
   onReject: (id: number) => void | Promise<void>;
+  /** Open ban-user modal for this telegram id (no hotkey). */
+  onBanUser?: (telegramId: string, displayName?: string | null) => void;
   onExit: () => void;
   onNeedMore?: () => void;
   hasMorePages?: boolean;
@@ -99,6 +101,7 @@ export function ModerationReview({
   busy = false,
   onApprove,
   onReject,
+  onBanUser,
   onExit,
   onNeedMore,
   hasMorePages = false,
@@ -363,6 +366,27 @@ export function ModerationReview({
             </button>
           </div>
 
+          {onBanUser && current.telegramId && (
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() =>
+                onBanUser(
+                  current.telegramId!,
+                  current.authorDisplayName ||
+                    current.authorUsername ||
+                    null,
+                )
+              }
+              className="pixel-btn pixel-btn-warn w-full min-h-12 text-sm font-bold"
+            >
+              Забанить автора
+              <span className="mt-0.5 block text-[10px] font-bold opacity-75">
+                без хоткея · все pending → reject
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             disabled={disabled}
@@ -373,7 +397,7 @@ export function ModerationReview({
           </button>
 
           <p className="text-center text-[10px] font-bold leading-relaxed text-white/35">
-            Esc — к списку · ← A отклонить · → D одобрить
+            Esc — к списку · ← A отклонить · → D одобрить · бан только кнопкой
           </p>
         </div>
       </article>

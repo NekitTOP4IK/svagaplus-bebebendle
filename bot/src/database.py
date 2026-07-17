@@ -26,6 +26,14 @@ class PendingSuggestionLimitError(Exception):
     """Raised when a user already has 6+ pending suggestions."""
 
 
+class UserBannedError(Exception):
+    """Raised when a banned user tries to submit."""
+
+    def __init__(self, reason: str = "") -> None:
+        self.reason = reason
+        super().__init__(reason or "user banned")
+
+
 class Database:
     """Async database connection handler for PostgreSQL."""
 
@@ -113,6 +121,26 @@ class Database:
             )
             return count or 0
 
+    async def get_active_ban_reason(self, telegram_id: str) -> str | None:
+        """Return ban reason if telegram_id has an active ban, else None."""
+        if not self.pool:
+            raise RuntimeError("Database not connected")
+        async with self.pool.acquire() as connection:
+            row = await connection.fetchrow(
+                """
+                SELECT reason FROM user_bans
+                WHERE telegram_id = $1 AND active = true
+                LIMIT 1
+                """,
+                telegram_id,
+            )
+            if not row:
+                return None
+            return str(row["reason"] or "")
+
+    async def is_user_banned(self, telegram_id: str) -> bool:
+        return (await self.get_active_ban_reason(telegram_id)) is not None
+
     async def insert_scran(
         self,
         image_url: str,
@@ -140,6 +168,17 @@ class Database:
                 raise ValueError("Invalid telegram_id") from exc
 
             await connection.execute("SELECT pg_advisory_xact_lock($1)", telegram_int)
+
+            ban_reason = await connection.fetchval(
+                """
+                SELECT reason FROM user_bans
+                WHERE telegram_id = $1 AND active = true
+                LIMIT 1
+                """,
+                telegram_id,
+            )
+            if ban_reason is not None:
+                raise UserBannedError(str(ban_reason or ""))
 
             pending = await connection.fetchval(
                 """

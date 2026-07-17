@@ -187,16 +187,111 @@ body {
     color: #ffffa0;
 }
 
-/* SVAGA+ subscriber nick glow on home menu */
-/* Room for glow: padding inside the truncated box so text-shadow isn't clipped. */
+/*
+ * User nick glow (admin / mod / SVAGA+).
+ * filter lives on outer .user-nick-glow so text-shadow is not needed;
+ * truncate is on the inner .user-nick-text (overflow hidden won't clip filter as badly
+ * if outer has padding + overflow:visible).
+ */
+.user-nick-glow {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: visible;
+    padding: 4px 6px;
+    margin: -4px -6px;
+}
+
+.user-nick-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fff;
+}
+
+.user-nick-glow--subscriber {
+    filter: drop-shadow(0 0 5px rgba(245, 200, 80, 0.95))
+        drop-shadow(0 0 10px rgba(212, 160, 40, 0.55));
+}
+.user-nick-glow--subscriber .user-nick-text {
+    color: #f5e6a8;
+    text-shadow: 1px 1px 0 #3d2a08;
+}
+
+.user-nick-glow--admin {
+    filter: drop-shadow(0 0 5px rgba(255, 70, 70, 0.95))
+        drop-shadow(0 0 12px rgba(220, 40, 40, 0.55));
+}
+.user-nick-glow--admin .user-nick-text {
+    color: #ffc4c0;
+    text-shadow: 1px 1px 0 #4a1010;
+}
+
+.user-nick-glow--moderator {
+    filter: drop-shadow(0 0 5px rgba(80, 170, 255, 0.95))
+        drop-shadow(0 0 12px rgba(30, 120, 220, 0.55));
+}
+.user-nick-glow--moderator .user-nick-text {
+    color: #b8e0ff;
+    text-shadow: 1px 1px 0 #0a2848;
+}
+
+.user-role-badge {
+    transform: translateY(-2px);
+    image-rendering: auto;
+}
+.user-role-badge--subscriber {
+    filter: drop-shadow(0 0 3px rgba(212, 160, 40, 0.7));
+}
+.user-role-badge--admin {
+    filter: drop-shadow(0 0 3px rgba(255, 60, 60, 0.75));
+}
+.user-role-badge--moderator {
+    filter: drop-shadow(0 0 3px rgba(40, 140, 255, 0.75));
+}
+
+/* Chip / avatar rings by tone */
+.user-chip--subscriber {
+    overflow: visible;
+    box-shadow:
+        inset 2px 2px 0 #c6c6c6,
+        inset -2px -2px 0 #555,
+        0 0 12px rgba(212, 160, 40, 0.35);
+}
+.user-chip--admin {
+    overflow: visible;
+    box-shadow:
+        inset 2px 2px 0 #c6c6c6,
+        inset -2px -2px 0 #555,
+        0 0 12px rgba(255, 60, 60, 0.4);
+}
+.user-chip--moderator {
+    overflow: visible;
+    box-shadow:
+        inset 2px 2px 0 #c6c6c6,
+        inset -2px -2px 0 #555,
+        0 0 12px rgba(40, 140, 255, 0.4);
+}
+
+.user-avatar--subscriber {
+    box-shadow: 0 0 0 2px #d4a028, 0 0 10px rgba(212, 160, 40, 0.7);
+}
+.user-avatar--admin {
+    box-shadow: 0 0 0 2px #e53935, 0 0 10px rgba(255, 60, 60, 0.7);
+}
+.user-avatar--moderator {
+    box-shadow: 0 0 0 2px #1e88e5, 0 0 10px rgba(40, 140, 255, 0.7);
+}
+
+/* Legacy aliases (keep if anything still references) */
 .subscriber-nick-wrap {
     min-width: 0;
     max-width: 100%;
-    overflow: hidden;
-    padding: 3px 5px;
-    margin: -3px -5px;
+    overflow: visible;
+    padding: 4px 6px;
+    margin: -4px -6px;
 }
-
 .subscriber-nick {
     color: #f5e6a8;
     text-shadow:
@@ -204,17 +299,13 @@ body {
         0 0 12px rgba(212, 160, 40, 0.55),
         1px 1px 0 #3d2a08;
 }
-
 .subscriber-badge {
-    /* lift a few px so it sits on the text midline, not below */
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     filter: drop-shadow(0 0 3px rgba(212, 160, 40, 0.65));
 }
-
 .subscriber-avatar {
     box-shadow: 0 0 0 2px #d4a028, 0 0 10px rgba(212, 160, 40, 0.7);
 }
-
 .subscriber-chip {
     overflow: visible;
     box-shadow:
@@ -223,7 +314,10 @@ body {
         0 0 12px rgba(212, 160, 40, 0.35);
 }
 
-/* Daily dish badge: paid SVAGA+ subscriber submission */
+/*
+ * Daily СВАГА+ dish badge — seamless gold shimmer (no loop jump).
+ * Sheen is a translating highlight so restart is continuous.
+ */
 .svaga-dish-badge {
     position: relative;
     overflow: hidden;
@@ -232,18 +326,22 @@ body {
     box-shadow:
         3px 3px 0 rgba(0, 0, 0, 0.45),
         0 0 10px rgba(245, 200, 80, 0.55);
+    /* seamless: start color == end color; two identical half-ramps */
     background: linear-gradient(
-        110deg,
+        105deg,
         #8a6a12 0%,
-        #d4a028 18%,
-        #ffe9a0 38%,
-        #f0c040 52%,
-        #d4a028 68%,
-        #ffe9a0 82%,
-        #8a6a12 100%
+        #d4a028 12%,
+        #ffe9a0 25%,
+        #f0c040 37%,
+        #d4a028 50%,
+        #8a6a12 50%,
+        #d4a028 62%,
+        #ffe9a0 75%,
+        #f0c040 87%,
+        #d4a028 100%
     );
-    background-size: 220% 100%;
-    animation: svaga-gold-shimmer 2.4s linear infinite;
+    background-size: 200% 100%;
+    animation: svaga-gold-shimmer 4.8s linear infinite;
     text-shadow:
         0 0 4px rgba(255, 240, 180, 0.85),
         1px 1px 0 rgba(255, 255, 255, 0.35);
@@ -254,33 +352,38 @@ body {
 .svaga-dish-badge::after {
     content: "";
     position: absolute;
-    inset: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 55%;
     background: linear-gradient(
-        105deg,
-        transparent 35%,
-        rgba(255, 255, 255, 0.55) 48%,
-        transparent 62%
+        100deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0) 30%,
+        rgba(255, 255, 255, 0.5) 50%,
+        rgba(255, 255, 255, 0) 70%,
+        transparent 100%
     );
-    background-size: 200% 100%;
-    animation: svaga-gold-sheen 2.4s ease-in-out infinite;
+    animation: svaga-gold-sheen 4.8s linear infinite;
     pointer-events: none;
 }
 
 @keyframes svaga-gold-shimmer {
     0% {
-        background-position: 100% 50%;
+        background-position: 0% 50%;
     }
     100% {
+        /* exactly one tile of the 200% pattern → seamless */
         background-position: -100% 50%;
     }
 }
 
 @keyframes svaga-gold-sheen {
     0% {
-        background-position: 120% 0;
+        transform: translateX(-120%);
     }
     100% {
-        background-position: -120% 0;
+        transform: translateX(220%);
     }
 }
 

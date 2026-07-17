@@ -8,6 +8,7 @@ const LABELS: Record<string, string> = {
   "scran.restore": "Скран возвращён в очередь",
   "scran.bulk_approve": "Массовое одобрение",
   "scran.bulk_reject": "Массовое отклонение",
+  "user.ban": "Пользователь забанен",
   "daily.generate": "Daily сгенерирован",
   "settings.daily_rotation_notify": "Настройка: уведомления о ротации",
   "settings.daily_generation": "Настройка: генерация daily",

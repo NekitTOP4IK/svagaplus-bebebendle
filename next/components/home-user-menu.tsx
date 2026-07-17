@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api-client";
+import { UserIdentity } from "@/components/user-identity";
+import { resolveIdentityTone } from "@/lib/user-identity";
 
 type SessionUser = Readonly<{
   id: number;
@@ -56,63 +58,41 @@ export function HomeUserMenu(): ReactElement | null {
   const name = user.displayName || user.telegramUsername || `tg:${user.telegramId}`;
   const staff = user.role === "admin" || user.role === "moderator";
   const panel = panelLabel(user.role);
-  const isSub = user.isSubscriber === true;
+  const tone = resolveIdentityTone(user.role, user.isSubscriber);
+  const chipClass =
+    tone === "default" ? "" : `user-chip--${tone}`;
+  const avatarClass =
+    tone === "default" ? "" : `user-avatar--${tone}`;
 
   return (
-    <div className="flex w-full flex-col gap-2">
+    <div className="flex w-full flex-col gap-2 overflow-visible">
       <Link
         href="/profile"
-        className={`pixel-btn flex min-h-11 items-center gap-3 overflow-visible px-3 py-2 text-left ${
-          isSub ? "subscriber-chip" : ""
-        }`}
+        className={`pixel-btn flex min-h-11 items-center gap-3 overflow-visible px-3 py-2 text-left ${chipClass}`}
       >
         {user.telegramPhotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={user.telegramPhotoUrl}
             alt=""
-            className={`h-9 w-9 shrink-0 border-2 border-black object-cover ${
-              isSub ? "subscriber-avatar" : ""
-            }`}
+            className={`h-9 w-9 shrink-0 border-2 border-black object-cover ${avatarClass}`}
             referrerPolicy="no-referrer"
           />
         ) : (
           <span
-            className={`flex h-9 w-9 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold text-white ${
-              isSub ? "subscriber-avatar" : ""
-            }`}
+            className={`flex h-9 w-9 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold text-white ${avatarClass}`}
           >
             {initials(user)}
           </span>
         )}
-        <span className="min-w-0 flex-1 overflow-visible">
-          <span className="flex min-w-0 items-center gap-1.5 overflow-visible">
-            {/* min-w-0 + separate glow layer: truncate must not clip text-shadow */}
-            <span className="subscriber-nick-wrap min-w-0">
-              <span
-                className={`block truncate text-sm font-bold leading-snug ${
-                  isSub ? "subscriber-nick" : "text-white"
-                }`}
-              >
-                {name}
-              </span>
-            </span>
-            {isSub && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src="/gold_verified_badge.svg"
-                alt=""
-                title="СВАГА+"
-                className="subscriber-badge h-4 w-4 shrink-0 sm:h-[1.15rem] sm:w-[1.15rem]"
-              />
-            )}
-          </span>
-          <span className="mt-0.5 block truncate text-[10px] leading-tight text-white/60">
-            {user.telegramUsername ? `@${user.telegramUsername}` : "профиль"}
-            {staff ? ` · ${user.role}` : ""}
-            {isSub && !staff ? " · СВАГА+" : ""}
-          </span>
-        </span>
+        <UserIdentity
+          name={name}
+          role={user.role}
+          isSubscriber={user.isSubscriber}
+          size="sm"
+          className="min-w-0 flex-1"
+          meta={user.telegramUsername ? `@${user.telegramUsername}` : "профиль"}
+        />
       </Link>
 
       {staff && (

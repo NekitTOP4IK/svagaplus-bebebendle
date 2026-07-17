@@ -8,13 +8,17 @@ import {
   ProfileSvagaStatus,
   type LocalSvagaStatus,
 } from "@/components/profile-svaga-status";
+import { UserIdentity } from "@/components/user-identity";
+import { resolveIdentityTone } from "@/lib/user-identity";
 
 interface UserInfo {
   id: number;
   telegramId: number;
   telegramUsername: string | null;
+  telegramPhotoUrl?: string | null;
   displayName: string | null;
   role: string;
+  isSubscriber?: boolean | null;
 }
 
 interface Scran {
@@ -26,8 +30,20 @@ interface Scran {
   numberOfLikes: number;
   numberOfDislikes: number;
   approved: boolean;
+  rejected?: boolean;
+  rejectReason?: string | null;
   isSubscriberAtSubmit: boolean | null;
   submittedByUserId: number | null;
+}
+
+function scranStatusLabel(s: Scran): { text: string; className: string } {
+  if (s.approved) {
+    return { text: "Одобрено", className: "bg-green-500 text-white" };
+  }
+  if (s.rejected) {
+    return { text: "Отклонено", className: "bg-red-500 text-white" };
+  }
+  return { text: "На модерации", className: "bg-yellow-400 text-black" };
 }
 
 interface PlayHistoryItem {
@@ -153,6 +169,9 @@ export default function ProfilePage(): ReactElement {
   }
 
   const displayName = user.displayName || user.telegramUsername || `tg:${user.telegramId}`;
+  const tone = resolveIdentityTone(user.role, user.isSubscriber ?? null);
+  const avatarRing = tone === "default" ? "" : `user-avatar--${tone}`;
+  const chipRing = tone === "default" ? "" : `user-chip--${tone}`;
 
   return (
     <div className="retro-bg relative min-h-dvh px-4 py-8 text-white">
@@ -165,9 +184,34 @@ export default function ProfilePage(): ReactElement {
           </Link>
         </div>
 
-        <div className="pixel-container mb-6 rounded-none border-4 border-black bg-zinc-900/90 p-4">
-          <div className="text-lg font-bold">{displayName}</div>
-          <div className="text-xs text-zinc-400">ID: {user.telegramId} • Роль: {user.role}</div>
+        <div
+          className={`pixel-container mb-6 overflow-visible rounded-none border-4 border-black bg-zinc-900/90 p-4 ${chipRing}`}
+        >
+          <div className="flex min-w-0 items-center gap-3 overflow-visible">
+            {user.telegramPhotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.telegramPhotoUrl}
+                alt=""
+                className={`h-14 w-14 shrink-0 border-2 border-black object-cover ${avatarRing}`}
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span
+                className={`flex h-14 w-14 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-sm font-bold ${avatarRing}`}
+              >
+                {(displayName || "?").slice(0, 2).toUpperCase()}
+              </span>
+            )}
+            <UserIdentity
+              name={displayName}
+              role={user.role}
+              isSubscriber={user.isSubscriber ?? null}
+              size="lg"
+              className="min-w-0 flex-1"
+              meta={`ID: ${user.telegramId} · роль: ${user.role}`}
+            />
+          </div>
         </div>
 
         <ProfileSvagaStatus initialStatus={svagaStatus} />
@@ -197,13 +241,26 @@ export default function ProfilePage(): ReactElement {
                         <div className="font-bold text-white">{s.name}</div>
                       </td>
                       <td className="px-4 py-2">
-                        <span
-                          className={`inline-flex rounded-none px-2 py-0.5 text-xs font-bold ${
-                            s.approved ? "bg-green-500 text-white" : "bg-yellow-400 text-black"
-                          }`}
-                        >
-                          {s.approved ? "Approved" : "Pending"}
-                        </span>
+                        {(() => {
+                          const st = scranStatusLabel(s);
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <span
+                                className={`inline-flex w-fit rounded-none px-2 py-0.5 text-xs font-bold ${st.className}`}
+                              >
+                                {st.text}
+                              </span>
+                              {s.rejected && s.rejectReason ? (
+                                <span
+                                  className="max-w-[14rem] truncate text-[10px] text-zinc-400"
+                                  title={s.rejectReason}
+                                >
+                                  {s.rejectReason}
+                                </span>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-2">
                         {s.isSubscriberAtSubmit === true && (

@@ -12,6 +12,7 @@ import { ModerationReview } from "@/components/admin/moderation-review";
 import { Pagination } from "@/components/admin/pagination";
 import { DeleteScranModal } from "@/components/admin/delete-scran-modal";
 import { RejectScranModal } from "@/components/admin/reject-scran-modal";
+import { BanUserModal } from "@/components/admin/ban-user-modal";
 import { AuthorCardModal } from "@/components/admin/author-card-modal";
 import { EditScranModal } from "@/components/admin/edit-scran-modal";
 import { DailyPanel } from "@/components/admin/daily-panel";
@@ -22,6 +23,7 @@ import {
   HealthPanel,
 } from "@/components/admin/ops-panels";
 import { getUsers, updateUserRole, type AdminUser } from "@/app/admin/actions";
+import type { BanReasonCode } from "@/lib/ban-reasons";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
@@ -47,6 +49,11 @@ interface AdminDashboardProps {
   onApprove: (id: number) => void | Promise<void>;
   onReject: (id: number, reason?: RejectReasonCode, note?: string) => void | Promise<void>;
   onBan: (id: number) => void | Promise<void>;
+  onBanUser: (
+    telegramId: string,
+    reasonCode: BanReasonCode,
+    customNote?: string,
+  ) => Promise<boolean>;
   onDelete: (id: number, comment: string) => Promise<boolean>;
   onRecheckSubscriber?: (scranId?: number) => void | Promise<void>;
   onBulk?: (
@@ -109,6 +116,7 @@ export function AdminDashboard({
   onApprove,
   onReject,
   onBan,
+  onBanUser,
   onDelete,
   onRecheckSubscriber,
   onBulk,
@@ -125,6 +133,10 @@ export function AdminDashboard({
   const [rejectingScran, setRejectingScran] = useState<Scran | null>(null);
   const [editingScran, setEditingScran] = useState<Scran | null>(null);
   const [authorTg, setAuthorTg] = useState<string | null>(null);
+  const [banTarget, setBanTarget] = useState<{
+    telegramId: string;
+    displayName: string | null;
+  } | null>(null);
   const [queueMode, setQueueMode] = useState<QueueMode>("cards");
   const [actionBusy, setActionBusy] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -513,6 +525,9 @@ export function AdminDashboard({
             busy={actionBusy}
             onApprove={handleApprove}
             onReject={(id) => openReject(id)}
+            onBanUser={(telegramId, displayName) =>
+              setBanTarget({ telegramId, displayName: displayName ?? null })
+            }
             onExit={() => setQueueMode("cards")}
             hasMorePages={currentPage < totalPages}
             onNeedMore={() => onPageChange(currentPage + 1)}
@@ -591,6 +606,32 @@ export function AdminDashboard({
         onFilterAuthor={(id) => {
           onAuthorFilterChange?.(id);
           handleSetView("list");
+        }}
+        onBanUser={(telegramId, displayName) => {
+          setAuthorTg(null);
+          setBanTarget({ telegramId, displayName: displayName ?? null });
+        }}
+      />
+
+      <BanUserModal
+        open={!!banTarget}
+        busy={actionBusy}
+        telegramId={banTarget?.telegramId ?? ""}
+        displayName={banTarget?.displayName}
+        onClose={() => setBanTarget(null)}
+        onConfirm={async ({ reasonCode, customNote }) => {
+          if (!banTarget) return;
+          setActionBusy(true);
+          try {
+            const ok = await onBanUser(
+              banTarget.telegramId,
+              reasonCode,
+              customNote,
+            );
+            if (ok) setBanTarget(null);
+          } finally {
+            setActionBusy(false);
+          }
         }}
       />
 

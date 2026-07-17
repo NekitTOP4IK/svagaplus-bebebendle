@@ -5,6 +5,7 @@ describe("auditActionLabel", () => {
   it("maps known actions to Russian", () => {
     expect(auditActionLabel("scran.approve")).toBe("Скран одобрен");
     expect(auditActionLabel("scran.reject")).toBe("Скран отклонён");
+    expect(auditActionLabel("user.ban")).toBe("Пользователь забанен");
     expect(auditActionLabel("daily.generate")).toBe("Daily сгенерирован");
   });
 

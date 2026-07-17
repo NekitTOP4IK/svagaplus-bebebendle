@@ -96,6 +96,19 @@ export const moderationAuditLog = pgTable("moderation_audit_log", {
   scranIdx: index("moderation_audit_log_scran_id_idx").on(table.scranId),
 }));
 
+/** Telegram-level bans (covers bot-only submitters without a local users row). */
+export const userBans = pgTable("user_bans", {
+  telegramId: text("telegram_id").primaryKey(),
+  reason: text("reason").notNull(),
+  reasonCode: text("reason_code").notNull(),
+  bannedByUserId: integer("banned_by_user_id").references(() => users.id),
+  bannedAt: timestamp("banned_at", { withTimezone: true }).defaultNow().notNull(),
+  active: boolean("active").notNull().default(true),
+}, (table) => ({
+  activeIdx: index("user_bans_active_idx").on(table.active),
+  bannedAtIdx: index("user_bans_banned_at_idx").on(table.bannedAt),
+}));
+
 export const dailyScrandles = pgTable("daily_scrandles", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   date: text("date").notNull(),

@@ -43,6 +43,11 @@ interface UseAdminReturn {
   approveScran: (id: number) => Promise<void>;
   rejectScran: (id: number, reason?: RejectReasonCode, note?: string) => Promise<void>;
   banScran: (id: number) => Promise<void>;
+  banUser: (
+    telegramId: string,
+    reasonCode: import("@/lib/ban-reasons").BanReasonCode,
+    customNote?: string,
+  ) => Promise<boolean>;
   deleteScran: (id: number, comment: string) => Promise<boolean>;
   recheckSubscriber: (scranId?: number) => Promise<void>;
   bulkAction: (
@@ -143,6 +148,7 @@ export function useAdmin(): UseAdminReturn {
     approveScran,
     rejectScran,
     banScran,
+    banUser,
     deleteScran,
     recheckSubscriber,
     bulkAction,
@@ -174,6 +180,7 @@ export function useAdmin(): UseAdminReturn {
     approveScran,
     rejectScran,
     banScran,
+    banUser,
     deleteScran,
     recheckSubscriber,
     bulkAction,

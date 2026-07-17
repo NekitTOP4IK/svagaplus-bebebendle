@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
 import type { RejectReasonCode } from "@/lib/reject-reasons";
+import type { BanReasonCode } from "@/lib/ban-reasons";
 
 interface UseScranMutationsParams {
   onUnauthorized: () => void;
@@ -14,6 +15,11 @@ interface UseScranMutationsReturn {
   approveScran: (id: number) => Promise<void>;
   rejectScran: (id: number, reason?: RejectReasonCode, note?: string) => Promise<void>;
   banScran: (id: number) => Promise<void>;
+  banUser: (
+    telegramId: string,
+    reasonCode: BanReasonCode,
+    customNote?: string,
+  ) => Promise<boolean>;
   deleteScran: (id: number, comment: string) => Promise<boolean>;
   recheckSubscriber: (scranId?: number) => Promise<void>;
   bulkAction: (
@@ -108,6 +114,49 @@ export function useScranMutations({
         }
       } catch (error) {
         console.error("Error banning scran:", error);
+      }
+    },
+    [onUnauthorized, onSuccess],
+  );
+
+  const banUser = useCallback(
+    async (
+      telegramId: string,
+      reasonCode: BanReasonCode,
+      customNote = "",
+    ): Promise<boolean> => {
+      try {
+        const response = await apiFetch("/api/admin/bans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ telegramId, reasonCode, customNote }),
+        });
+        if (response.ok) {
+          const data = (await response.json()) as {
+            alreadyBanned?: boolean;
+            rejectedPending?: number;
+          };
+          if (data.alreadyBanned) {
+            toast.message("Уже в бане", { description: `tg:${telegramId}` });
+          } else {
+            toast.success("Пользователь забанен", {
+              description: `tg:${telegramId} · pending → reject: ${data.rejectedPending ?? 0}`,
+            });
+          }
+          onSuccess();
+          return true;
+        }
+        if (response.status === 401) {
+          onUnauthorized();
+          return false;
+        }
+        const err = (await response.json().catch(() => ({}))) as { error?: string };
+        toast.error(err.error || "Не удалось забанить");
+        return false;
+      } catch (error) {
+        console.error("Error banning user:", error);
+        toast.error("Ошибка сети при бане");
+        return false;
       }
     },
     [onUnauthorized, onSuccess],
@@ -289,6 +338,7 @@ export function useScranMutations({
     approveScran,
     rejectScran,
     banScran,
+    banUser,
     deleteScran,
     recheckSubscriber,
     bulkAction,

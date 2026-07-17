@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, scrans, users } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
+import { getActiveBan } from "@/lib/user-ban";
 
 /** Author card: stats + recent submissions by telegram id */
 export async function GET(request: Request) {
@@ -63,6 +64,8 @@ export async function GET(request: Request) {
             )
         : [];
 
+    const ban = await getActiveBan(telegramId);
+
     return NextResponse.json({
       telegramId,
       user: userRows[0]
@@ -75,6 +78,14 @@ export async function GET(request: Request) {
             isSubscriber: userRows[0].isSubscriber,
           }
         : null,
+      ban: ban
+        ? {
+            reason: ban.reason,
+            reasonCode: ban.reasonCode,
+            bannedAt: ban.bannedAt,
+          }
+        : null,
+      banned: ban != null,
       stats: stats[0] ?? { total: 0, pending: 0, approved: 0, rejected: 0 },
       overPendingLimit: (stats[0]?.pending ?? 0) > 6,
       pendingIds: pendingOver.map((p) => p.id),

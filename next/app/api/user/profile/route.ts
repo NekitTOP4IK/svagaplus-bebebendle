@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, scrans } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth-server";
 
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
   }
 
   try {
-    // Fetch user's submitted scrans (joined with users for consistency, though not strictly needed)
+    // Match by linked user id or telegram id (bot-only submits may lack user_id).
     const myScrans = await db
       .select({
         id: scrans.id,
@@ -21,11 +21,18 @@ export async function GET() {
         numberOfLikes: scrans.numberOfLikes,
         numberOfDislikes: scrans.numberOfDislikes,
         approved: scrans.approved,
+        rejected: scrans.rejected,
+        rejectReason: scrans.rejectReason,
         isSubscriberAtSubmit: scrans.isSubscriberAtSubmit,
         submittedByUserId: scrans.submittedByUserId,
       })
       .from(scrans)
-      .where(eq(scrans.submittedByUserId, user.id))
+      .where(
+        or(
+          eq(scrans.submittedByUserId, user.id),
+          eq(scrans.telegramId, String(user.telegramId)),
+        ),
+      )
       .orderBy(desc(scrans.id))
       .limit(100);
 
@@ -37,6 +44,7 @@ export async function GET() {
         telegramPhotoUrl: user.telegramPhotoUrl,
         displayName: user.displayName,
         role: user.role,
+        isSubscriber: user.isSubscriber,
       },
       scrans: myScrans,
     });

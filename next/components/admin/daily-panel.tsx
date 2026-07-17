@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactElement } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
 
@@ -307,9 +308,11 @@ export function DailyPanel({ role }: Props): ReactElement {
                     <tr key={r.roundNumber}>
                       <td className="py-1.5 pr-3 text-white/50">{r.roundNumber}</td>
                       <td className="py-1.5 pr-3">
-                        {r.scranAName ?? r.scranAId}
+                        <ScranAdminLink id={r.scranAId} name={r.scranAName} />
                       </td>
-                      <td className="py-1.5">{r.scranBName ?? r.scranBId}</td>
+                      <td className="py-1.5">
+                        <ScranAdminLink id={r.scranBId} name={r.scranBName} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -343,6 +346,25 @@ export function DailyPanel({ role }: Props): ReactElement {
         </>
       ) : null}
     </div>
+  );
+}
+
+function ScranAdminLink({
+  id,
+  name,
+}: {
+  id: number;
+  name: string | null;
+}): ReactElement {
+  return (
+    <Link
+      href={`/admin/scrans?id=${id}`}
+      className="font-bold text-amber-300 underline-offset-2 hover:text-amber-200 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+      title={`Открыть скран #${id}`}
+    >
+      {name ?? `Скран #${id}`}
+      <span className="ml-1.5 text-xs font-normal text-white/40">#{id}</span>
+    </Link>
   );
 }
 

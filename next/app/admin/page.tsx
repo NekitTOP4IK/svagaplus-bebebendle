@@ -26,6 +26,7 @@ export default function AdminPage() {
     approveScran,
     rejectScran,
     banScran,
+    banUser,
     deleteScran,
     recheckSubscriber,
     bulkAction,
@@ -66,6 +67,7 @@ export default function AdminPage() {
       onApprove={approveScran}
       onReject={rejectScran}
       onBan={banScran}
+      onBanUser={banUser}
       onDelete={deleteScran}
       onRecheckSubscriber={recheckSubscriber}
       onBulk={bulkAction}

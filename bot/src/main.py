@@ -32,7 +32,7 @@ from aiogram.types import (
 )
 from dotenv import load_dotenv
 
-from database import Database, PendingSuggestionLimitError
+from database import Database, PendingSuggestionLimitError, UserBannedError
 from health import start_health_server
 from logging_setup import setup_logging
 
@@ -432,6 +432,24 @@ async def process_vote(callback: CallbackQuery) -> None:
         await callback.answer("❌ Ошибка при сохранении голоса")
 
 
+async def _deny_if_banned(message: Message, telegram_id: str) -> bool:
+    """If user is banned, send notice and return True (caller should stop)."""
+    try:
+        reason = await db.get_active_ban_reason(telegram_id)
+    except Exception as e:
+        logger.error("ban check failed for %s: %s", telegram_id, str(e))
+        return False
+    if reason is None:
+        return False
+    detail = f"\nПричина: {reason}" if reason else ""
+    await message.answer(
+        "🚫 Ты заблокирован и не можешь предлагать блюда."
+        f"{detail}\n"
+        "Если это ошибка — напиши администрации."
+    )
+    return True
+
+
 @router.message(Command("suggest"))
 async def cmd_suggest(message: Message, state: FSMContext) -> None:
     """Handle /suggest command - start the wizard."""
@@ -439,12 +457,17 @@ async def cmd_suggest(message: Message, state: FSMContext) -> None:
         await message.answer("Ошибка: не удалось получить информацию о пользователе.")
         return
 
+    telegram_id = str(message.from_user.id)
+    if await _deny_if_banned(message, telegram_id):
+        await state.clear()
+        return
+
     # Clear any existing state
     await state.clear()
 
     # Store user info
     await state.update_data(
-        telegram_id=str(message.from_user.id),
+        telegram_id=telegram_id,
         telegram_username=message.from_user.username,
     )
 
@@ -620,6 +643,10 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
 
         try:
             async with database_session() as database:
+                ban_reason = await database.get_active_ban_reason(data["telegram_id"])
+                if ban_reason is not None:
+                    raise UserBannedError(ban_reason)
+
                 pending = await database.count_pending_scrans(data["telegram_id"])
                 if pending >= 6:
                     await message.answer(
@@ -658,6 +685,15 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
                 str(snapshot.source),
             )
 
+        except UserBannedError as e:
+            detail = f"\nПричина: {e.reason}" if e.reason else ""
+            await message.answer(
+                "🚫 Ты заблокирован и не можешь предлагать блюда."
+                f"{detail}",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            await state.clear()
+            return
         except PendingSuggestionLimitError:
             await message.answer(
                 "У тебя уже 6 или больше предложений на модерации. "

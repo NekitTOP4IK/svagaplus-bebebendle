@@ -13,6 +13,8 @@ type AuthorPayload = {
     role: string;
     isSubscriber: boolean | null;
   } | null;
+  banned?: boolean;
+  ban?: { reason: string; reasonCode: string; bannedAt: string | Date } | null;
   stats: { total: number; pending: number; approved: number; rejected: number };
   overPendingLimit: boolean;
   recent: Array<{
@@ -31,12 +33,14 @@ type Props = Readonly<{
   telegramId: string | null;
   onClose: () => void;
   onFilterAuthor?: (telegramId: string) => void;
+  onBanUser?: (telegramId: string, displayName?: string | null) => void;
 }>;
 
 export function AuthorCardModal({
   telegramId,
   onClose,
   onFilterAuthor,
+  onBanUser,
 }: Props): ReactElement | null {
   const [data, setData] = useState<AuthorPayload | null>(null);
   const [error, setError] = useState("");
@@ -124,6 +128,12 @@ export function AuthorCardModal({
                   {data.user?.username ? ` · @${data.user.username}` : ""}
                   {data.user?.role ? ` · ${data.user.role}` : ""}
                 </p>
+                {data.banned && (
+                  <p className="mt-1 text-xs font-bold text-red-400">
+                    🚫 ЗАБАНЕН
+                    {data.ban?.reason ? `: ${data.ban.reason}` : ""}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -157,18 +167,43 @@ export function AuthorCardModal({
               </p>
             )}
 
-            {onFilterAuthor && (
-              <button
-                type="button"
-                onClick={() => {
-                  onFilterAuthor(data.telegramId);
-                  onClose();
-                }}
-                className="pixel-btn pixel-btn-warn w-full px-3 py-2 text-sm font-bold"
-              >
-                Фильтр по автору
-              </button>
-            )}
+            <div className="flex flex-col gap-2">
+              {onFilterAuthor && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onFilterAuthor(data.telegramId);
+                    onClose();
+                  }}
+                  className="pixel-btn w-full px-3 py-2 text-sm font-bold"
+                >
+                  Фильтр по автору
+                </button>
+              )}
+              {onBanUser && !data.banned && data.user?.role !== "admin" && data.user?.role !== "moderator" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onBanUser(
+                      data.telegramId,
+                      data.user?.displayName || data.user?.username || null,
+                    )
+                  }
+                  className="pixel-btn pixel-btn-danger w-full px-3 py-2 text-sm font-bold"
+                >
+                  Забанить пользователя
+                </button>
+              )}
+              {onBanUser && !data.banned && !data.user && (
+                <button
+                  type="button"
+                  onClick={() => onBanUser(data.telegramId, null)}
+                  className="pixel-btn pixel-btn-danger w-full px-3 py-2 text-sm font-bold"
+                >
+                  Забанить пользователя
+                </button>
+              )}
+            </div>
 
             <div>
               <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-white/50">
