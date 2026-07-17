@@ -6,8 +6,9 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 export HOME="$TMP/home"
-mkdir -p "$HOME/.bun/bin" "$HOME/bin" "$HOME/.nvm"
-export PATH="$HOME/.bun/bin:$HOME/bin:/usr/bin:/bin"
+# Mirror prod: bun in ~/.bun/bin, uv in ~/.local/bin (not on default non-login PATH).
+mkdir -p "$HOME/.bun/bin" "$HOME/.local/bin" "$HOME/bin" "$HOME/.nvm"
+export PATH="/usr/bin:/bin"
 
 cat >"$HOME/.bun/bin/bun" <<'EOF'
 #!/usr/bin/env bash
@@ -18,12 +19,14 @@ cat >"$HOME/bin/node" <<'EOF'
 if [[ "${1:-}" == "-p" ]]; then echo 20; exit 0; fi
 exit 0
 EOF
-for cmd in uv pm2; do
-  cat >"$HOME/bin/$cmd" <<'EOF'
+cat >"$HOME/.local/bin/uv" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-done
+cat >"$HOME/bin/pm2" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
 cat >"$HOME/bin/pg_dump" <<'EOF'
 #!/usr/bin/env bash
 out=""
@@ -42,7 +45,7 @@ cat >"$HOME/bin/curl" <<'EOF'
 if [[ -f "${BEBEBENDLE_TEST_HEALTH_OK:-/tmp/bebe-health-ok}" ]]; then exit 0; fi
 exit 1
 EOF
-chmod +x "$HOME/.bun/bin"/* "$HOME/bin"/*
+chmod +x "$HOME/.bun/bin"/* "$HOME/.local/bin"/* "$HOME/bin"/*
 
 DEPLOY_ROOT="$TMP/deploy"
 mkdir -p "$DEPLOY_ROOT"/{incoming,releases,shared/uploads,shared/logs,backups}
