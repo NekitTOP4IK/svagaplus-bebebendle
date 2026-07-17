@@ -188,12 +188,27 @@ body {
 }
 
 /* SVAGA+ subscriber nick glow on home menu */
+/* Room for glow: padding inside the truncated box so text-shadow isn't clipped. */
+.subscriber-nick-wrap {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    padding: 3px 5px;
+    margin: -3px -5px;
+}
+
 .subscriber-nick {
     color: #f5e6a8;
     text-shadow:
-        0 0 6px rgba(245, 200, 80, 0.85),
-        0 0 14px rgba(212, 160, 40, 0.55),
+        0 0 6px rgba(245, 200, 80, 0.9),
+        0 0 12px rgba(212, 160, 40, 0.55),
         1px 1px 0 #3d2a08;
+}
+
+.subscriber-badge {
+    /* lift a few px so it sits on the text midline, not below */
+    transform: translateY(-3px);
+    filter: drop-shadow(0 0 3px rgba(212, 160, 40, 0.65));
 }
 
 .subscriber-avatar {
@@ -201,6 +216,7 @@ body {
 }
 
 .subscriber-chip {
+    overflow: visible;
     box-shadow:
         inset 2px 2px 0 #c6c6c6,
         inset -2px -2px 0 #555,

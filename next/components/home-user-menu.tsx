@@ -62,7 +62,7 @@ export function HomeUserMenu(): ReactElement | null {
     <div className="flex w-full flex-col gap-2">
       <Link
         href="/profile"
-        className={`pixel-btn flex min-h-11 items-center gap-3 px-3 py-2 text-left ${
+        className={`pixel-btn flex min-h-11 items-center gap-3 overflow-visible px-3 py-2 text-left ${
           isSub ? "subscriber-chip" : ""
         }`}
       >
@@ -85,14 +85,17 @@ export function HomeUserMenu(): ReactElement | null {
             {initials(user)}
           </span>
         )}
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1">
-            <span
-              className={`truncate text-sm font-bold leading-none ${
-                isSub ? "subscriber-nick" : "text-white"
-              }`}
-            >
-              {name}
+        <span className="min-w-0 flex-1 overflow-visible">
+          <span className="flex min-w-0 items-center gap-1.5 overflow-visible">
+            {/* min-w-0 + separate glow layer: truncate must not clip text-shadow */}
+            <span className="subscriber-nick-wrap min-w-0">
+              <span
+                className={`block truncate text-sm font-bold leading-snug ${
+                  isSub ? "subscriber-nick" : "text-white"
+                }`}
+              >
+                {name}
+              </span>
             </span>
             {isSub && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -100,7 +103,7 @@ export function HomeUserMenu(): ReactElement | null {
                 src="/gold_verified_badge.svg"
                 alt=""
                 title="СВАГА+"
-                className="h-3.5 w-3.5 shrink-0 translate-y-px sm:h-4 sm:w-4"
+                className="subscriber-badge h-4 w-4 shrink-0 sm:h-[1.15rem] sm:w-[1.15rem]"
               />
             )}
           </span>
