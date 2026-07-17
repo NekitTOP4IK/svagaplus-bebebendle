@@ -195,3 +195,11 @@ next/public/uploads/*
 
 # Agent scratch
 .superpowers/
+
+# Nginx configs live on hosts only (not shipped via git/CI)
+/nginx/
+/ops/nginx/
+
+# Local IDE / editor
+*.code-workspace
+next/lib/config.ts

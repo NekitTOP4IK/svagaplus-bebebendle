@@ -33,6 +33,7 @@ from aiogram.types import (
 from dotenv import load_dotenv
 
 from database import Database, PendingSuggestionLimitError
+from health import start_health_server
 
 # Load .env from project root if available (for non-Docker runs)
 root_env = Path(__file__).resolve().parents[2] / ".env"
@@ -681,9 +682,18 @@ async def main() -> None:
     # Include router
     dp.include_router(router)
 
-    # Start bot
-    logger.info("Starting bot...")
-    await dp.start_polling(bot)
+    await bot.get_me()
+    health_host = os.getenv("BOT_HEALTH_HOST", "127.0.0.1")
+    health_port = int(os.getenv("BOT_HEALTH_PORT", "3011"))
+    health_server = await start_health_server(health_host, health_port)
+    logger.info("Bot health listening on %s:%s", health_host, health_port)
+
+    try:
+        logger.info("Starting bot...")
+        await dp.start_polling(bot)
+    finally:
+        health_server.close()
+        await health_server.wait_closed()
 
 
 if __name__ == "__main__":

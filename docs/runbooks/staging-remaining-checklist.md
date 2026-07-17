@@ -35,10 +35,11 @@ Use this tomorrow as the single place to resume. Related docs:
 
 ### 1. Infra / access
 
-- [ ] Staging host(s) for **SVAGA+** and **Bebebendle** (or one VPS)
-- [ ] DNS / HTTPS (prod-ish domain note: `bebebendle.svagaplus.qzz.io` in `nginx/`)
-- [ ] Postgres + Redis on staging
-- [ ] Deploy method: manual `git pull` + PM2 / docker (Plan 2 CI/CD **not** implemented yet)
+- [x] Staging host(s) for **SVAGA+** and **Bebebendle** (or one VPS) — `144.31.71.113`, same box as SVAGA+ staging
+- [ ] DNS / HTTPS: staging `bebetest.svagaplus.qzz.io`, prod `bebebendle.svagaplus.qzz.io` — host configs in `ops/nginx/` (not Docker `nginx/`)
+- [x] Postgres + Redis on staging — `bebebendle` / `bebebendle_staging` created
+- [x] Deploy method: GitHub Actions → SSH → `ops/deploy-release.sh` (app secrets stay on host `shared/.env`)
+- [x] Host bootstrap: `/opt/bebebendle`, `deploy` ownership, bun 1.3.14, PM2 as deploy — see [`pm2-host-bootstrap.md`](./pm2-host-bootstrap.md)
 
 ### 2. Env on SVAGA+ staging
 
@@ -47,29 +48,20 @@ BEBEBENDLE_INTERNAL_SECRET=<same value as Bebebendle SVAGAPLUS_INTERNAL_SECRET>
 SVAGA_TARGET_USER_ID=<olesha users.id on STAGING DB — may differ from local>
 ```
 
-- [ ] Deploy SVAGA+ from `dev` (or staging branch)
-- [ ] Restart backend
+- [x] `BEBEBENDLE_INTERNAL_SECRET` + `SVAGA_TARGET_USER_ID` written to shared + current backend `.env` (2026-07-17)
+- [ ] Deploy SVAGA+ from `dev` (or staging branch) — **endpoint code missing on staging** (`POST /api/internal/bebebendle/subscription-status` → 404)
+- [ ] Restart backend (after code deploy so new route + env load)
 - [ ] Confirm endpoint responds
 
 ### 3. Env on Bebebendle staging
 
-```dotenv
-APP_ENV=staging
-NODE_ENV=production
-SESSION_SECRET=<at least 32 chars, prefer 64 hex>
-DATABASE_URL=postgresql://...
-REDIS_HOST=...
-REDIS_PORT=6379
-SVAGAPLUS_INTERNAL_URL=https://<staging-svaga-host>
-SVAGAPLUS_INTERNAL_SECRET=<matches SVAGA+ BEBEBENDLE_INTERNAL_SECRET>
-SVAGA_TARGET_USER_ID=<same olesha uuid as SVAGA+>
-BEBEBENDLE_INTERNAL_SECRET=<different secret for bot → Bebebendle>
-BEBEBENDLE_INTERNAL_URL=http://127.0.0.1:3000
-BOT_TOKEN=...
-NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=...
-```
+`/opt/bebebendle/shared/.env` (mode 600):
 
-Do **not** reuse one secret for both hops.
+- [x] `APP_ENV=staging`, `NODE_ENV=production`, DB URL, SESSION/ADMIN/CRON secrets, internal bot secret, SVAGA shared secret + Olesha UUID, URLs/ports/uploads
+- [ ] `BOT_TOKEN` + `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` (user must fill)
+- [ ] Optional: `REDIS_PASSWORD` if Redis auth enabled
+
+Do **not** reuse one secret for both hops (`SVAGAPLUS_INTERNAL_SECRET` ≠ `BEBEBENDLE_INTERNAL_SECRET`).
 
 ### 4. Deploy Bebebendle
 
