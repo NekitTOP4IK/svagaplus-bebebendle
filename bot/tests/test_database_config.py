@@ -49,4 +49,4 @@ async def test_connect_uses_database_url_when_set(monkeypatch):
     kwargs = create_pool.await_args.kwargs
     assert kwargs["dsn"] == "postgresql://user:pass@dbhost:5432/bebendle"
     assert kwargs["min_size"] == 1
-    assert kwargs["max_size"] == 10
+    assert kwargs["max_size"] == 3
