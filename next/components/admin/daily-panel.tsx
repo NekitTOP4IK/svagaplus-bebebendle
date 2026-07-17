@@ -9,6 +9,8 @@ type DailyData = {
   exists: boolean;
   canGenerate: boolean;
   candidateCount: number;
+  minScrans?: number;
+  blockReason: string | null;
   rounds: Array<{
     roundNumber: number;
     scranAId: number;
@@ -136,8 +138,22 @@ export function DailyPanel({ role }: Props): ReactElement {
   };
 
   const genEnabled = settings?.dailyGenerationEnabled !== false;
-  const canGenerate =
-    Boolean(data?.canGenerate) && genEnabled && role === "admin";
+  const poolOk = Boolean(data?.canGenerate);
+  const canGenerate = poolOk && genEnabled && role === "admin";
+
+  const generateBlockedReason = (() => {
+    if (role !== "admin") return "Генерация доступна только админу";
+    if (!genEnabled) {
+      return `Генерация выключена${
+        settings?.dailyDisabledReason
+          ? `: ${settings.dailyDisabledReason}`
+          : ""
+      }`;
+    }
+    if (data?.blockReason) return data.blockReason;
+    if (!poolOk) return "Сейчас сгенерировать нельзя";
+    return null;
+  })();
 
   return (
     <div className="pixel-container space-y-4 border-4 border-black bg-zinc-900/80 p-4">
@@ -254,22 +270,26 @@ export function DailyPanel({ role }: Props): ReactElement {
           </div>
 
           {role === "admin" && (
-            <button
-              type="button"
-              disabled={busy || !canGenerate}
-              onClick={() => void generate()}
-              className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
-            >
-              {busy ? "Генерация…" : `Сгенерировать на ${date}`}
-            </button>
-          )}
-          {role === "admin" && !genEnabled && (
-            <p className="text-xs text-amber-300">
-              Генерация выключена — сначала включи переключатель выше.
-            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <button
+                type="button"
+                disabled={busy || !canGenerate}
+                onClick={() => void generate()}
+                className="pixel-btn pixel-btn-ok shrink-0 px-4 py-2 text-sm font-bold"
+              >
+                {busy ? "Генерация…" : `Сгенерировать на ${date}`}
+              </button>
+              {!canGenerate && generateBlockedReason && (
+                <p className="text-xs font-bold leading-snug text-amber-300 sm:max-w-md">
+                  {generateBlockedReason}
+                </p>
+              )}
+            </div>
           )}
           {role !== "admin" && (
-            <p className="text-xs text-white/40">Генерация доступна только админу</p>
+            <p className="text-xs font-bold text-white/50">
+              Генерация доступна только админу
+            </p>
           )}
 
           {data.rounds.length > 0 && (

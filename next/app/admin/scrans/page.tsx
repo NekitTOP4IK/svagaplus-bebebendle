@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { auditActionLabel, auditDetailsPreview } from "@/lib/audit-labels";
+import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
 
 type ScranDetail = {
   scran: {
@@ -50,6 +51,7 @@ function ScranDetailInner(): ReactElement {
   const [data, setData] = useState<ScranDetail | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!idParam || Number.isNaN(Number(idParam))) {
@@ -99,12 +101,22 @@ function ScranDetailInner(): ReactElement {
           <div className="space-y-4">
             <div className="pixel-container flex flex-col gap-4 border-4 border-black bg-zinc-900/90 p-4 sm:flex-row">
               {data.scran.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={data.scran.imageUrl}
-                  alt={data.scran.name}
-                  className="mx-auto h-48 w-48 border-2 border-black object-cover sm:mx-0 sm:h-56 sm:w-56"
-                />
+                <button
+                  type="button"
+                  onClick={() => setLightboxOpen(true)}
+                  className="group relative mx-auto shrink-0 border-2 border-black sm:mx-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+                  title="Открыть полностью"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={data.scran.imageUrl}
+                    alt={data.scran.name}
+                    className="h-48 w-48 object-cover sm:h-56 sm:w-56"
+                  />
+                  <span className="absolute bottom-1 right-1 border border-black bg-black/75 px-1.5 py-0.5 text-[10px] font-bold text-white opacity-90 group-hover:opacity-100">
+                    полный размер
+                  </span>
+                </button>
               ) : (
                 <div className="flex h-48 w-48 items-center justify-center border-2 border-zinc-700 text-white/40">
                   нет фото
@@ -234,6 +246,14 @@ function ScranDetailInner(): ReactElement {
               )}
             </div>
           </div>
+        )}
+
+        {lightboxOpen && data?.scran.imageUrl && (
+          <ScranImageLightbox
+            src={data.scran.imageUrl}
+            alt={data.scran.name}
+            onClose={() => setLightboxOpen(false)}
+          />
         )}
       </div>
     </div>

@@ -95,7 +95,10 @@ export async function getDailyPreview(date: string): Promise<{
     scranBName: string | null;
   }>;
   candidateCount: number;
+  minScrans: number;
   canGenerate: boolean;
+  /** Why pool-level generate is blocked (ignores admin generation toggle). */
+  blockReason: string | null;
 }> {
   const roundsRaw = await db
     .select({
@@ -118,10 +121,17 @@ export async function getDailyPreview(date: string): Promise<{
   }
 
   const candidates = await getApprovedScransWithVotes();
+  const exists = roundsRaw.length > 0;
+  let blockReason: string | null = null;
+  if (exists) {
+    blockReason = "Daily на эту дату уже создан";
+  } else if (candidates.length < MIN_SCRANS) {
+    blockReason = `Мало кандидатов: ${candidates.length}/${MIN_SCRANS} (нужны одобренные с ≥${MIN_VOTES} голосами, не использованные в daily)`;
+  }
 
   return {
     date,
-    exists: roundsRaw.length > 0,
+    exists,
     rounds: roundsRaw.map((r) => ({
       roundNumber: r.roundNumber,
       scranAId: r.scranAId,
@@ -130,7 +140,9 @@ export async function getDailyPreview(date: string): Promise<{
       scranBName: nameById.get(r.scranBId) ?? null,
     })),
     candidateCount: candidates.length,
-    canGenerate: candidates.length >= MIN_SCRANS && roundsRaw.length === 0,
+    minScrans: MIN_SCRANS,
+    canGenerate: !exists && candidates.length >= MIN_SCRANS,
+    blockReason,
   };
 }
 

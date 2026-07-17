@@ -227,19 +227,11 @@ def _format_svaga_bonus_line(snapshot: SubscriberSnapshot) -> str:
     return "СВАГА+: подписка не активна — обычный приоритет в очереди."
 
 
-def _format_svaga_snapshot(snapshot: SubscriberSnapshot) -> str:
-    """Longer status used after submit."""
-    if snapshot.source == "unknown" or snapshot.is_subscriber is None:
-        return (
-            "Статус СВАГА+ сейчас неизвестен (сервис недоступен или ещё не проверялся).\n"
-            "Предложение всё равно можно отправить — модераторы увидят «Не проверено»."
-        )
-    if snapshot.is_subscriber:
+def _format_svaga_after_submit(snapshot: SubscriberSnapshot) -> str:
+    """After /suggest: only mention SVAGA when subscription is confirmed active."""
+    if snapshot.is_subscriber is True:
         return "🎁 Бонус за СВАГУ: подписка активна — в очереди модерации у тебя приоритет."
-    return (
-        "СВАГА+: подписка не активна.\n"
-        "Предлагать блюда можно, приоритет очереди обычный."
-    )
+    return ""
 
 
 def _scran_status_label(scran: dict) -> str:
@@ -625,11 +617,12 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
                     subscriber_checked_at=snapshot.checked_at,
                 )
 
-            svaga_line = _format_svaga_snapshot(snapshot)
+            svaga_line = _format_svaga_after_submit(snapshot)
+            body = "🎉 Отлично!\n\nТвоё предложение отправлено на модерацию."
+            if svaga_line:
+                body = f"{body}\n\n{svaga_line}"
             await message.answer(
-                "🎉 Отлично!\n\n"
-                "Твоё предложение отправлено на модерацию.\n\n"
-                f"{svaga_line}",
+                body,
                 reply_markup=ReplyKeyboardRemove(),
             )
             logger.info(
