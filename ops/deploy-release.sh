@@ -34,7 +34,14 @@ ENV_FILE="$ROOT/shared/.env"
 BACKUP_DIR="$ROOT/backups"
 
 # Prefer an already-configured PATH (CI stubs, interactive shells), then user installs.
-export PATH="${PATH}:${HOME}/.bun/bin:${HOME}/.local/bin:/usr/local/bin"
+# Next.js 16 requires Node >= 20.9; load nvm default when present (PM2 hosts).
+export NVM_DIR="${HOME}/.nvm"
+if [[ -s "${NVM_DIR}/nvm.sh" ]]; then
+  # shellcheck disable=SC1091
+  . "${NVM_DIR}/nvm.sh"
+  nvm use default >/dev/null 2>&1 || true
+fi
+export PATH="${HOME}/bin:${HOME}/.bun/bin:${HOME}/.local/bin:/usr/local/bin:${PATH}"
 
 mkdir -p "$ROOT/releases" "$ROOT/shared/uploads" "$ROOT/shared/logs" "$BACKUP_DIR" "$INCOMING"
 exec 9>"$ROOT/deploy.lock"
@@ -54,12 +61,18 @@ cd "$INCOMING"
 }
 sha256sum -c "$(basename "$CHECKSUM")"
 
-for command in bun uv pm2 pg_dump curl tar flock sha256sum; do
+for command in bun uv pm2 pg_dump curl tar flock sha256sum node; do
   command -v "$command" >/dev/null || {
     echo "missing command: $command" >&2
     exit 1
   }
 done
+
+NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo 0)"
+if [[ "${NODE_MAJOR}" -lt 20 ]]; then
+  echo "Node.js >= 20.9 required for Next.js 16 (found $(node -v 2>/dev/null || echo none))" >&2
+  exit 1
+fi
 
 [[ -f "$ENV_FILE" ]] || {
   echo "missing shared env $ENV_FILE (create on host; never from CI)" >&2
