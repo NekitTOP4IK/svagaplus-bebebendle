@@ -33,6 +33,7 @@ interface AdminDashboardProps {
   onReject: (id: number) => void | Promise<void>;
   onBan: (id: number) => void | Promise<void>;
   onDelete: (id: number, comment: string) => Promise<boolean>;
+  onRecheckSubscriber?: (scranId?: number) => void | Promise<void>;
   onSetView?: (mode: ViewMode) => void;
   onSetSubscriberOnly?: (only: boolean) => void;
   onToggleSubscriberOnly?: () => void;
@@ -64,6 +65,7 @@ export function AdminDashboard({
   onReject,
   onBan,
   onDelete,
+  onRecheckSubscriber,
   onSetView,
   onToggleSubscriberOnly,
 }: AdminDashboardProps) {
@@ -106,6 +108,21 @@ export function AdminDashboard({
     },
     [onReject],
   );
+
+  const handleRecheck = useCallback(
+    async (scranId?: number) => {
+      if (!onRecheckSubscriber) return;
+      setActionBusy(true);
+      try {
+        await onRecheckSubscriber(scranId);
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [onRecheckSubscriber],
+  );
+
+  const uncheckedCount = scrans.filter((s) => s.isSubscriberAtSubmit === null).length;
 
   const loadUsers = useCallback(async () => {
     if (role !== "admin") return;
@@ -206,6 +223,16 @@ export function AdminDashboard({
               >
                 {subscriberOnly ? "✓ Только подписчики" : "Только подписчики"}
               </button>
+              {uncheckedCount > 0 && onRecheckSubscriber && (
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={() => void handleRecheck()}
+                  className="pixel-btn bg-sky-600 px-3 py-1 text-sm font-bold text-white hover:bg-sky-500 disabled:opacity-50"
+                >
+                  Перепроверить SVAGA ({uncheckedCount})
+                </button>
+              )}
             </>
           )}
         </div>
@@ -297,6 +324,7 @@ export function AdminDashboard({
               onReject={(id) => void handleReject(id)}
               onBan={onBan}
               onDelete={setDeletingScran}
+              onRecheck={(id) => void handleRecheck(id)}
               onStartReview={() => setQueueMode("review")}
             />
             <Pagination

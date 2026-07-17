@@ -211,44 +211,67 @@ async def database_session() -> AsyncIterator[Database]:
         await db.close()
 
 
+def _format_svaga_snapshot(snapshot: SubscriberSnapshot) -> str:
+    if snapshot.source == "unknown" or snapshot.is_subscriber is None:
+        return (
+            "Статус SVAGA+ сейчас неизвестен (сервис недоступен или ещё не проверяли).\n"
+            "Предложение всё равно можно отправить — модераторы увидят «Не проверено»."
+        )
+    if snapshot.is_subscriber:
+        return (
+            f"✅ SVAGA+: активная подписка (source={snapshot.source}).\n"
+            "В очереди модерации у тебя будет приоритет."
+        )
+    return (
+        f"SVAGA+: подписка не активна (source={snapshot.source}).\n"
+        "Предлагать блюда можно, приоритет очереди обычный."
+    )
+
+
 @router.message(Command("start"))
 async def cmd_start(message: Message) -> None:
-    """Handle /start command."""
     welcome_text = (
         "👋 Привет! Я овсянка, бот бебебендла.\n\n"
         "Я помогу тебе предложить новое блюдо для дейлика.\n\n"
-        "📋 Доступные команды:\n"
-        "/suggest - Предложить новое блюдо\n"
-        "/help - Показать помощь\n\n"
+        "📋 Команды:\n"
+        "/suggest — предложить блюдо\n"
+        "/status — мои предложения\n"
+        "/svaga — статус подписки SVAGA+\n"
+        "/vote — голосовать за блюда\n"
+        "/help — помощь\n"
     )
     await message.answer(welcome_text)
 
 
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
-    """Handle /help command."""
     help_text = (
         "🤖 Помощь по боту бебебендла\n\n"
         "Как предложить блюдо:\n"
-        "1. Используй команду /suggest\n"
-        "2. Отправь фото блюда\n"
-        "3. Напиши название (2-100 символов)\n"
-        "4. Добавь описание (или пропусти)\n"
-        "5. Укажи примерную себестоимость в рублях\n"
-        "6. Подтверди предложение\n\n"
-        "Ограничения:\n"
-        "• Можно предлагать блюда круглосуточно\n"
-        "• Администратор проверяет предложения перед публикацией\n"
-        "• Не допускаются неприемлемые изображения\n\n"
+        "1. /suggest\n"
+        "2. Фото → название → описание → цена → подтверждение\n\n"
+        "SVAGA+:\n"
+        "• При отправке предложения бот спрашивает статус подписки у бебебендла\n"
+        "• /svaga — проверить статус сейчас\n"
+        "• Подписчики Olesha SVAGA+ выше в очереди модерации\n\n"
+        "Лимит: не больше 6 предложений одновременно на модерации.\n\n"
         "Команды:\n"
-        "/suggest - Предложить блюдо\n"
-        "/vote - Проголосовать за блюда\n"
-        "/help - Эта помощь\n\n"
+        "/suggest /status /svaga /vote /help\n\n"
         "Психологическая помощь по РФ:\n"
-        "8 (800) 333-44-34\n"
-        "Звонок бесплатный"
+        "8 (800) 333-44-34"
     )
     await message.answer(help_text)
+
+
+@router.message(Command("svaga"))
+async def cmd_svaga(message: Message) -> None:
+    if not message.from_user:
+        await message.answer("Не удалось получить Telegram id.")
+        return
+    telegram_id = str(message.from_user.id)
+    await message.answer("Проверяю SVAGA+…")
+    snapshot = await get_svaga_subscriber_status(telegram_id)
+    await message.answer(_format_svaga_snapshot(snapshot))
 
 
 @router.message(Command("vote"))
@@ -590,8 +613,11 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
                     subscriber_checked_at=snapshot.checked_at,
                 )
 
+            svaga_line = _format_svaga_snapshot(snapshot)
             await message.answer(
-                "🎉 Отлично!\n\nТвоё предложение отправлено на рассмотрение администратору.",
+                "🎉 Отлично!\n\n"
+                "Твоё предложение отправлено на модерацию.\n\n"
+                f"{svaga_line}",
                 reply_markup=ReplyKeyboardRemove(),
             )
             logger.info(

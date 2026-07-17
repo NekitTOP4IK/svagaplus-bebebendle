@@ -11,6 +11,7 @@ type Props = Readonly<{
   onReject: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (scran: Scran) => void;
+  onRecheck?: (id: number) => void;
   onStartReview: () => void;
 }>;
 
@@ -29,6 +30,7 @@ export function ModerationQueue({
   onReject,
   onBan,
   onDelete,
+  onRecheck,
   onStartReview,
 }: Props): ReactElement {
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
@@ -158,6 +160,15 @@ export function ModerationQueue({
                       className="pixel-btn min-h-11 flex-1 bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500 sm:flex-none"
                     >
                       Снять
+                    </button>
+                  )}
+                  {scran.isSubscriberAtSubmit === null && onRecheck && (
+                    <button
+                      type="button"
+                      onClick={() => onRecheck(scran.id)}
+                      className="pixel-btn min-h-11 flex-1 bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-500 sm:flex-none"
+                    >
+                      SVAGA recheck
                     </button>
                   )}
                   {role === "admin" && (

@@ -14,6 +14,7 @@ interface UseScranMutationsReturn {
   rejectScran: (id: number) => Promise<void>;
   banScran: (id: number) => Promise<void>;
   deleteScran: (id: number, comment: string) => Promise<boolean>;
+  recheckSubscriber: (scranId?: number) => Promise<void>;
 }
 
 export function useScranMutations({
@@ -98,6 +99,55 @@ export function useScranMutations({
     [onUnauthorized, onSuccess],
   );
 
+  const recheckSubscriber = useCallback(
+    async (scranId?: number) => {
+      try {
+        const response = await apiFetch("/api/admin/scrans/recheck-subscriber", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            scranId != null ? { scranId } : { allUnchecked: true },
+          ),
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as {
+            mode?: string;
+            ok?: number;
+            failed?: number;
+            total?: number;
+            result?: { ok?: boolean; isSubscriber?: boolean; reason?: string };
+          };
+          if (data.mode === "bulk") {
+            toast.success(
+              `SVAGA recheck: ${data.ok ?? 0}/${data.total ?? 0} ok` +
+                (data.failed ? `, failed ${data.failed}` : ""),
+            );
+          } else if (data.result?.ok) {
+            toast.success(
+              data.result.isSubscriber
+                ? "SVAGA+: подписчик"
+                : "SVAGA+: не подписчик",
+            );
+          } else {
+            toast.error("SVAGA recheck не удался", {
+              description: data.result?.reason ?? "unknown",
+            });
+          }
+          onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
+        } else {
+          toast.error("Ошибка recheck SVAGA");
+        }
+      } catch (error) {
+        console.error("Error rechecking subscriber:", error);
+        toast.error("Ошибка recheck SVAGA");
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
   const deleteScran = useCallback(
     async (id: number, comment: string): Promise<boolean> => {
       try {
@@ -141,5 +191,6 @@ export function useScranMutations({
     rejectScran,
     banScran,
     deleteScran,
+    recheckSubscriber,
   };
 }

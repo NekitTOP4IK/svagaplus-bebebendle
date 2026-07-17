@@ -31,6 +31,7 @@ interface UseAdminReturn {
   rejectScran: (id: number) => Promise<void>;
   banScran: (id: number) => Promise<void>;
   deleteScran: (id: number, comment: string) => Promise<boolean>;
+  recheckSubscriber: (scranId?: number) => Promise<void>;
   handleSort: (field: SortField) => void;
   setCurrentPage: (page: number) => void;
   setView: (mode: ViewMode) => void;
@@ -85,10 +86,11 @@ export function useAdmin(): UseAdminReturn {
   });
 
   // Mutations (no longer needs password; uses cookie for server auth)
-  const { approveScran, rejectScran, banScran, deleteScran } = useScranMutations({
-    onUnauthorized: logout,
-    onSuccess: refetch,
-  });
+  const { approveScran, rejectScran, banScran, deleteScran, recheckSubscriber } =
+    useScranMutations({
+      onUnauthorized: logout,
+      onSuccess: refetch,
+    });
 
   return {
     isAuthenticated,
@@ -109,6 +111,7 @@ export function useAdmin(): UseAdminReturn {
     rejectScran,
     banScran,
     deleteScran,
+    recheckSubscriber,
     handleSort,
     setCurrentPage,
     setView,

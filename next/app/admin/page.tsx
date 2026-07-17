@@ -23,6 +23,7 @@ export default function AdminPage() {
     rejectScran,
     banScran,
     deleteScran,
+    recheckSubscriber,
     handleSort,
     setCurrentPage,
     setView,
@@ -53,6 +54,7 @@ export default function AdminPage() {
       onReject={rejectScran}
       onBan={banScran}
       onDelete={deleteScran}
+      onRecheckSubscriber={recheckSubscriber}
       onSetView={setView}
       onSetSubscriberOnly={setSubscriberOnly}
       onToggleSubscriberOnly={toggleSubscriberOnly}
