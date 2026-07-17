@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 def _naive_utc(value: datetime | None) -> datetime | None:
-    """asyncpg + timestamp without time zone reject aware datetimes."""
     if value is None:
         return None
     if value.tzinfo is None:
@@ -34,16 +33,24 @@ class Database:
         """Initialize database connection."""
         self.connection: asyncpg.Connection | None = None
         self.pool: asyncpg.Pool | None = None
-        self.emb_model = SentenceTransformer("sergeyzh/rubert-mini-frida")
+        self._emb_model: SentenceTransformer | None = None
+
+    @property
+    def emb_model(self) -> SentenceTransformer:
+        if self._emb_model is None:
+            logger.info("Loading embedding model (first use)...")
+            self._emb_model = SentenceTransformer("sergeyzh/rubert-mini-frida")
+        return self._emb_model
 
     async def connect(self) -> None:
         """Establish database connection pool."""
+        pool_max = int(os.getenv("DB_POOL_MAX", "3"))
         database_url = os.getenv("DATABASE_URL")
         if database_url:
             self.pool = await asyncpg.create_pool(
                 dsn=database_url,
                 min_size=1,
-                max_size=10,
+                max_size=pool_max,
             )
             logger.debug("Connected to PostgreSQL database via DATABASE_URL")
             return
@@ -61,7 +68,7 @@ class Database:
             user=user,
             password=password,
             min_size=1,
-            max_size=10,
+            max_size=pool_max,
         )
         logger.debug(f"Connected to PostgreSQL database: {database}@{host}:{port}")
 

@@ -12,6 +12,7 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "scipy>=1.10.0",
     "sentence-transformers>=5.5.1",
+    "torch>=2.2.0",
     "dotenv>=0.9.9",
 ]
 
@@ -25,6 +26,14 @@ dev = [
 
 [tool.uv]
 package = false
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
 
 
 [tool.ruff]

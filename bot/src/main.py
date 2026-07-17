@@ -127,7 +127,6 @@ def _parse_checked_at(value: object) -> datetime | None:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
-    # Store as naive UTC for asyncpg + timestamp without time zone
     if parsed.tzinfo is not None:
         return parsed.astimezone(UTC).replace(tzinfo=None)
     return parsed

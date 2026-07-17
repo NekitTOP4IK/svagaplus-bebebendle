@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Usage: BEBEBENDLE_DEPLOY_ROOT=/opt/bebebendle bash deploy-release.sh <sha40> <staging|production> <app-url>
-# Runtime secrets: $ROOT/shared/.env only.
 set -Eeuo pipefail
 
 RELEASE_SHA="${1:?release sha is required}"
 DEPLOY_ENV="${2:?staging or production is required}"
 APP_URL="${3:?application URL is required}"
+KEEP_RELEASES="${BEBEBENDLE_KEEP_RELEASES:-3}"
+KEEP_DB_BACKUPS="${BEBEBENDLE_KEEP_DB_BACKUPS:-3}"
 
 [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
   echo "invalid release sha" >&2
@@ -23,6 +23,8 @@ CHECKSUM="$ARCHIVE.sha256"
 RELEASE="$ROOT/releases/$RELEASE_SHA"
 ENV_FILE="$ROOT/shared/.env"
 BACKUP_DIR="$ROOT/backups"
+CACHE_DIR="$ROOT/shared/cache"
+VENVS_DIR="$ROOT/shared/venvs"
 
 setup_path() {
   export NVM_DIR="${HOME}/.nvm"
@@ -31,7 +33,6 @@ setup_path() {
     . "${NVM_DIR}/nvm.sh"
     nvm use default >/dev/null 2>&1 || nvm use 20 >/dev/null 2>&1 || true
   fi
-  # Prepend host tools (non-interactive SSH has bare PATH).
   export PATH="${HOME}/.bun/bin:${HOME}/bin:/usr/local/bin:${PATH}"
 }
 
@@ -42,14 +43,44 @@ require_cmd() {
   }
 }
 
+file_hash() {
+  sha256sum "$1" | awk '{print $1}'
+}
+
+clone_tree() {
+  local src=$1
+  local dst=$2
+  rm -rf "$dst"
+  if cp -al "$src" "$dst" 2>/dev/null; then
+    return 0
+  fi
+  cp -a "$src" "$dst"
+}
+
+run_low_prio() {
+  if command -v nice >/dev/null && command -v ionice >/dev/null; then
+    nice -n 10 ionice -c2 -n7 "$@"
+  elif command -v nice >/dev/null; then
+    nice -n 10 "$@"
+  else
+    "$@"
+  fi
+}
+
 setup_path
 
-mkdir -p "$ROOT/releases" "$ROOT/shared/uploads" "$ROOT/shared/logs" "$BACKUP_DIR" "$INCOMING"
+mkdir -p "$ROOT/releases" "$ROOT/shared/uploads" "$ROOT/shared/logs" "$BACKUP_DIR" "$INCOMING" \
+  "$CACHE_DIR/bun" "$CACHE_DIR/uv" "$CACHE_DIR/node_modules" "$VENVS_DIR"
 exec 9>"$ROOT/deploy.lock"
 flock -n 9 || {
   echo "another deploy is active" >&2
   exit 1
 }
+
+export BUN_INSTALL_CACHE_DIR="${BUN_INSTALL_CACHE_DIR:-$CACHE_DIR/bun}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$CACHE_DIR/uv}"
+export NEXT_TELEMETRY_DISABLED=1
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1024}"
 
 cd "$INCOMING"
 [[ -f "$ARCHIVE" ]] || {
@@ -126,18 +157,63 @@ ln -sfn "$ROOT/shared/uploads" "$RELEASE/uploads"
 mkdir -p "$ROOT/shared/logs/next" "$ROOT/shared/logs/bot"
 chmod +x "$RELEASE/scripts/run-next.sh" "$RELEASE/scripts/run-bot.sh" 2>/dev/null || true
 
-echo "==> install + build next"
+echo "==> next dependencies"
+NEXT_LOCK_HASH="$(
+  {
+    file_hash "$RELEASE/next/package.json"
+    file_hash "$RELEASE/next/bun.lock"
+  } | sha256sum | awk '{print $1}'
+)"
+NEXT_NM_CACHE="$CACHE_DIR/node_modules/$NEXT_LOCK_HASH"
 cd "$RELEASE/next"
-bun install --frozen-lockfile
-bun run build
+if [[ -d "$NEXT_NM_CACHE" ]]; then
+  echo "    reusing node_modules cache $NEXT_LOCK_HASH"
+  clone_tree "$NEXT_NM_CACHE" "$RELEASE/next/node_modules"
+else
+  echo "    bun install (cold)"
+  run_low_prio bun install --frozen-lockfile
+  mkdir -p "$CACHE_DIR/node_modules"
+  rm -rf "$NEXT_NM_CACHE"
+  clone_tree "$RELEASE/next/node_modules" "$NEXT_NM_CACHE"
+fi
 
-echo "==> install bot"
+echo "==> next build"
+run_low_prio bun run build
+
+echo "==> bot dependencies"
+BOT_LOCK_HASH="$(file_hash "$RELEASE/bot/uv.lock")"
+BOT_VENV="$VENVS_DIR/bot-$BOT_LOCK_HASH"
 cd "$RELEASE/bot"
-UV_PROJECT_ENVIRONMENT="$RELEASE/bot/.venv" uv sync --no-dev --frozen
+if [[ -x "$BOT_VENV/bin/python" ]]; then
+  echo "    reusing bot venv $BOT_LOCK_HASH"
+else
+  echo "    uv sync (cold) -> $BOT_VENV"
+  rm -rf "$BOT_VENV"
+  run_low_prio env UV_PROJECT_ENVIRONMENT="$BOT_VENV" uv sync --no-dev --frozen
+fi
+rm -rf "$RELEASE/bot/.venv"
+ln -sfn "$BOT_VENV" "$RELEASE/bot/.venv"
+
+echo "==> prune unused bot venvs"
+PREV_BOT_HASH=""
+if [[ -L "$ROOT/current/bot/uv.lock" || -f "$ROOT/current/bot/uv.lock" ]]; then
+  PREV_BOT_HASH="$(file_hash "$ROOT/current/bot/uv.lock" 2>/dev/null || true)"
+fi
+shopt -s nullglob
+for venv_path in "$VENVS_DIR"/bot-*; do
+  base="$(basename "$venv_path")"
+  hash="${base#bot-}"
+  if [[ "$hash" == "$BOT_LOCK_HASH" || ( -n "$PREV_BOT_HASH" && "$hash" == "$PREV_BOT_HASH" ) ]]; then
+    continue
+  fi
+  echo "    remove $base"
+  rm -rf "$venv_path"
+done
+shopt -u nullglob
 
 echo "==> pre-migrate db backup"
 BACKUP="$BACKUP_DIR/pre-$RELEASE_SHA-$(date -u +%Y%m%dT%H%M%SZ).dump"
-pg_dump --format=custom --file="$BACKUP" "$DATABASE_URL"
+run_low_prio pg_dump --format=custom --file="$BACKUP" "$DATABASE_URL"
 
 echo "==> migrate"
 cd "$RELEASE/next"
@@ -176,7 +252,6 @@ mv -Tf "$ROOT/current.next" "$ROOT/current"
 SWITCHED=1
 
 echo "==> pm2 reload"
-# Ensure PM2-spawned shells see bun/node
 export PATH="${HOME}/.bun/bin:${HOME}/bin:/usr/local/bin:${PATH}"
 pm2 startOrReload "$ROOT/current/ecosystem.config.cjs" --update-env
 pm2 save
@@ -205,10 +280,11 @@ SWITCHED=0
 trap - ERR
 rm -f "$ARCHIVE" "$CHECKSUM"
 
+echo "==> prune old releases (keep $KEEP_RELEASES)"
 mapfile -t OLD_RELEASES < <(
   find "$ROOT/releases" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' |
     sort -rn |
-    tail -n +6 |
+    tail -n "+$((KEEP_RELEASES + 1))" |
     cut -d' ' -f2-
 )
 for old in "${OLD_RELEASES[@]:-}"; do
@@ -216,8 +292,35 @@ for old in "${OLD_RELEASES[@]:-}"; do
   current_target="$(readlink -f "$ROOT/current" 2>/dev/null || true)"
   previous_target="$(readlink -f "$ROOT/previous" 2>/dev/null || true)"
   if [[ "$old" != "$current_target" && "$old" != "$previous_target" ]]; then
+    echo "    remove $(basename "$old")"
     rm -rf "$old"
   fi
+done
+
+echo "==> prune pre-migrate dumps (keep $KEEP_DB_BACKUPS)"
+mapfile -t OLD_DUMPS < <(
+  find "$BACKUP_DIR" -maxdepth 1 -type f -name 'pre-*.dump' -printf '%T@ %p\n' 2>/dev/null |
+    sort -rn |
+    tail -n "+$((KEEP_DB_BACKUPS + 1))" |
+    cut -d' ' -f2-
+)
+for dump in "${OLD_DUMPS[@]:-}"; do
+  [[ -n "$dump" ]] || continue
+  echo "    remove $(basename "$dump")"
+  rm -f "$dump"
+done
+
+echo "==> prune node_modules caches"
+mapfile -t OLD_NM < <(
+  find "$CACHE_DIR/node_modules" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' 2>/dev/null |
+    sort -rn |
+    tail -n +4 |
+    cut -d' ' -f2-
+)
+for nm in "${OLD_NM[@]:-}"; do
+  [[ -n "$nm" ]] || continue
+  echo "    remove $(basename "$nm")"
+  rm -rf "$nm"
 done
 
 echo "deployed $RELEASE_SHA to $DEPLOY_ENV"
