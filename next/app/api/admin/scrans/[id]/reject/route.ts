@@ -5,29 +5,27 @@ import { getCurrentUser } from "@/lib/auth-server";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
-async function sendApprovalNotification(telegramId: string, scranName: string): Promise<void> {
+async function notifyRejected(telegramId: string, scranName: string): Promise<void> {
   if (!BOT_TOKEN) return;
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  const message = `✅ ${scranName} — одобрено и опубликовано!`;
   try {
-    await fetch(url, {
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: telegramId,
-        text: message,
-        parse_mode: "HTML",
+        text: `❌ Блюдо «${scranName}» отклонено модерацией.`,
       }),
       signal: AbortSignal.timeout(5000),
     });
   } catch (error) {
-    console.error("Failed to send approval notification:", error);
+    console.error("Failed to send reject notification:", error);
   }
 }
 
+/** Soft-reject pending submission. Moderators and admins. Not a hard delete. */
 export async function POST(
   _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getCurrentUser();
   if (!user || !["moderator", "admin"].includes(user.role)) {
@@ -37,28 +35,37 @@ export async function POST(
   try {
     const { id } = await params;
     const scranId = parseInt(id, 10);
-
-    if (isNaN(scranId)) {
+    if (Number.isNaN(scranId)) {
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
-    const result = await db
-      .update(scrans)
-      .set({ approved: true, rejected: false })
+    const rows = await db
+      .select({
+        telegramId: scrans.telegramId,
+        name: scrans.name,
+        approved: scrans.approved,
+      })
+      .from(scrans)
       .where(eq(scrans.id, scranId))
-      .returning({ telegramId: scrans.telegramId, name: scrans.name });
+      .limit(1);
 
-    if (result.length === 0) {
+    if (rows.length === 0) {
       return NextResponse.json({ error: "Scran not found" }, { status: 404 });
     }
 
-    if (result[0].telegramId) {
-      await sendApprovalNotification(result[0].telegramId, result[0].name);
+    await db
+      .update(scrans)
+      .set({ approved: false, rejected: true })
+      .where(eq(scrans.id, scranId));
+
+    const { telegramId, name } = rows[0];
+    if (telegramId) {
+      await notifyRejected(telegramId, name);
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error approving scran:", error);
-    return NextResponse.json({ error: "Failed to approve scran" }, { status: 500 });
+    console.error("Error rejecting scran:", error);
+    return NextResponse.json({ error: "Failed to reject scran" }, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { DailyPlayButton } from "@/components/daily-play-button";
 import { SocialLinks } from "@/components/social-links";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { SplashText } from "@/components/splash-text";
+import { HomeUserMenu } from "@/components/home-user-menu";
 import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
 
 export const dynamic = "force-dynamic";
@@ -91,6 +92,7 @@ export default async function HomePage() {
 
         <div className="flex w-full max-w-[320px] flex-col gap-2 sm:max-w-[400px] sm:gap-4 2xl:max-w-[480px] 2xl:gap-5 4xl:max-w-[560px]">
           <DailyPlayButton available={dailyAvailable} />
+          <HomeUserMenu />
           <Link
             href="/profile"
             className="pixel-btn flex min-h-11 items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"

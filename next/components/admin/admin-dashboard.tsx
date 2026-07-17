@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import type { Scran } from "@/types/scran";
 import { ScranTable } from "@/components/admin/scran-table";
+import { ModerationQueue } from "@/components/admin/moderation-queue";
+import { ModerationReview } from "@/components/admin/moderation-review";
 import { Pagination } from "@/components/admin/pagination";
 import { DeleteScranModal } from "@/components/admin/delete-scran-modal";
 import { getUsers, updateUserRole, type AdminUser } from "@/app/admin/actions";
@@ -11,6 +13,7 @@ import { getUsers, updateUserRole, type AdminUser } from "@/app/admin/actions";
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
 type ViewMode = "list" | "queue" | "users";
+type QueueMode = "cards" | "review";
 
 interface AdminDashboardProps {
   scrans: Scran[];
@@ -19,7 +22,6 @@ interface AdminDashboardProps {
   totalPages: number;
   sortField: SortField;
   sortOrder: SortOrder;
-  // Queue view support (Task 5)
   view?: ViewMode;
   role?: "moderator" | "admin" | null;
   subscriberOnly?: boolean;
@@ -27,8 +29,9 @@ interface AdminDashboardProps {
   regularCount?: number;
   onSort: (field: SortField) => void;
   onPageChange: (page: number) => void;
-  onApprove: (id: number) => void;
-  onBan: (id: number) => void;
+  onApprove: (id: number) => void | Promise<void>;
+  onReject: (id: number) => void | Promise<void>;
+  onBan: (id: number) => void | Promise<void>;
   onDelete: (id: number, comment: string) => Promise<boolean>;
   onSetView?: (mode: ViewMode) => void;
   onSetSubscriberOnly?: (only: boolean) => void;
@@ -58,18 +61,51 @@ export function AdminDashboard({
   onSort,
   onPageChange,
   onApprove,
+  onReject,
   onBan,
   onDelete,
   onSetView,
-  onSetSubscriberOnly,
   onToggleSubscriberOnly,
 }: AdminDashboardProps) {
   const [deletingScran, setDeletingScran] = useState<Scran | null>(null);
+  const [queueMode, setQueueMode] = useState<QueueMode>("cards");
+  const [actionBusy, setActionBusy] = useState(false);
 
-  // Users tab state (Step 4: admin-only minimal users + role management)
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string>("");
+
+  const handleSetView = useCallback(
+    (mode: ViewMode) => {
+      setQueueMode("cards");
+      onSetView?.(mode);
+    },
+    [onSetView],
+  );
+
+  const handleApprove = useCallback(
+    async (id: number) => {
+      setActionBusy(true);
+      try {
+        await onApprove(id);
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [onApprove],
+  );
+
+  const handleReject = useCallback(
+    async (id: number) => {
+      setActionBusy(true);
+      try {
+        await onReject(id);
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [onReject],
+  );
 
   const loadUsers = useCallback(async () => {
     if (role !== "admin") return;
@@ -108,15 +144,17 @@ export function AdminDashboard({
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="pixel-text text-3xl font-bold text-white">
-              Admin Dashboard
+              {role === "moderator" ? "Модерация" : "Админка"}
               {role && (
-                <span className="ml-3 text-xs align-middle font-bold px-2 py-0.5 bg-white/20 text-white rounded-none">
+                <span className="ml-3 align-middle bg-white/20 px-2 py-0.5 text-xs font-bold text-white">
                   {role.toUpperCase()}
                 </span>
               )}
             </h1>
             <p className="pixel-text mt-2 text-white">
-              Manage scrans and approve submissions (role-based access)
+              {role === "moderator"
+                ? "Очередь: одобрить или отклонить блюда"
+                : "Модерация, снятие с публикации и пользователи"}
             </p>
           </div>
           <Link
@@ -127,24 +165,26 @@ export function AdminDashboard({
           </Link>
         </div>
 
-        {/* Task 5: Hybrid queue controls + counts; Task 7: Users tab for admins */}
         <div className="mb-4 flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => onSetView?.("queue")}
+              type="button"
+              onClick={() => handleSetView("queue")}
               className={`pixel-btn px-3 py-1 text-sm font-bold ${view === "queue" ? "bg-yellow-400 text-black" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
             >
-              Очередь модерации
+              Очередь
             </button>
             <button
-              onClick={() => onSetView?.("list")}
+              type="button"
+              onClick={() => handleSetView("list")}
               className={`pixel-btn px-3 py-1 text-sm font-bold ${view === "list" ? "bg-yellow-400 text-black" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
             >
               Все записи
             </button>
             {role === "admin" && (
               <button
-                onClick={() => onSetView?.("users")}
+                type="button"
+                onClick={() => handleSetView("users")}
                 className={`pixel-btn px-3 py-1 text-sm font-bold ${view === "users" ? "bg-yellow-400 text-black" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
               >
                 Пользователи
@@ -152,15 +192,17 @@ export function AdminDashboard({
             )}
           </div>
 
-          {view === "queue" && (
+          {view === "queue" && queueMode === "cards" && (
             <>
-              <div className="pixel-text text-sm text-white/80">
-                Subscribers: <span className="font-bold text-white">{subscriberCount ?? "—"}</span> | Regular: <span className="font-bold text-white">{regularCount ?? "—"}</span>
+              <div className="text-sm text-white/80">
+                SVAGA+: <span className="font-bold text-white">{subscriberCount ?? "—"}</span>
+                {" · "}
+                Обычные: <span className="font-bold text-white">{regularCount ?? "—"}</span>
               </div>
               <button
+                type="button"
                 onClick={() => onToggleSubscriberOnly?.()}
                 className={`pixel-btn px-3 py-1 text-sm font-bold ${subscriberOnly ? "bg-green-600 text-white" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
-                title="Фильтр: только с is_subscriber_at_submit"
               >
                 {subscriberOnly ? "✓ Только подписчики" : "Только подписчики"}
               </button>
@@ -169,60 +211,100 @@ export function AdminDashboard({
         </div>
 
         {view === "users" ? (
-          <div className="pixel-container overflow-hidden rounded-none border-4 border-black bg-zinc-900/80 p-4">
-            <h2 className="pixel-text mb-4 text-xl font-bold text-white">Пользователи (admin only)</h2>
+          <div className="pixel-container overflow-hidden border-4 border-black bg-zinc-900/80 p-4">
+            <h2 className="pixel-text mb-4 text-xl font-bold text-white">Пользователи</h2>
             {usersLoading ? (
               <div className="pixel-text text-white">Загрузка пользователей...</div>
             ) : usersError ? (
               <div className="text-sm text-red-400">{usersError}</div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-700 text-left text-xs font-bold uppercase text-white/80">
-                    <th className="py-2 pr-4">ID</th>
-                    <th className="py-2 pr-4">Telegram ID</th>
-                    <th className="py-2 pr-4">Username</th>
-                    <th className="py-2 pr-4">Display Name</th>
-                    <th className="py-2 pr-4">Role</th>
-                    <th className="py-2">Изменить роль</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-700 text-white">
-                  {users.length === 0 && (
-                    <tr><td colSpan={6} className="py-4 text-white/60">Нет пользователей</td></tr>
-                  )}
-                  {users.map((u) => (
-                    <tr key={u.id}>
-                      <td className="py-2 pr-4">{u.id}</td>
-                      <td className="py-2 pr-4">{u.telegramId}</td>
-                      <td className="py-2 pr-4">{u.telegramUsername || "—"}</td>
-                      <td className="py-2 pr-4">{u.displayName || "—"}</td>
-                      <td className="py-2 pr-4">
-                        <span className={`inline px-2 py-0.5 text-xs font-bold ${u.role === "admin" ? "bg-yellow-400 text-black" : u.role === "moderator" ? "bg-blue-400 text-black" : "bg-zinc-600"}`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="py-2">
-                        <select
-                          value={u.role}
-                          onChange={(e) => handleRoleChange(u.id, e.target.value as AdminUser["role"])}
-                          className="bg-zinc-800 border border-zinc-600 text-white text-xs px-2 py-1 rounded-none"
-                          disabled={u.role === "admin" && users.filter(x => x.role === "admin").length === 1} // minimal guard: don't demote last admin easily
-                        >
-                          <option value="player">player</option>
-                          <option value="moderator">moderator</option>
-                          <option value="admin">admin</option>
-                        </select>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-700 text-left text-xs font-bold uppercase text-white/80">
+                      <th className="py-2 pr-4">ID</th>
+                      <th className="py-2 pr-4">Telegram ID</th>
+                      <th className="py-2 pr-4">Username</th>
+                      <th className="py-2 pr-4">Display Name</th>
+                      <th className="py-2 pr-4">Role</th>
+                      <th className="py-2">Изменить роль</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-700 text-white">
+                    {users.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-4 text-white/60">
+                          Нет пользователей
+                        </td>
+                      </tr>
+                    )}
+                    {users.map((u) => (
+                      <tr key={u.id}>
+                        <td className="py-2 pr-4">{u.id}</td>
+                        <td className="py-2 pr-4">{u.telegramId}</td>
+                        <td className="py-2 pr-4">{u.telegramUsername || "—"}</td>
+                        <td className="py-2 pr-4">{u.displayName || "—"}</td>
+                        <td className="py-2 pr-4">
+                          <span
+                            className={`inline px-2 py-0.5 text-xs font-bold ${u.role === "admin" ? "bg-yellow-400 text-black" : u.role === "moderator" ? "bg-blue-400 text-black" : "bg-zinc-600"}`}
+                          >
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="py-2">
+                          <select
+                            value={u.role}
+                            onChange={(e) =>
+                              handleRoleChange(u.id, e.target.value as AdminUser["role"])
+                            }
+                            className="border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs text-white"
+                            disabled={
+                              u.role === "admin" &&
+                              users.filter((x) => x.role === "admin").length === 1
+                            }
+                          >
+                            <option value="player">player</option>
+                            <option value="moderator">moderator</option>
+                            <option value="admin">admin</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-            <p className="mt-3 text-[10px] text-white/50">Только админы могут менять роли. Изменения вступают сразу.</p>
           </div>
         ) : loading ? (
           <LoadingState />
+        ) : view === "queue" && queueMode === "review" ? (
+          <ModerationReview
+            scrans={scrans}
+            role={role}
+            busy={actionBusy}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onExit={() => setQueueMode("cards")}
+            hasMorePages={currentPage < totalPages}
+            onNeedMore={() => onPageChange(currentPage + 1)}
+          />
+        ) : view === "queue" ? (
+          <>
+            <ModerationQueue
+              scrans={scrans}
+              role={role}
+              onApprove={(id) => void handleApprove(id)}
+              onReject={(id) => void handleReject(id)}
+              onBan={onBan}
+              onDelete={setDeletingScran}
+              onStartReview={() => setQueueMode("review")}
+            />
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+            />
+          </>
         ) : (
           <>
             <ScranTable
@@ -232,7 +314,8 @@ export function AdminDashboard({
               view={view}
               role={role}
               onSort={onSort}
-              onApprove={onApprove}
+              onApprove={(id) => void handleApprove(id)}
+              onReject={(id) => void handleReject(id)}
               onBan={onBan}
               onDelete={setDeletingScran}
             />

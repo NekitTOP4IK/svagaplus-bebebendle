@@ -15,6 +15,7 @@ interface ScranTableProps {
   role?: "moderator" | "admin" | null;
   onSort: (field: SortField) => void;
   onApprove: (id: number) => void;
+  onReject: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (scran: Scran) => void;
 }
@@ -52,13 +53,14 @@ export function ScranTable({
   role,
   onSort,
   onApprove,
+  onReject,
   onBan,
   onDelete,
 }: ScranTableProps) {
   const isQueue = view === "queue";
   return (
-    <div className="pixel-container overflow-hidden rounded-none border-4 border-black bg-zinc-900/80">
-      <table className="w-full">
+    <div className="pixel-container overflow-x-auto border-4 border-black bg-zinc-900/80">
+      <table className="w-full min-w-[720px]">
         <thead className="bg-zinc-800">
           <tr>
             <SortableHeader
@@ -127,6 +129,7 @@ export function ScranTable({
               view={view}
               role={role}
               onApprove={onApprove}
+              onReject={onReject}
               onBan={onBan}
               onDelete={onDelete}
             />

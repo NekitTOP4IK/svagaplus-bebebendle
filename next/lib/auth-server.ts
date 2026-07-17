@@ -8,6 +8,7 @@ export interface CurrentUser {
   id: number;
   telegramId: number;
   telegramUsername: string | null;
+  telegramPhotoUrl: string | null;
   displayName: string | null;
   role: "player" | "moderator" | "admin";
 }
@@ -36,6 +37,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         id: users.id,
         telegramId: users.telegramId,
         telegramUsername: users.telegramUsername,
+        telegramPhotoUrl: users.telegramPhotoUrl,
         displayName: users.displayName,
         role: users.role,
       })
@@ -65,6 +67,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       id: u.id,
       telegramId: u.telegramId,
       telegramUsername: u.telegramUsername,
+      telegramPhotoUrl: u.telegramPhotoUrl,
       displayName: u.displayName,
       role: u.role as CurrentUser["role"],
     };

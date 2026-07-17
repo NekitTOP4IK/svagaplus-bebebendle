@@ -71,11 +71,14 @@ export async function POST(request: Request) {
       parsed.firstName || parsed.username || `user${parsed.telegramId}`;
     const username = parsed.username || null;
 
+    const photoUrl = parsed.photoUrl || null;
+
     const inserted = await db
       .insert(users)
       .values({
         telegramId: parsed.telegramId,
         telegramUsername: username,
+        telegramPhotoUrl: photoUrl,
         displayName,
         role: "player",
         createdAt: new Date(),
@@ -86,6 +89,7 @@ export async function POST(request: Request) {
         set: {
           telegramUsername: username,
           displayName,
+          ...(photoUrl ? { telegramPhotoUrl: photoUrl } : {}),
           updatedAt: new Date(),
         },
       })

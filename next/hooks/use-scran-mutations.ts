@@ -11,6 +11,7 @@ interface UseScranMutationsParams {
 
 interface UseScranMutationsReturn {
   approveScran: (id: number) => Promise<void>;
+  rejectScran: (id: number) => Promise<void>;
   banScran: (id: number) => Promise<void>;
   deleteScran: (id: number, comment: string) => Promise<boolean>;
 }
@@ -49,6 +50,32 @@ export function useScranMutations({
     [onSuccess, onUnauthorized],
   );
 
+  const rejectScran = useCallback(
+    async (id: number) => {
+      try {
+        const response = await apiFetch(`/api/admin/scrans/${id}/reject`, {
+          method: "POST",
+        });
+
+        if (response.ok) {
+          toast.success("Блюдо отклонено", { description: `ID: ${id}` });
+          onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
+        } else {
+          const data = await response.json().catch(() => ({}));
+          toast.error("Ошибка отклонения", {
+            description: (data as { error?: string }).error ?? "Не удалось отклонить",
+          });
+        }
+      } catch (error) {
+        console.error("Error rejecting scran:", error);
+        toast.error("Ошибка отклонения");
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
   const banScran = useCallback(
     async (id: number) => {
       try {
@@ -57,9 +84,12 @@ export function useScranMutations({
         });
 
         if (response.ok) {
+          toast.success("Публикация снята", { description: `ID: ${id}` });
           onSuccess();
         } else if (response.status === 401) {
           onUnauthorized();
+        } else {
+          toast.error("Только админ может снимать с публикации");
         }
       } catch (error) {
         console.error("Error banning scran:", error);
@@ -108,6 +138,7 @@ export function useScranMutations({
 
   return {
     approveScran,
+    rejectScran,
     banScran,
     deleteScran,
   };

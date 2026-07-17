@@ -20,6 +20,7 @@ export default function AdminPage() {
     regularCount,
     login,
     approveScran,
+    rejectScran,
     banScran,
     deleteScran,
     handleSort,
@@ -49,6 +50,7 @@ export default function AdminPage() {
       onSort={handleSort}
       onPageChange={setCurrentPage}
       onApprove={approveScran}
+      onReject={rejectScran}
       onBan={banScran}
       onDelete={deleteScran}
       onSetView={setView}

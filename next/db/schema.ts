@@ -31,6 +31,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   telegramId: bigint("telegram_id", { mode: "number" }).notNull().unique(),
   telegramUsername: text("telegram_username"),
+  telegramPhotoUrl: text("telegram_photo_url"),
   displayName: text("display_name"),
   role: text("role", { enum: ["player", "moderator", "admin"] }).notNull().default("player"),
   // legacy svagaTelegramUserId/svagaUserId/linkedAt stay for rollback compatibility but are no longer written
@@ -71,6 +72,7 @@ export const scrans = pgTable("scrans", {
   numberOfLikes: integer("number_of_likes").notNull().default(0),
   numberOfDislikes: integer("number_of_dislikes").notNull().default(0),
   approved: boolean("approved").notNull().default(false),
+  rejected: boolean("rejected").notNull().default(false),
   telegramId: text("telegram_id"),
   icon: text("icon"),
   submittedByUserId: integer("submitted_by_user_id").references(() => users.id),

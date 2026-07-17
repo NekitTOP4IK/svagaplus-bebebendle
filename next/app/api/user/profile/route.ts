@@ -34,6 +34,7 @@ export async function GET() {
         id: user.id,
         telegramId: user.telegramId,
         telegramUsername: user.telegramUsername,
+        telegramPhotoUrl: user.telegramPhotoUrl,
         displayName: user.displayName,
         role: user.role,
       },

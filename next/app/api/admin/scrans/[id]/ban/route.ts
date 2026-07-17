@@ -8,7 +8,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
-  if (!user || !['moderator', 'admin'].includes(user.role)) {
+  // Ban (unpublish approved) is admin-only. Moderators only approve/reject.
+  if (!user || user.role !== "admin") {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401 }

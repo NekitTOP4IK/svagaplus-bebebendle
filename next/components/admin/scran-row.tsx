@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, type ReactElement } from "react";
 import type { Scran } from "@/types/scran";
 import { getLikesPercentage } from "@/lib/scoring";
+import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
 
 type ViewMode = "list" | "queue" | "users";
 
@@ -10,11 +12,21 @@ interface ScranRowProps {
   view?: ViewMode;
   role?: "moderator" | "admin" | null;
   onApprove: (id: number) => void;
+  onReject: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (scran: Scran) => void;
 }
 
-export function ScranRow({ scran, view, role, onApprove, onBan, onDelete }: ScranRowProps) {
+export function ScranRow({
+  scran,
+  view,
+  role,
+  onApprove,
+  onReject,
+  onBan,
+  onDelete,
+}: ScranRowProps): ReactElement {
+  const [lightbox, setLightbox] = useState(false);
   const percentage = getLikesPercentage({
     numberOfLikes: scran.numberOfLikes,
     numberOfDislikes: scran.numberOfDislikes,
@@ -22,119 +34,145 @@ export function ScranRow({ scran, view, role, onApprove, onBan, onDelete }: Scra
 
   const isQueue = view === "queue";
   const isSub = scran.isSubscriberAtSubmit === true;
-  const authorLabel = scran.authorUsername || scran.authorDisplayName || (scran.telegramId ? `tg:${scran.telegramId}` : "аноним");
+  const authorLabel =
+    scran.authorUsername ||
+    scran.authorDisplayName ||
+    (scran.telegramId ? `tg:${scran.telegramId}` : "аноним");
   const pendingCount = typeof scran.pendingCount === "number" ? scran.pendingCount : undefined;
   const pendingNote = pendingCount != null ? ` (${pendingCount} на модерации)` : "";
   const overLimit = pendingCount != null && pendingCount > 6;
 
   return (
-    <tr className="hover:bg-zinc-800/50">
-      <td className="whitespace-nowrap px-6 py-4 text-sm text-white">
-        {scran.id}
-      </td>
-      <td className="px-6 py-4">
-        {scran.imageUrl && (
-          <img
-            src={scran.imageUrl}
-            alt={scran.name}
-            className="h-12 w-12 rounded-none border-2 border-black object-cover"
-          />
-        )}
-      </td>
-      <td className="px-6 py-4">
-        <div className="flex items-center gap-2">
-          <div className="text-sm font-bold text-white">{scran.name}</div>
-          {isSub && (
-            <span className="inline-flex rounded-none bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-black">
-              SVAGA+
-            </span>
-          )}
-          {scran.isSubscriberAtSubmit === null && (
-            <span className="inline-flex rounded-none bg-zinc-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-              Не проверено
-            </span>
-          )}
-        </div>
-        {scran.description && (
-          <div className="text-xs text-zinc-400 line-clamp-1">
-            {scran.description}
-          </div>
-        )}
-      </td>
-      {isQueue && (
-        <td className="whitespace-nowrap px-6 py-4 text-sm text-white">
-          <span className="text-white/90">{authorLabel}</span>
-          {pendingNote && (
-            <span className={`ml-1 text-xs ${overLimit ? "text-red-400 font-bold" : "text-amber-400"}`}>
-              {pendingNote}
-              {overLimit && " ⚠️"}
-            </span>
-          )}
-          {overLimit && (
-            <span className="ml-2 inline rounded-none bg-red-600 px-1 py-0.5 text-[9px] font-bold text-white">{">6"}</span>
+    <>
+      <tr className="hover:bg-zinc-800/50">
+        <td className="whitespace-nowrap px-3 py-3 text-sm text-white sm:px-4">
+          {scran.id}
+        </td>
+        <td className="px-3 py-3 sm:px-4">
+          {scran.imageUrl ? (
+            <button
+              type="button"
+              onClick={() => setLightbox(true)}
+              className="block overflow-hidden border-2 border-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300"
+              title="Открыть фото"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={scran.imageUrl}
+                alt={scran.name}
+                className="h-16 w-16 object-cover sm:h-20 sm:w-20"
+              />
+            </button>
+          ) : (
+            <span className="text-xs text-white/40">—</span>
           )}
         </td>
-      )}
-      <td className="whitespace-nowrap px-6 py-4 text-sm text-white">
-        {scran.price.toFixed(2)} ₽
-      </td>
-      <td className="whitespace-nowrap px-6 py-4 text-sm text-white">
-        👍 {scran.numberOfLikes}
-      </td>
-      <td className="whitespace-nowrap px-6 py-4 text-sm text-white">
-        👎 {scran.numberOfDislikes}
-      </td>
-      <td className="whitespace-nowrap px-6 py-4">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-12 overflow-hidden rounded-none border border-zinc-600 bg-zinc-700">
-            <div
-              className="h-full bg-green-500"
-              style={{ width: `${percentage}%` }}
-            />
+        <td className="max-w-[12rem] px-3 py-3 sm:max-w-xs sm:px-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-sm font-bold text-white">{scran.name}</div>
+            {isSub && (
+              <span className="inline-flex bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-black">
+                SVAGA+
+              </span>
+            )}
+            {scran.isSubscriberAtSubmit === null && (
+              <span className="inline-flex bg-zinc-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                Не проверено
+              </span>
+            )}
           </div>
-          <span className="text-xs text-white">{percentage}%</span>
-        </div>
-      </td>
-      <td className="whitespace-nowrap px-6 py-4">
-        <span
-          className={`inline-flex rounded-none px-2 py-1 text-xs font-bold ${
-            scran.approved
-              ? "bg-green-500 text-white"
-              : "bg-yellow-400 text-black"
-          }`}
-        >
-          {scran.approved ? "Approved" : "Pending"}
-        </span>
-      </td>
-      <td className="whitespace-nowrap px-6 py-4">
-        <div className="flex gap-2">
-          {!scran.approved && (
-            <button
-              onClick={() => onApprove(scran.id)}
-              className="pixel-btn min-h-11 min-w-11 bg-green-500 px-3 py-1 text-sm font-bold text-white hover:bg-green-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-            >
-              Approve
-            </button>
+          {scran.description && (
+            <div className="line-clamp-2 text-xs text-zinc-400">{scran.description}</div>
           )}
-          {scran.approved && (
-            <button
-              onClick={() => onBan(scran.id)}
-              className="pixel-btn min-h-11 min-w-11 bg-red-500 px-3 py-1 text-sm font-bold text-white hover:bg-red-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
-            >
-              Ban
-            </button>
-          )}
-          {role === "admin" && (
-            <button
-              onClick={() => onDelete(scran)}
-              className="pixel-btn min-h-11 min-w-11 bg-zinc-700 px-3 py-1 text-sm font-bold text-white hover:bg-zinc-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-300"
-              title="Удалить с уведомлением автору (admin only)"
-            >
-              Удалить
-            </button>
-          )}
-        </div>
-      </td>
-    </tr>
+        </td>
+        {isQueue && (
+          <td className="px-3 py-3 text-sm text-white sm:px-4">
+            <span className="text-white/90">{authorLabel}</span>
+            {pendingNote && (
+              <span
+                className={`ml-1 text-xs ${overLimit ? "font-bold text-red-400" : "text-amber-400"}`}
+              >
+                {pendingNote}
+                {overLimit && " ⚠️"}
+              </span>
+            )}
+          </td>
+        )}
+        <td className="whitespace-nowrap px-3 py-3 text-sm text-white sm:px-4">
+          {scran.price.toFixed(2)} ₽
+        </td>
+        <td className="whitespace-nowrap px-3 py-3 text-sm text-white sm:px-4">
+          👍 {scran.numberOfLikes}
+        </td>
+        <td className="whitespace-nowrap px-3 py-3 text-sm text-white sm:px-4">
+          👎 {scran.numberOfDislikes}
+        </td>
+        <td className="whitespace-nowrap px-3 py-3 sm:px-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-12 overflow-hidden border border-zinc-600 bg-zinc-700">
+              <div className="h-full bg-green-500" style={{ width: `${percentage}%` }} />
+            </div>
+            <span className="text-xs text-white">{percentage}%</span>
+          </div>
+        </td>
+        <td className="whitespace-nowrap px-3 py-3 sm:px-4">
+          <span
+            className={`inline-flex px-2 py-1 text-xs font-bold ${
+              scran.approved ? "bg-green-500 text-white" : "bg-yellow-400 text-black"
+            }`}
+          >
+            {scran.approved ? "Approved" : "Pending"}
+          </span>
+        </td>
+        <td className="px-3 py-3 sm:px-4">
+          <div className="flex min-w-[7.5rem] flex-col gap-2 sm:min-w-0 sm:flex-row sm:flex-wrap">
+            {!scran.approved && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onApprove(scran.id)}
+                  className="pixel-btn min-h-10 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 sm:text-sm"
+                >
+                  Одобрить
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReject(scran.id)}
+                  className="pixel-btn min-h-10 bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500 sm:text-sm"
+                >
+                  Отклонить
+                </button>
+              </>
+            )}
+            {scran.approved && role === "admin" && (
+              <button
+                type="button"
+                onClick={() => onBan(scran.id)}
+                className="pixel-btn min-h-10 bg-orange-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-500 sm:text-sm"
+              >
+                Снять
+              </button>
+            )}
+            {role === "admin" && (
+              <button
+                type="button"
+                onClick={() => onDelete(scran)}
+                className="pixel-btn min-h-10 bg-zinc-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-600 sm:text-sm"
+                title="Жёсткое удаление с уведомлением (admin)"
+              >
+                Удалить
+              </button>
+            )}
+          </div>
+        </td>
+      </tr>
+      {lightbox && scran.imageUrl && (
+        <ScranImageLightbox
+          src={scran.imageUrl}
+          alt={scran.name}
+          onClose={() => setLightbox(false)}
+        />
+      )}
+    </>
   );
 }

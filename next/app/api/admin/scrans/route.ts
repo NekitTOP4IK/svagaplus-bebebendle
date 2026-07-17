@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, scrans, users } from "@/db/schema";
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth-server";
 import {
   computeQueueScore,
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         })
         .from(scrans)
         .leftJoin(users, eq(scrans.submittedByUserId, users.id))
-        .where(eq(scrans.approved, false));
+        .where(and(eq(scrans.approved, false), eq(scrans.rejected, false)));
 
       // Enrich with author info
       const allPending: ScranWithMeta[] = pendingRows.map((row) => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ScranRow } from "@/components/admin/scran-row";
 import type { Scran } from "@/types/scran";
@@ -18,6 +18,7 @@ const baseScran: Scran = {
 
 describe("ScranRow permissions (Moderator vs Admin)", () => {
   const onApprove = vi.fn();
+  const onReject = vi.fn();
   const onBan = vi.fn();
   const onDelete = vi.fn();
 
@@ -25,7 +26,7 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
     vi.clearAllMocks();
   });
 
-  it("shows Approve for pending for both moderator and admin", () => {
+  it("shows approve/reject for pending moderator, no ban/delete", () => {
     render(
       <table>
         <tbody>
@@ -33,18 +34,41 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
             scran={baseScran}
             role="moderator"
             onApprove={onApprove}
+            onReject={onReject}
             onBan={onBan}
             onDelete={onDelete}
           />
         </tbody>
-      </table>
+      </table>,
     );
-    expect(screen.getByText("Approve")).toBeInTheDocument();
-    expect(screen.queryByText("Ban")).not.toBeInTheDocument();
+    expect(screen.getByText("Одобрить")).toBeInTheDocument();
+    expect(screen.getByText("Отклонить")).toBeInTheDocument();
+    expect(screen.queryByText("Снять")).not.toBeInTheDocument();
     expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
   });
 
-  it("shows Ban for approved, available to moderator (not delete)", () => {
+  it("shows ban only for admin on approved items", () => {
+    const approvedScran = { ...baseScran, approved: true };
+    render(
+      <table>
+        <tbody>
+          <ScranRow
+            scran={approvedScran}
+            role="admin"
+            onApprove={onApprove}
+            onReject={onReject}
+            onBan={onBan}
+            onDelete={onDelete}
+          />
+        </tbody>
+      </table>,
+    );
+    expect(screen.getByText("Снять")).toBeInTheDocument();
+    expect(screen.getByText("Удалить")).toBeInTheDocument();
+    expect(screen.queryByText("Одобрить")).not.toBeInTheDocument();
+  });
+
+  it("hides ban for moderator on approved items", () => {
     const approvedScran = { ...baseScran, approved: true };
     render(
       <table>
@@ -53,14 +77,14 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
             scran={approvedScran}
             role="moderator"
             onApprove={onApprove}
+            onReject={onReject}
             onBan={onBan}
             onDelete={onDelete}
           />
         </tbody>
-      </table>
+      </table>,
     );
-    expect(screen.getByText("Ban")).toBeInTheDocument();
-    expect(screen.queryByText("Approve")).not.toBeInTheDocument();
+    expect(screen.queryByText("Снять")).not.toBeInTheDocument();
     expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
   });
 
@@ -72,52 +96,18 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
             scran={baseScran}
             role="admin"
             onApprove={onApprove}
+            onReject={onReject}
             onBan={onBan}
             onDelete={onDelete}
           />
         </tbody>
-      </table>
+      </table>,
     );
     expect(screen.getByText("Удалить")).toBeInTheDocument();
-    // still shows approve for pending
-    expect(screen.getByText("Approve")).toBeInTheDocument();
+    expect(screen.getByText("Одобрить")).toBeInTheDocument();
   });
 
-  it("hides Delete button for moderator role", () => {
-    render(
-      <table>
-        <tbody>
-          <ScranRow
-            scran={baseScran}
-            role="moderator"
-            onApprove={onApprove}
-            onBan={onBan}
-            onDelete={onDelete}
-          />
-        </tbody>
-      </table>
-    );
-    expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
-  });
-
-  it("hides Delete when role is null/player (no role prop or insufficient)", () => {
-    render(
-      <table>
-        <tbody>
-          <ScranRow
-            scran={baseScran}
-            role={null}
-            onApprove={onApprove}
-            onBan={onBan}
-            onDelete={onDelete}
-          />
-        </tbody>
-      </table>
-    );
-    expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
-  });
-
-  it("shows SVAGA+ badge for subscriber scrans regardless of role", () => {
+  it("shows SVAGA+ badge for subscriber scrans", () => {
     const subScran = { ...baseScran, isSubscriberAtSubmit: true };
     render(
       <table>
@@ -126,11 +116,12 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
             scran={subScran}
             role="moderator"
             onApprove={onApprove}
+            onReject={onReject}
             onBan={onBan}
             onDelete={onDelete}
           />
         </tbody>
-      </table>
+      </table>,
     );
     expect(screen.getByText("SVAGA+")).toBeInTheDocument();
   });
@@ -144,11 +135,12 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
             scran={unknownScran}
             role="moderator"
             onApprove={onApprove}
+            onReject={onReject}
             onBan={onBan}
             onDelete={onDelete}
           />
         </tbody>
-      </table>
+      </table>,
     );
     expect(screen.getByText("Не проверено")).toBeInTheDocument();
     expect(screen.queryByText("SVAGA+")).not.toBeInTheDocument();

@@ -28,6 +28,7 @@ interface UseAdminReturn {
   login: (data: Record<string, string>) => Promise<boolean>;
   logout: () => void;
   approveScran: (id: number) => Promise<void>;
+  rejectScran: (id: number) => Promise<void>;
   banScran: (id: number) => Promise<void>;
   deleteScran: (id: number, comment: string) => Promise<boolean>;
   handleSort: (field: SortField) => void;
@@ -84,7 +85,7 @@ export function useAdmin(): UseAdminReturn {
   });
 
   // Mutations (no longer needs password; uses cookie for server auth)
-  const { approveScran, banScran, deleteScran } = useScranMutations({
+  const { approveScran, rejectScran, banScran, deleteScran } = useScranMutations({
     onUnauthorized: logout,
     onSuccess: refetch,
   });
@@ -105,6 +106,7 @@ export function useAdmin(): UseAdminReturn {
     login,
     logout,
     approveScran,
+    rejectScran,
     banScran,
     deleteScran,
     handleSort,

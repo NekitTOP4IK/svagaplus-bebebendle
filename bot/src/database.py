@@ -5,13 +5,22 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import asyncpg
 from scipy.spatial.distance import cosine
 from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
+
+
+def _naive_utc(value: datetime | None) -> datetime | None:
+    """asyncpg + timestamp without time zone reject aware datetimes."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(UTC).replace(tzinfo=None)
 
 
 class PendingSuggestionLimitError(Exception):
@@ -75,7 +84,6 @@ class Database:
             res.append([k, 1 - cosine(embeddings[0], v)])
 
         min_cos = max(res, key=lambda x: x[1])  # type: ignore[arg-type, return-value]
-        print(min_cos)
         return str(min_cos[0])
 
     async def count_pending_scrans(self, telegram_id: str) -> int:
@@ -84,7 +92,11 @@ class Database:
             raise RuntimeError("Database not connected")
         async with self.pool.acquire() as connection:
             count = await connection.fetchval(
-                "SELECT COUNT(*) FROM scrans WHERE telegram_id = $1 AND approved = false",
+                """
+                SELECT COUNT(*) FROM scrans
+                WHERE telegram_id = $1 AND approved = false
+                  AND COALESCE(rejected, false) = false
+                """,
                 telegram_id,
             )
             return count or 0
@@ -118,7 +130,11 @@ class Database:
             await connection.execute("SELECT pg_advisory_xact_lock($1)", telegram_int)
 
             pending = await connection.fetchval(
-                "SELECT COUNT(*) FROM scrans WHERE telegram_id = $1 AND approved = false",
+                """
+                SELECT COUNT(*) FROM scrans
+                WHERE telegram_id = $1 AND approved = false
+                  AND COALESCE(rejected, false) = false
+                """,
                 telegram_id,
             )
             if pending is not None and pending >= 6:
@@ -133,9 +149,9 @@ class Database:
                 """
                 INSERT INTO scrans (
                     image_url, name, description, price,
-                    number_of_likes, number_of_dislikes, approved, telegram_id, icon,
+                    number_of_likes, number_of_dislikes, approved, rejected, telegram_id, icon,
                     is_subscriber_at_submit, subscriber_checked_at, submitted_by_user_id
-                ) VALUES ($1, $2, $3, $4, 0, 0, false, $5, $6, $7, $8, $9)
+                ) VALUES ($1, $2, $3, $4, 0, 0, false, false, $5, $6, $7, $8, $9)
                 RETURNING id
                 """,
                 image_url,
@@ -145,7 +161,7 @@ class Database:
                 telegram_id,
                 icon,
                 is_subscriber,
-                subscriber_checked_at,
+                _naive_utc(subscriber_checked_at),
                 user_id,
             )
 
