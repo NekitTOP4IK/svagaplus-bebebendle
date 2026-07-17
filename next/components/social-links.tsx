@@ -25,7 +25,7 @@ export function SocialLinks() {
       skin: "pixel-btn-twitch",
     },
     {
-      href: "https://github.com/catlilface/bebebendle",
+      href: "https://github.com/NekitTOP4IK/svagaplus-bebebendle/",
       icon: Github,
       label: "github",
       mobileLabel: "git",

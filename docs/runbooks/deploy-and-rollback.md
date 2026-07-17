@@ -6,7 +6,7 @@
 |-------|------|
 | **Host** `/opt/bebebendle/shared/.env` (mode `600`) | All application runtime secrets: `BOT_TOKEN`, `SESSION_SECRET`, `DATABASE_URL`, SVAGA secrets, admin/cron, Redis, uploads path, `APP_ENV` |
 | **GitHub Environment** (`staging` / `production`) | Deploy transport only: `DEPLOY_HOST`, `DEPLOY_PORT`, `DEPLOY_USER`, `DEPLOY_PATH`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` |
-| **GitHub Environment variable** | `APP_URL`: staging `https://bebetest.svagaplus.qzz.io`, production `https://bebebendle.svagaplus.qzz.io` (use `http://127.0.0.1:3000` only before nginx/TLS) |
+| **GitHub Environment variable** | `APP_URL`: staging `https://bebetest.svagaplus.qzz.io`, production `https://bebebendle.svagaplus.qzz.io` (use `http://127.0.0.1:3000` only before nginx/TLS). Deploy maps this into host `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_APP_URL` for Next build (share links, absolute client URLs). |
 
 CI **never** uploads bot tokens or DB passwords. The deploy script sources `shared/.env` on the host and fails if required keys are missing.
 

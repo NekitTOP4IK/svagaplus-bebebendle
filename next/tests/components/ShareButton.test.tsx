@@ -39,7 +39,8 @@ describe("ShareButton", () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
       const text = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0] as string;
       // Random emblem pairs are intentional product behavior; lock the score/URL contract.
-      expect(text).toMatch(/ - 2\/10\nhttps:\/\/bebebendle\.ru$/);
+      // URL follows NEXT_PUBLIC_SITE_URL / APP_URL or window.location.origin
+      expect(text).toMatch(/ - 2\/10\nhttps?:\/\/.+$/);
       expect(text.split(" - ")[0].length).toBeGreaterThan(0);
     });
   });
@@ -115,7 +116,7 @@ describe("ShareButton", () => {
 
     await waitFor(() => {
       const text = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0] as string;
-      expect(text).toMatch(/ - 3\/10\nhttps:\/\/bebebendle\.ru$/);
+      expect(text).toMatch(/ - 3\/10\nhttps?:\/\/.+$/);
     });
   });
 
@@ -135,7 +136,7 @@ describe("ShareButton", () => {
 
     await waitFor(() => {
       const text = vi.mocked(navigator.clipboard.writeText).mock.calls[0][0] as string;
-      expect(text).toMatch(/ - 0\/10\nhttps:\/\/bebebendle\.ru$/);
+      expect(text).toMatch(/ - 0\/10\nhttps?:\/\/.+$/);
     });
   });
 });

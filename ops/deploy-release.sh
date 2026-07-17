@@ -185,6 +185,46 @@ fi
   exit 1
 }
 
+# Public URL for share links / absolute client URLs.
+# GitHub Environment var APP_URL is the third CLI arg — bake into Next build.
+APP_URL="${APP_URL%/}"
+export NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL:-$APP_URL}"
+export NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL%/}"
+export NEXT_PUBLIC_APP_URL="${NEXT_PUBLIC_APP_URL:-$NEXT_PUBLIC_SITE_URL}"
+export NEXT_PUBLIC_APP_URL="${NEXT_PUBLIC_APP_URL%/}"
+echo "==> public site URL (NEXT_PUBLIC_SITE_URL)=$NEXT_PUBLIC_SITE_URL"
+
+# Keep shared/.env in sync so local tooling and restarts see the same public URL
+# (does not rewrite if already equal; never prints secrets).
+upsert_env_key() {
+  local key=$1
+  local value=$2
+  local file=$3
+  if grep -q "^${key}=" "$file" 2>/dev/null; then
+    local cur
+    cur="$(grep "^${key}=" "$file" | head -1 | cut -d= -f2-)"
+    if [[ "$cur" == "$value" ]]; then
+      return 0
+    fi
+    # portable in-place replace without sed -i differences
+    local tmp
+    tmp="$(mktemp)"
+    awk -v k="$key" -v v="$value" 'BEGIN{FS=OFS="="} $1==k {$0=k"="v} {print}' "$file" >"$tmp"
+    cat "$tmp" >"$file"
+    rm -f "$tmp"
+  else
+    printf '\n%s=%s\n' "$key" "$value" >>"$file"
+  fi
+}
+upsert_env_key "NEXT_PUBLIC_SITE_URL" "$NEXT_PUBLIC_SITE_URL" "$ENV_FILE"
+upsert_env_key "NEXT_PUBLIC_APP_URL" "$NEXT_PUBLIC_APP_URL" "$ENV_FILE"
+# re-source so child processes see updated keys
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+export NEXT_PUBLIC_SITE_URL NEXT_PUBLIC_APP_URL
+
 AVAILABLE_KB=$(df -Pk "$ROOT" | awk 'NR==2 {print $4}')
 [[ "$AVAILABLE_KB" -ge 1048576 ]] || {
   echo "less than 1 GiB free" >&2
@@ -225,17 +265,36 @@ fi
 
 echo "==> next build"
 NEW_NEXT_SRC="$(dir_hash "$RELEASE/next")"
+# NEXT_PUBLIC_* is inlined at build time — env change must invalidate .next reuse
+PUBLIC_ENV_FP="$(
+  printf '%s\0' \
+    "${NEXT_PUBLIC_SITE_URL:-}" \
+    "${NEXT_PUBLIC_APP_URL:-}" \
+    "${NEXT_PUBLIC_TELEGRAM_BOT_USERNAME:-}" |
+    sha256sum | awk '{print $1}'
+)"
 SKIP_NEXT_BUILD=0
 if [[ -n "$PREV_RELEASE" && -d "$PREV_RELEASE/next/.next" ]]; then
   PREV_NEXT_SRC="$(dir_hash "$PREV_RELEASE/next")"
-  if [[ "$NEW_NEXT_SRC" == "$PREV_NEXT_SRC" && "$NEW_NEXT_SRC" != "missing" ]]; then
-    echo "    next sources unchanged — reusing .next"
+  PREV_PUBLIC_ENV_FP=""
+  if [[ -f "$PREV_RELEASE/next/.bebebendle-public-env" ]]; then
+    PREV_PUBLIC_ENV_FP="$(cat "$PREV_RELEASE/next/.bebebendle-public-env")"
+  fi
+  if [[ "$NEW_NEXT_SRC" == "$PREV_NEXT_SRC" && "$NEW_NEXT_SRC" != "missing" && "$PUBLIC_ENV_FP" == "$PREV_PUBLIC_ENV_FP" ]]; then
+    echo "    next sources + public env unchanged — reusing .next"
     clone_tree "$PREV_RELEASE/next/.next" "$RELEASE/next/.next"
+    printf '%s\n' "$PUBLIC_ENV_FP" >"$RELEASE/next/.bebebendle-public-env"
     SKIP_NEXT_BUILD=1
+  elif [[ "$PUBLIC_ENV_FP" != "$PREV_PUBLIC_ENV_FP" ]]; then
+    echo "    public env fingerprint changed — rebuilding next"
   fi
 fi
 if [[ "$SKIP_NEXT_BUILD" -eq 0 ]]; then
-  run_low_prio bun run build
+  run_low_prio env \
+    NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
+    NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
+    bun run build
+  printf '%s\n' "$PUBLIC_ENV_FP" >"$RELEASE/next/.bebebendle-public-env"
 fi
 
 echo "==> bot dependencies"
