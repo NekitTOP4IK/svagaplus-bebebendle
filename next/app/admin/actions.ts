@@ -1,64 +1,77 @@
 "use server";
 
-import { db, scrans } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { db, users } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
+import { requireRole } from "@/lib/auth-server";
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-
-interface ApproveScranResult {
-  success: boolean;
-  message?: string;
+// Minimal admin-only users management (admins only)
+export interface AdminUser {
+  id: number;
+  telegramId: number;
+  telegramUsername: string | null;
+  displayName: string | null;
+  role: "player" | "moderator" | "admin";
+  createdAt: Date | null;
 }
 
-export async function approveScran(id: number): Promise<ApproveScranResult> {
-  if (!BOT_TOKEN) {
-    console.error("BOT_TOKEN is not set");
-    return { success: false, message: "Bot token not configured" };
+export async function getUsers(): Promise<AdminUser[]> {
+  try {
+    await requireRole("admin");
+  } catch {
+    return [];
   }
 
   try {
-    // 1. Update approved status
-    const result = await db
-      .update(scrans)
-      .set({ approved: true })
-      .where(eq(scrans.id, id))
-      .returning({ telegramId: scrans.telegramId, name: scrans.name });
+    const rows = await db
+      .select({
+        id: users.id,
+        telegramId: users.telegramId,
+        telegramUsername: users.telegramUsername,
+        displayName: users.displayName,
+        role: users.role,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .orderBy(desc(users.id))
+      .limit(200);
 
-    if (result.length === 0) {
-      return { success: false, message: "Scran not found" };
-    }
+    return rows.map((r) => ({
+      id: r.id,
+      telegramId: r.telegramId,
+      telegramUsername: r.telegramUsername,
+      displayName: r.displayName,
+      role: r.role as AdminUser["role"],
+      createdAt: r.createdAt,
+    }));
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return [];
+  }
+}
 
-    const telegramId = result[0].telegramId;
+export async function updateUserRole(
+  userId: number,
+  newRole: "player" | "moderator" | "admin"
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    await requireRole("admin");
+  } catch {
+    return { success: false, message: "Unauthorized" };
+  }
 
-    // 2. Send notification to user if telegramId exists
-    if (telegramId) {
-      await sendApprovalNotification(telegramId, result[0].name);
-    }
+  if (!userId || userId <= 0) {
+    return { success: false, message: "Invalid user id" };
+  }
+
+  try {
+    await db
+      .update(users)
+      .set({ role: newRole, updatedAt: new Date() })
+      .where(eq(users.id, userId));
 
     return { success: true };
   } catch (error) {
-    console.error("Error approving scran:", error);
-    return { success: false, message: "Failed to approve scran" };
-  }
-}
-
-async function sendApprovalNotification(telegramId: string, scranName: string): Promise<void> {
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-  const message = `✅ ${scranName} — одобрено и опубликовано!`;
-
-  try {
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: telegramId,
-        text: message,
-        parse_mode: "HTML",
-      }),
-      signal: AbortSignal.timeout(5000),
-    });
-  } catch (error) {
-    console.error("Failed to send approval notification:", error);
-    // Don't fail the whole action if notification fails
+    console.error("Error updating user role:", error);
+    return { success: false, message: "Failed to update role" };
   }
 }

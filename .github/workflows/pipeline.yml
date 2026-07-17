@@ -1,0 +1,220 @@
+name: Bebebendle Pipeline
+
+on:
+  push:
+    branches: [dev, staging, main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  pull_request:
+    branches: [dev, staging, main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bebebendle-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_name == 'dev' }}
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: next
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run test:run
+        env:
+          NODE_ENV: test
+      - run: bun run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  bot:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --extra dev --frozen
+      - run: uv run ruff check src tests
+      - run: uv run mypy src
+      - run: uv run pytest -q
+
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bebendle_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bebendle_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: next
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/bebendle_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - run: bun install --frozen-lockfile
+      - run: bun run db:migrate
+      - run: bun run db:migrate
+      - name: Verify required schema
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DO $schema$
+          BEGIN
+            IF NOT EXISTS (
+              SELECT FROM information_schema.tables
+              WHERE table_schema = 'public' AND table_name = 'user_sessions'
+            ) THEN
+              RAISE EXCEPTION 'user_sessions table is missing';
+            END IF;
+            IF NOT EXISTS (
+              SELECT FROM pg_indexes
+              WHERE schemaname = 'public' AND indexname = 'unique_user_result_per_user_day'
+            ) THEN
+              RAISE EXCEPTION 'daily result uniqueness index is missing';
+            END IF;
+            IF NOT EXISTS (
+              SELECT FROM information_schema.columns
+              WHERE table_schema = 'public'
+                AND table_name = 'scrans'
+                AND column_name = 'is_subscriber_at_submit'
+                AND is_nullable = 'YES'
+            ) THEN
+              RAISE EXCEPTION 'scrans.is_subscriber_at_submit must be nullable';
+            END IF;
+          END
+          $schema$;
+          SQL
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-script:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax and offline deploy test
+        run: |
+          bash -n ops/deploy-release.sh
+          bash -n scripts/run-next.sh scripts/run-bot.sh
+          chmod +x ops/deploy-release.sh ops/tests/deploy-release.sh scripts/run-next.sh scripts/run-bot.sh
+          ops/tests/deploy-release.sh
+          node -e 'const c=require("./ecosystem.config.cjs"); if(c.apps.length!==2) process.exit(1); console.log(c.apps.map(a=>a.name).join(" "))'
+
+  release:
+    if: github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'main')
+    needs: [frontend, bot, migrations, security, deploy-script]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package exact commit
+        run: |
+          git archive --format=tar.gz --output="bebebendle-${GITHUB_SHA}.tar.gz" HEAD
+          sha256sum "bebebendle-${GITHUB_SHA}.tar.gz" > "bebebendle-${GITHUB_SHA}.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bebebendle-${{ github.sha }}
+          path: |
+            bebebendle-${{ github.sha }}.tar.gz
+            bebebendle-${{ github.sha }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    if: github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'main')
+    needs: [release]
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+      url: ${{ vars.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: bebebendle-${{ github.sha }}
+      - name: Configure verified SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Upload release
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          PATH_ON_HOST: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" "$USER@$HOST" "mkdir -p '$PATH_ON_HOST/incoming'"
+          scp -i ~/.ssh/deploy_key -P "${PORT:-22}" \
+            "bebebendle-${GITHUB_SHA}.tar.gz" \
+            "bebebendle-${GITHUB_SHA}.tar.gz.sha256" \
+            ops/deploy-release.sh \
+            "$USER@$HOST:$PATH_ON_HOST/incoming/"
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" "$USER@$HOST" \
+            "chmod +x '$PATH_ON_HOST/incoming/deploy-release.sh'"
+      - name: Activate release
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          PATH_ON_HOST: ${{ secrets.DEPLOY_PATH }}
+          APP_URL: ${{ vars.APP_URL }}
+          DEPLOY_ENV: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+        run: |
+          if [[ -z "$APP_URL" ]]; then
+            echo "vars.APP_URL is required on the GitHub Environment" >&2
+            exit 1
+          fi
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" "$USER@$HOST" \
+            "BEBEBENDLE_DEPLOY_ROOT='$PATH_ON_HOST' bash '$PATH_ON_HOST/incoming/deploy-release.sh' '$GITHUB_SHA' '$DEPLOY_ENV' '$APP_URL'"
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

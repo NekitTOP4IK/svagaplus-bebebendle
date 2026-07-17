@@ -10,6 +10,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
+    "scipy>=1.10.0",
+    "sentence-transformers>=5.5.1",
+    "torch>=2.2.0",
+    "dotenv>=0.9.9",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +27,15 @@ dev = [
 [tool.uv]
 package = false
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
@@ -30,8 +43,28 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+
 [tool.mypy]
 python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+mypy_path = "src"
+explicit_package_bases = true
+exclude = ["src/__init__\\.py"]
+
+[[tool.mypy.overrides]]
+module = [
+    "aiofiles",
+    "aiofiles.*",
+    "asyncpg",
+    "asyncpg.*",
+    "scipy",
+    "scipy.*",
+    "sentence_transformers",
+    "sentence_transformers.*",
+]
+ignore_missing_imports = true

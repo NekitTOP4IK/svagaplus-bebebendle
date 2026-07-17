@@ -36,9 +36,26 @@ export function calculateScore(answers: { isCorrect: boolean }[]): number {
   return answers.filter((a) => a.isCorrect).length;
 }
 
+/** Public site origin for share links (env or current browser origin). */
+export function getShareSiteUrl(): string {
+  const fromEnv = (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    ""
+  )
+    .trim()
+    .replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, "");
+  }
+  return "http://localhost:3000";
+}
+
 export function formatShareText(
   answers: { isCorrect: boolean }[],
   score: number,
+  siteUrl?: string,
 ): string {
   const emblems = [
     { correct: "🟢", incorrect: "🔴" },
@@ -65,5 +82,6 @@ export function formatShareText(
       answer.isCorrect ? randomEmblem.correct : randomEmblem.incorrect,
     )
     .join("");
-  return `${circles} - ${score}/10\nhttps://bebebendle.ru`;
+  const url = (siteUrl ?? getShareSiteUrl()).replace(/\/$/, "");
+  return `${circles} - ${score}/10\n${url}`;
 }

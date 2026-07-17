@@ -1,0 +1,15 @@
+title = "bebebendle"
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''(^|/)docs/''',
+  '''(^|/)\.md$''',
+  '''(^|/)\.env\.sample$''',
+  '''(^|/)ops/tests/''',
+  '''(^|/)bot/uv\.lock$''',
+  '''(^|/)next/bun\.lock$''',
+  '''(^|/)next/bun\.lockb$''',
+]

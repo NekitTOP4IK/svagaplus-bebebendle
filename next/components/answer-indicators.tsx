@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -26,12 +27,14 @@ export function AnswerIndicators({
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ delay: index * delayIncrement, duration: 0.3 }}
-          className={cn(
-            "pixel-btn flex h-12 w-12 items-center justify-center text-lg font-bold sm:h-14 sm:w-14",
-            answer.isCorrect ? "bg-green-500 text-white" : "bg-red-500 text-white"
-          )}
+          className="relative h-12 w-12 sm:h-14 sm:w-14"
         >
-          {answer.isCorrect ? "✓" : "✗"}
+          <Image
+            src={answer.isCorrect ? "/sprites/no-hunger.webp" : "/sprites/hunger.webp"}
+            alt={answer.isCorrect ? "Correct" : "Wrong"}
+            fill
+            className="object-contain"
+          />
         </motion.div>
       ))}
     </div>

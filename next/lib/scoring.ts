@@ -25,12 +25,22 @@ export function calculateScore(answers: { isCorrect: boolean }[]): number {
 }
 
 /**
- * Format share text for social sharing
+ * Format share text for social sharing.
+ * Prefer next/lib/utils.formatShareText on the client (random emblems + env URL).
  */
 export function formatShareText(
   answers: { isCorrect: boolean }[],
-  score: number
+  score: number,
+  siteUrl?: string,
 ): string {
   const circles = answers.map((answer) => (answer.isCorrect ? "🟢" : "🔴")).join("");
-  return `${circles} - ${score}/10\nhttps://bebebendle.ru`;
+  const fromEnv = (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    ""
+  )
+    .trim()
+    .replace(/\/$/, "");
+  const url = (siteUrl || fromEnv || "http://localhost:3000").replace(/\/$/, "");
+  return `${circles} - ${score}/10\n${url}`;
 }

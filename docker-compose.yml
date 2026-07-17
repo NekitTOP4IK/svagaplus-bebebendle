@@ -8,7 +8,11 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    extra_hosts:
+      # Reach host SVAGA+ (gunicorn on :5016) from the container network.
+      - "host.docker.internal:host-gateway"
     volumes:
+      - ./uploads:/app/uploads
       - ./next/public/uploads:/app/public/uploads
       - next-cache:/app/.next/cache
       - /etc/localtime:/etc/localtime:ro
@@ -16,6 +20,8 @@ services:
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   bot:
@@ -25,14 +31,17 @@ services:
     container_name: bebebendle-bot
     env_file:
       - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      - ./next/public/uploads:/app/uploads
+      - ./uploads:/app/uploads
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     restart: unless-stopped
     depends_on:
       - next
       - db
+      - redis
 
   db:
     image: postgres:15
@@ -54,8 +63,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: bebebendle-redis
-    ports:
-      - "6379:6379"
+    # Host 6379 is often already taken by a local Redis; keep Redis internal-only.
+    # ports:
+    #   - "6379:6379"
     restart: unless-stopped
     volumes:
       - redis_data:/data

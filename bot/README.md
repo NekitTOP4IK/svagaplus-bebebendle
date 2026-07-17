@@ -20,7 +20,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ```bash
 cd bot
-cp .env.example .env
+cp ../.env.sample .env
 ```
 
 Edit `.env` and add your bot token from @BotFather:
@@ -56,26 +56,29 @@ bot/
 
 ## 🎯 Features
 
-- **/start** - Welcome message
-- **/suggest** - Multi-step wizard to suggest new scran
+- **/start** - Welcome + SVAGA+ moderation priority hint
+- **/suggest** - Multi-step wizard to suggest new scran (repeats priority hint)
   1. Photo upload
   2. Name input
   3. Description (optional)
   4. Price
   5. Confirmation
-- **/status** - Check your suggestions status
+- **/profile** - Scran stats + SVAGA bonus line (replaces `/svaga`)
+- **/status** - Alias of `/profile`
 - **/help** - Show help information
 
 ## 🗄️ Database
 
-The bot connects to the same SQLite database as the Next.js frontend:
-- **Path**: `../db/bebendle.sqlite` (relative to bot directory)
-- **Table**: `scrans` with `telegram_id` field for tracking authors
-- **Library**: `aiosqlite` for async SQLite operations
+The bot connects to the shared PostgreSQL database (configured via env, typically via docker-compose):
+- **Engine**: asyncpg via `DATABASE_URL` (preferred) or `POSTGRES_*` fallback
+- **Tables involved**: `scrans` (incl. `telegram_id`, nullable `is_subscriber_at_submit`, `subscriber_checked_at`, `submitted_by_user_id`), plus `users` for accounts/cache
+- **Library**: asyncpg
 
 When a user suggests a scran:
-- `approved` is set to `0` (false)
+- `approved` is set to false
 - `telegram_id` stores the user's Telegram ID
+- `is_subscriber_at_submit` is `true`/`false` when confirmed, or `null` when status is unknown
+- pending suggestions are capped at 6 with a transaction advisory lock to close races
 - Admin can approve it via the web admin panel
 
 ## 🛠️ Development
@@ -112,6 +115,10 @@ uv run pytest
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `BOT_TOKEN` | Telegram bot token from @BotFather | Yes |
+| `BEBEBENDLE_INTERNAL_URL` | Base URL for bebebendle (e.g. http://next:3000) | No (defaults to docker service) |
+| `BEBEBENDLE_INTERNAL_SECRET` | Secret for calling Bebebendle internal APIs | Yes for SVAGA+ features |
+| `DATABASE_URL` | Authoritative PostgreSQL DSN | Preferred |
+| `POSTGRES_*` | Host/port/db/user/pass fallback when `DATABASE_URL` is unset | Local Compose |
 
 ### Bot Commands
 
@@ -120,7 +127,8 @@ Set up commands in BotFather:
 ```
 start - Запустить бота
 suggest - Предложить блюдо
-status - Проверить статус предложений
+profile - Мои скраны и бонус СВАГА+
+vote - Голосовать
 help - Показать помощь
 ```
 
@@ -132,16 +140,30 @@ help - Показать помощь
 4. Bot asks for description (optional, max 500 chars)
 5. Bot asks for price (0-1,000,000 rubles)
 6. Bot shows preview and asks for confirmation
-7. On confirmation, saves to database with `approved=false`
-8. Admin can approve via web panel at `/admin`
+7. On confirmation, bot fetches Olesha-scoped SVAGA+ status via Bebebendle internal API
+8. Saves with `approved=false` and a nullable `is_subscriber_at_submit` snapshot
+9. Admin can approve via web panel at `/admin` (subscriber badges, null = «Не проверено»)
 
 ## 🔗 Integration with Frontend
 
-The bot and frontend share the same database:
+The bot and frontend share the same PostgreSQL DB:
 - Frontend reads scrans for the daily game
-- Bot inserts new scrans as "pending"
-- Admin panel (frontend) shows pending scrans for approval
+- Bot inserts new scrans as "pending" (with nullable subscriber snapshot)
+- Admin panel shows pending scrans (hybrid queue; only confirmed subscribers get priority)
 - Once approved, scran becomes available for the daily game
+
+## 🔗 SVAGA+ Subscriber Status
+
+- On `/suggest` confirmation, bot calls:
+  `GET /api/internal/svaga/subscription-status?telegram_id=...`
+  with `X-Internal-Secret: $BEBEBENDLE_INTERNAL_SECRET`
+- Response contract: `{ isSubscriber, source, checkedAt, error }` where
+  `source` is `fresh` | `cache` | `stale_cache` | `unknown`
+- `unknown` / outages become `is_subscriber_at_submit = null` (never invented `false`)
+- Six-pending cap is enforced with a transactional advisory lock
+- Profile UI checks subscription via «Проверить подписку» (not «link account»)
+
+Anonymous play on the web is unaffected (fingerprint + session only).
 
 ## 📝 Notes
 

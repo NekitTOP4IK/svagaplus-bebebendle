@@ -2,39 +2,62 @@
 
 import { useCallback } from "react";
 import { toast } from "sonner";
-import { approveScran as approveScranAction } from "@/app/admin/actions";
+import { apiFetch } from "@/lib/api-client";
+import type { RejectReasonCode } from "@/lib/reject-reasons";
+import type { BanReasonCode } from "@/lib/ban-reasons";
 
 interface UseScranMutationsParams {
-  adminPassword: string;
   onUnauthorized: () => void;
   onSuccess: () => void;
 }
 
 interface UseScranMutationsReturn {
   approveScran: (id: number) => Promise<void>;
+  rejectScran: (id: number, reason?: RejectReasonCode, note?: string) => Promise<void>;
   banScran: (id: number) => Promise<void>;
+  banUser: (
+    telegramId: string,
+    reasonCode: BanReasonCode,
+    customNote?: string,
+  ) => Promise<boolean>;
+  deleteScran: (id: number, comment: string) => Promise<boolean>;
+  recheckSubscriber: (scranId?: number) => Promise<void>;
+  bulkAction: (
+    action: "approve" | "reject",
+    ids: number[],
+    reason?: RejectReasonCode,
+    note?: string,
+  ) => Promise<void>;
+  editScran: (
+    id: number,
+    patch: { name: string; description: string; price: number },
+  ) => Promise<boolean>;
+  restoreScran: (id: number) => Promise<void>;
 }
 
 export function useScranMutations({
-  adminPassword,
   onUnauthorized,
   onSuccess,
 }: UseScranMutationsParams): UseScranMutationsReturn {
   const approveScran = useCallback(
     async (id: number) => {
       try {
-        const result = await approveScranAction(id);
+        const response = await apiFetch(`/api/admin/scrans/${id}/approve`, {
+          method: "POST",
+        });
 
-        if (result.success) {
+        if (response.ok) {
           toast.success("Блюдо одобрено! Уведомление отправлено автору.", {
             description: `ID: ${id}`,
           });
           onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
         } else {
+          const data = await response.json().catch(() => ({}));
           toast.error("Ошибка одобрения", {
-            description: result.message,
+            description: (data as { error?: string }).error ?? "Не удалось одобрить блюдо",
           });
-          console.error("Failed to approve scran:", result.message);
         }
       } catch (error) {
         console.error("Error approving scran:", error);
@@ -43,33 +66,283 @@ export function useScranMutations({
         });
       }
     },
-    [onSuccess]
+    [onSuccess, onUnauthorized],
+  );
+
+  const rejectScran = useCallback(
+    async (id: number, reason: RejectReasonCode = "other", note = "") => {
+      try {
+        const response = await apiFetch(`/api/admin/scrans/${id}/reject`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason, note }),
+        });
+
+        if (response.ok) {
+          toast.success("Блюдо отклонено", { description: `ID: ${id} · ${reason}` });
+          onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
+        } else {
+          const data = await response.json().catch(() => ({}));
+          toast.error("Ошибка отклонения", {
+            description: (data as { error?: string }).error ?? "Не удалось отклонить",
+          });
+        }
+      } catch (error) {
+        console.error("Error rejecting scran:", error);
+        toast.error("Ошибка отклонения");
+      }
+    },
+    [onSuccess, onUnauthorized],
   );
 
   const banScran = useCallback(
     async (id: number) => {
       try {
-        const response = await fetch(`/api/admin/scrans/${id}/ban`, {
+        const response = await apiFetch(`/api/admin/scrans/${id}/ban`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${adminPassword}`,
-          },
         });
 
         if (response.ok) {
+          toast.success("Публикация снята", { description: `ID: ${id}` });
           onSuccess();
         } else if (response.status === 401) {
           onUnauthorized();
+        } else {
+          toast.error("Только админ может снимать с публикации");
         }
       } catch (error) {
         console.error("Error banning scran:", error);
       }
     },
-    [adminPassword, onUnauthorized, onSuccess]
+    [onUnauthorized, onSuccess],
+  );
+
+  const banUser = useCallback(
+    async (
+      telegramId: string,
+      reasonCode: BanReasonCode,
+      customNote = "",
+    ): Promise<boolean> => {
+      try {
+        const response = await apiFetch("/api/admin/bans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ telegramId, reasonCode, customNote }),
+        });
+        if (response.ok) {
+          const data = (await response.json()) as {
+            alreadyBanned?: boolean;
+            rejectedPending?: number;
+          };
+          if (data.alreadyBanned) {
+            toast.message("Уже в бане", { description: `tg:${telegramId}` });
+          } else {
+            toast.success("Пользователь забанен", {
+              description: `tg:${telegramId} · pending → reject: ${data.rejectedPending ?? 0}`,
+            });
+          }
+          onSuccess();
+          return true;
+        }
+        if (response.status === 401) {
+          onUnauthorized();
+          return false;
+        }
+        const err = (await response.json().catch(() => ({}))) as { error?: string };
+        toast.error(err.error || "Не удалось забанить");
+        return false;
+      } catch (error) {
+        console.error("Error banning user:", error);
+        toast.error("Ошибка сети при бане");
+        return false;
+      }
+    },
+    [onUnauthorized, onSuccess],
+  );
+
+  const recheckSubscriber = useCallback(
+    async (scranId?: number) => {
+      try {
+        const response = await apiFetch("/api/admin/scrans/recheck-subscriber", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            scranId != null ? { scranId } : { allUnchecked: true },
+          ),
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as {
+            mode?: string;
+            ok?: number;
+            failed?: number;
+            total?: number;
+            result?: { ok?: boolean; isSubscriber?: boolean; reason?: string };
+          };
+          if (data.mode === "bulk") {
+            toast.success(
+              `SVAGA recheck: ${data.ok ?? 0}/${data.total ?? 0} ok` +
+                (data.failed ? `, failed ${data.failed}` : ""),
+            );
+          } else if (data.result?.ok) {
+            toast.success(
+              data.result.isSubscriber
+                ? "SVAGA+: подписчик"
+                : "SVAGA+: не подписчик",
+            );
+          } else {
+            toast.error("SVAGA recheck не удался", {
+              description: data.result?.reason ?? "unknown",
+            });
+          }
+          onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
+        } else {
+          toast.error("Ошибка recheck SVAGA");
+        }
+      } catch (error) {
+        console.error("Error rechecking subscriber:", error);
+        toast.error("Ошибка recheck SVAGA");
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
+  const deleteScran = useCallback(
+    async (id: number, comment: string): Promise<boolean> => {
+      try {
+        const response = await apiFetch(`/api/admin/scrans/${id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comment }),
+        });
+
+        if (response.ok) {
+          toast.success("Блюдо удалено! Уведомление отправлено автору.", {
+            description: `ID: ${id}`,
+          });
+          onSuccess();
+          return true;
+        }
+
+        if (response.status === 401) {
+          onUnauthorized();
+          return false;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        toast.error("Ошибка удаления", {
+          description: (data as { error?: string }).error ?? "Не удалось удалить блюдо",
+        });
+        return false;
+      } catch (error) {
+        console.error("Error deleting scran:", error);
+        toast.error("Ошибка удаления", {
+          description: "Не удалось удалить блюдо",
+        });
+        return false;
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
+  const bulkAction = useCallback(
+    async (
+      action: "approve" | "reject",
+      ids: number[],
+      reason?: RejectReasonCode,
+      note?: string,
+    ) => {
+      if (ids.length === 0) return;
+      try {
+        const response = await apiFetch("/api/admin/scrans/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, ids, reason, note }),
+        });
+        if (response.ok) {
+          const data = (await response.json()) as { ok?: number };
+          toast.success(
+            action === "approve"
+              ? `Одобрено: ${data.ok ?? ids.length}`
+              : `Отклонено: ${data.ok ?? ids.length}`,
+          );
+          onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
+        } else {
+          toast.error("Массовое действие не удалось");
+        }
+      } catch (error) {
+        console.error("bulk error", error);
+        toast.error("Ошибка bulk");
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
+  const editScran = useCallback(
+    async (
+      id: number,
+      patch: { name: string; description: string; price: number },
+    ): Promise<boolean> => {
+      try {
+        const response = await apiFetch(`/api/admin/scrans/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        if (response.ok) {
+          toast.success("Сохранено");
+          onSuccess();
+          return true;
+        }
+        if (response.status === 401) onUnauthorized();
+        else toast.error("Не удалось сохранить");
+        return false;
+      } catch {
+        toast.error("Ошибка сохранения");
+        return false;
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
+  const restoreScran = useCallback(
+    async (id: number) => {
+      try {
+        const response = await apiFetch(`/api/admin/scrans/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ restore: true }),
+        });
+        if (response.ok) {
+          toast.success("Возвращено в очередь");
+          onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
+        } else {
+          toast.error("Не удалось восстановить");
+        }
+      } catch {
+        toast.error("Ошибка restore");
+      }
+    },
+    [onSuccess, onUnauthorized],
   );
 
   return {
     approveScran,
+    rejectScran,
     banScran,
+    banUser,
+    deleteScran,
+    recheckSubscriber,
+    bulkAction,
+    editScran,
+    restoreScran,
   };
 }

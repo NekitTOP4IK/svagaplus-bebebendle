@@ -1,26 +1,15 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth-server";
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-
-export async function POST(request: Request) {
-  if (!ADMIN_PASSWORD) {
+// Legacy endpoint kept for compatibility but password auth has been replaced
+// by real Telegram user + role session (httpOnly cookie). Use /api/auth/telegram instead.
+export async function POST() {
+  const user = await getCurrentUser();
+  if (!user || !['moderator', 'admin'].includes(user.role)) {
     return NextResponse.json(
-      { error: "Admin password not configured" },
-      { status: 500 }
+      { error: "Password auth removed. Use Telegram Login Widget (moderator/admin role required)." },
+      { status: 401 }
     );
   }
-
-  try {
-    const body = await request.json();
-    const { password } = body;
-
-    if (password === ADMIN_PASSWORD) {
-      // No cookie - password must be provided with every request
-      return NextResponse.json({ success: true });
-    } else {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
-    }
-  } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
-  }
+  return NextResponse.json({ success: true, role: user.role });
 }

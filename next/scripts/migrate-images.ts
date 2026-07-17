@@ -10,7 +10,7 @@ import { join } from "path";
 import { v4 as uuidv4 } from "uuid";
 import { db, scrans } from "../db/schema";
 
-const UPLOADS_DIR = join(process.cwd(), "public", "uploads");
+const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), "../uploads");
 
 interface MigrationResult {
   total: number;
@@ -88,8 +88,7 @@ async function migrateImages(): Promise<MigrationResult> {
       const buffer = Buffer.from(await response.arrayBuffer());
       await writeFile(filepath, buffer);
 
-      // Update database
-      const newUrl = `/uploads/${filename}`;
+      const newUrl = `/cdn/${filename}`;
       await db
         .update(scrans)
         .set({ imageUrl: newUrl })

@@ -1,26 +1,16 @@
 import { NextResponse } from "next/server";
 import { db, scrans } from "@/db/schema";
 import { eq } from "drizzle-orm";
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-
-function checkAuth(request: Request): boolean {
-  if (!ADMIN_PASSWORD) return false;
-  
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return false;
-  }
-  
-  const password = authHeader.slice(7);
-  return password === ADMIN_PASSWORD;
-}
+import { getCurrentUser } from "@/lib/auth-server";
+import { writeAuditLog } from "@/lib/moderation-audit";
 
 export async function POST(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!checkAuth(request)) {
+  const user = await getCurrentUser();
+  // Ban (unpublish approved) is admin-only. Moderators only approve/reject.
+  if (!user || user.role !== "admin") {
     return NextResponse.json(
       { error: "Unauthorized" },
       { status: 401 }
@@ -38,10 +28,23 @@ export async function POST(
       );
     }
 
-    await db
+    const updated = await db
       .update(scrans)
       .set({ approved: false })
-      .where(eq(scrans.id, scranId));
+      .where(eq(scrans.id, scranId))
+      .returning({ telegramId: scrans.telegramId, name: scrans.name });
+
+    if (updated.length === 0) {
+      return NextResponse.json({ error: "Scran not found" }, { status: 404 });
+    }
+
+    await writeAuditLog({
+      actorUserId: user.id,
+      action: "scran.unpublish",
+      scranId,
+      targetTelegramId: updated[0].telegramId,
+      details: updated[0].name,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,89 +1,70 @@
 import { NextResponse } from "next/server";
 import { db, dailyUserResults } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { eq } from "drizzle-orm";
 import { checkRateLimit, getClientIp } from "@/app/api/middleware/rateLimit";
+import {
+  computeAndStoreDailyResult,
+  resolvePlaySessionId,
+} from "@/lib/daily-integrity";
 
 export async function POST(request: Request) {
   try {
     const rateLimitResult = await checkRateLimit(
       `daily-result:${getClientIp(request)}`,
       1,
-      10
+      10,
     );
 
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please wait." },
-        { status: 429 }
+        { status: 429 },
       );
     }
 
-    const body = await request.json();
-    const { date, score } = body;
+    const body = (await request.json().catch(() => ({}))) as {
+      date?: string;
+      score?: number;
+    };
     const fingerprint = request.headers.get("X-Client-Fingerprint") || null;
+    const date = body.date;
+    const clientIp = getClientIp(request);
 
-    if (!date || typeof score !== "number" || score < 0 || score > 10) {
-      return NextResponse.json(
-        { error: "Invalid date or score" },
-        { status: 400 }
-      );
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json({ error: "Invalid date" }, { status: 400 });
     }
 
-    const cookieStore = await cookies();
-    let sessionId = cookieStore.get("scrandle_session")?.value;
-
-    if (!sessionId) {
-      sessionId = crypto.randomUUID();
-      cookieStore.set("scrandle_session", sessionId, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 60 * 60 * 24 * 30,
-      });
-    }
-
-    const existing = await db
-      .select()
-      .from(dailyUserResults)
-      .where(
-        and(
-          eq(dailyUserResults.date, date),
-          eq(dailyUserResults.sessionId, sessionId)
-        )
-      )
-      .limit(1);
-
-    if (existing.length > 0) {
-      return NextResponse.json({
-        message: "Score already recorded",
-        score: existing[0].score,
-      });
-    }
-
-    await db.insert(dailyUserResults).values({
+    // Client score is ignored — integrity from scrandle_votes
+    const sessionId = resolvePlaySessionId(fingerprint, clientIp);
+    const result = await computeAndStoreDailyResult({
       date,
       sessionId,
-      fingerprintHash: fingerprint,
-      score,
-      createdAt: new Date(),
+      fingerprint,
     });
+
+    if ("error" in result) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status },
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      score,
+      score: result.score,
+      alreadyPlayed: result.alreadyPlayed ?? false,
     });
   } catch (error) {
     if ((error as { code?: string }).code === "23505") {
       return NextResponse.json(
         { error: "You have already played today" },
-        { status: 409 }
+        { status: 409 },
       );
     }
     console.error("Error submitting score:", error);
     return NextResponse.json(
       { error: "Failed to submit score" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -122,7 +103,7 @@ export async function GET(request: Request) {
     });
 
     const scoreDistribution = Array.from(distributionMap.entries()).map(
-      ([score, count]) => ({ score, count })
+      ([score, count]) => ({ score, count }),
     );
 
     return NextResponse.json({
@@ -135,7 +116,7 @@ export async function GET(request: Request) {
     console.error("Error fetching results:", error);
     return NextResponse.json(
       { error: "Failed to fetch results" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

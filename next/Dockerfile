@@ -22,7 +22,7 @@ COPY --from=base /app/public ./public
 COPY --from=base /app/scripts ./scripts
 COPY --from=base /app/db ./db
 
-RUN mkdir -p /app/db
+RUN mkdir -p /app/db /app/uploads
 
 EXPOSE 3000
 

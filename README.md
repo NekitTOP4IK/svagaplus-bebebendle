@@ -10,12 +10,14 @@ Scrandle по еде зрителей стримера Olesha. Каждый де
 
 ## Развертывание
 
-Требования: Docker + Docker Compose
+Можно запускать двумя способами:
+- Через Docker (рекомендуется для продакшена)
+- Через PM2 без Docker (см. ниже)
 
 ```bash
 # Скопировать и настроить переменные окружения
 cp .env.sample .env
-# Отредактировать .env (BOT_TOKEN, ADMIN_PASSWORD, CRON_SECRET)
+# Отредактировать .env (см. комментарии внутри .env.sample)
 
 # Собрать и запустить
 make up-build
@@ -26,6 +28,56 @@ make migrate
 
 Приложение доступно на http://localhost:3000
 
+## Запуск без Docker (PM2)
+
+Можно запускать без Docker (полезно для разработки или когда БД поднята отдельно).
+
+**Требования:**
+- Bun + Node.js
+- Python 3.11+ + [uv](https://docs.astral.sh/uv/)
+- PostgreSQL и Redis (можно поднять только их через Docker)
+- PM2: `npm install -g pm2`
+
+**Подготовка:**
+
+```bash
+# 1. Настрой .env в корне проекта (см. .env.sample — там все актуальные переменные с комментариями)
+cp .env.sample .env
+
+# 2. Подготовь фронтенд
+cd next
+bun install
+bun run build
+cd ..
+
+# 3. Подготовь бота
+cd bot
+uv sync
+cd ..
+```
+
+**Важно про переменные окружения:**
+- При запуске через PM2 .env из корня проекта может не подхватываться автоматически.
+- Рекомендуется либо экспортировать переменные, либо скопировать .env в `next/` и `bot/`.
+
+**Запуск:**
+
+```bash
+pm2 start ecosystem.config.js
+pm2 logs
+```
+
+**Остановка:**
+
+```bash
+pm2 stop ecosystem.config.js
+pm2 delete ecosystem.config.js
+```
+
+Приложение будет доступно на http://localhost:3000
+
+> **Примечание:** При запуске без Docker директория с загрузками — `./uploads` в корне проекта.
+
 ## Makefile команды
 
 | Команда | Описание |
@@ -35,6 +87,36 @@ make migrate
 | `make logs` | Просмотр логов |
 | `make migrate` | Применить миграции БД |
 | `make new-daily` | Сгенерировать новый дейлик вручную |
+| `make backfill-users` | Backfill `submitted_by_user_id` для существующих scrans (по telegram_id) |
+| `make refresh-subscribers` | Обновить кэш подписки СВАГА+ (только confirmed checks) |
+| `make pm2-start` | Запустить через PM2 (без Docker) |
+| `make pm2-stop` | Остановить PM2 процессы |
+| `make pm2-logs` | Логи PM2 |
+
+### Data backfill & maintenance scripts
+
+After the users/SVAGA+ session migration, use these to maintain data consistency:
+
+- `make backfill-users` — Matches legacy `scrans.telegram_id` to `users` and populates `submitted_by_user_id` for historical submissions. Idempotent and safe.
+- `make refresh-subscribers` — Re-fetches Olesha-scoped subscription status from SVAGA+ for users with a prior successful check. Failures never invent a non-subscriber result.
+
+### Auth and SVAGA+ secrets (see `.env.sample`)
+
+| Variable | Purpose |
+|----------|---------|
+| `SESSION_SECRET` | HMAC secret for signed access tokens (≥32 chars) |
+| `SVAGAPLUS_INTERNAL_URL` | SVAGA+ server base URL |
+| `SVAGAPLUS_INTERNAL_SECRET` | Bebebendle → SVAGA+ caller secret |
+| `SVAGA_TARGET_USER_ID` | SVAGA+ `users.id` for Olesha (required scope) |
+| `BEBEBENDLE_INTERNAL_SECRET` | Bot → Bebebendle internal API secret |
+| `BEBEBENDLE_INTERNAL_URL` | Bebebendle base URL used by the bot |
+| `DATABASE_URL` | Authoritative PostgreSQL DSN |
+
+Do not reuse `BOT_SECRET` or a single shared `INTERNAL_SECRET` across both hops.
+
+After rollout, legacy raw `bebebendle_session` cookies are rejected; users sign in once via Telegram on `/profile` or the admin panel.
+
+Both scripts run inside the `next` container using the shared DB. They can also be executed directly (with proper env) via `bun run scripts/<name>.ts` from `next/`.
 
 ## Как работает
 
@@ -46,9 +128,10 @@ make migrate
 
 ## Структура
 
-- `app/` — Next.js фронтенд
-- `db/` — SQLite база данных + Drizzle ORM
-- `bot/` — Telegram бот для предложения новых блюд
+- `next/` — Next.js 16 + React 19 фронтенд
+- `bot/` — Python aiogram бот
+- `uploads/` — Загруженные изображения (динамически отдаются через /cdn/)
+- PostgreSQL + Redis (через Docker или локально)
 
 ## Лицензия
 

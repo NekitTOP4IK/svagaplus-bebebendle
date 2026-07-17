@@ -3,10 +3,9 @@ import { render, screen } from "@testing-library/react";
 import { DailyPlayButton } from "@/components/daily-play-button";
 import * as cookiesModule from "@/lib/cookies";
 
-// Mock the cookies module
 vi.mock("@/lib/cookies", () => ({
   hasPlayedToday: vi.fn(),
-  getTodayResult: vi.fn(),
+  getTodayResult: vi.fn(), // still mocked — module may export it for other callers
 }));
 
 vi.mock("next/link", () => ({
@@ -21,6 +20,8 @@ describe("DailyPlayButton", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasPlayedToday.mockReturnValue(false);
+    mockGetTodayResult.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -28,9 +29,7 @@ describe("DailyPlayButton", () => {
   });
 
   it("should render play button when user has not played today", () => {
-    mockHasPlayedToday.mockReturnValue(false);
-
-    render(<DailyPlayButton />);
+    render(<DailyPlayButton available />);
 
     expect(screen.getByText("Дейлик!")).toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute("href", "/daily");
@@ -45,24 +44,25 @@ describe("DailyPlayButton", () => {
       userAnswers: [],
     });
 
-    render(<DailyPlayButton />);
+    render(<DailyPlayButton available />);
 
-    expect(screen.getByText("Уже сыграно ✓")).toBeInTheDocument();
+    expect(screen.getByText("Уже сыграно")).toBeInTheDocument();
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
-  it("should display score when user has played today", () => {
+  it("should not display score on the home CTA when user has played today", () => {
     mockHasPlayedToday.mockReturnValue(true);
     mockGetTodayResult.mockReturnValue({
       date: "2024-01-15",
       score: 8,
       totalRounds: 10,
-      userAnswers: [],
+      userAnswers: Array.from({ length: 8 }, () => ({ isCorrect: true })),
     });
 
-    render(<DailyPlayButton />);
+    render(<DailyPlayButton available />);
 
-    expect(screen.getByText("Ваш результат: 8/10")).toBeInTheDocument();
+    expect(screen.queryByText(/Ваш результат/)).not.toBeInTheDocument();
+    expect(screen.getByText("Уже сыграно")).toBeInTheDocument();
   });
 
   it("should show next daily message when played today", () => {
@@ -74,7 +74,7 @@ describe("DailyPlayButton", () => {
       userAnswers: [],
     });
 
-    render(<DailyPlayButton />);
+    render(<DailyPlayButton available />);
 
     expect(screen.getByText("Следующий дейлик завтра")).toBeInTheDocument();
   });
@@ -83,15 +83,13 @@ describe("DailyPlayButton", () => {
     mockHasPlayedToday.mockReturnValue(true);
     mockGetTodayResult.mockReturnValue(null);
 
-    render(<DailyPlayButton />);
+    render(<DailyPlayButton available />);
 
     expect(screen.queryByText(/Ваш результат/)).not.toBeInTheDocument();
   });
 
   it("should render link when not played", () => {
-    mockHasPlayedToday.mockReturnValue(false);
-
-    render(<DailyPlayButton />);
+    render(<DailyPlayButton available />);
 
     const link = screen.getByRole("link");
     expect(link).toBeInTheDocument();
@@ -107,12 +105,34 @@ describe("DailyPlayButton", () => {
       userAnswers: [],
     });
 
-    render(<DailyPlayButton />);
+    render(<DailyPlayButton available />);
 
     const button = screen.getByRole("button");
     expect(button).toBeDisabled();
-    expect(button).toHaveClass("bg-gray-500");
-    expect(button).toHaveClass("cursor-not-allowed");
-    expect(button).toHaveClass("opacity-70");
+    expect(button).toHaveClass("pixel-btn");
+    expect(button).toHaveClass("w-full");
+  });
+
+  it("disables CTA when no daily exists for today", () => {
+    render(<DailyPlayButton available={false} />);
+
+    const button = screen.getByRole("button", { name: "Дейлика на сегодня нет" });
+    expect(button).toBeDisabled();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByText(/Набор ещё не готов/)).toBeInTheDocument();
+  });
+
+  it("shows custom unavailable reason when provided", () => {
+    render(
+      <DailyPlayButton available={false} unavailableReason="Техработы до вечера" />,
+    );
+    expect(screen.getByText("Техработы до вечера")).toBeInTheDocument();
+  });
+
+  it("prefers unavailable state over play link even if not played", () => {
+    mockHasPlayedToday.mockReturnValue(false);
+    render(<DailyPlayButton available={false} />);
+    expect(screen.getByText("Дейлика на сегодня нет")).toBeInTheDocument();
+    expect(screen.queryByText("Дейлик!")).not.toBeInTheDocument();
   });
 });

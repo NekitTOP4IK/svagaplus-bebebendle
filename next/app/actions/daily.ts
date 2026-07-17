@@ -1,10 +1,14 @@
 "use server";
 
 import { headers } from "next/headers";
-import { db, scrans, dailyUserResults } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { db, dailyUserResults } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { checkRateLimit } from "@/app/api/middleware/rateLimit";
-import { getLikesPercentage } from "@/lib/scoring";
+import {
+  computeAndStoreDailyResult,
+  recordDailyVote,
+  resolvePlaySessionId,
+} from "@/lib/daily-integrity";
 
 async function getClientIpFromHeaders(): Promise<string> {
   const headersList = await headers();
@@ -19,122 +23,102 @@ async function getClientIpFromHeaders(): Promise<string> {
   return "unknown";
 }
 
+/**
+ * Vote for a daily round. Pair is loaded from daily_scrandles — client A/B ids ignored.
+ * Persists choice for server-side score.
+ */
 export async function submitDailyVote(
   roundNumber: number,
   chosenScranId: number,
-  scranAId: number,
-  scranBId: number,
-  fingerprint: string | null
+  _scranAId: number,
+  _scranBId: number,
+  fingerprint: string | null,
+  date?: string,
 ) {
   const clientIp = await getClientIpFromHeaders();
 
   const rateLimitResult = await checkRateLimit(
     `daily-vote:${clientIp}`,
     2,
-    5
+    5,
   );
 
   if (!rateLimitResult.allowed) {
     return { error: "Too many requests. Please wait.", status: 429 };
   }
 
-  if (!roundNumber || !chosenScranId || !scranAId || !scranBId) {
-    return { error: "Missing required fields", status: 400 };
+  const playDate =
+    date && /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? date
+      : new Date().toISOString().split("T")[0];
+
+  const sessionId = resolvePlaySessionId(fingerprint, clientIp);
+
+  const result = await recordDailyVote({
+    date: playDate,
+    roundNumber,
+    chosenScranId,
+    sessionId,
+    fingerprint,
+  });
+
+  if ("error" in result) {
+    return { error: result.error, status: result.status };
   }
-
-  const [scranAData, scranBData] = await Promise.all([
-    db.select().from(scrans).where(eq(scrans.id, scranAId)).limit(1),
-    db.select().from(scrans).where(eq(scrans.id, scranBId)).limit(1),
-  ]);
-
-  if (scranAData.length === 0 || scranBData.length === 0) {
-    return { error: "Scrans not found", status: 404 };
-  }
-
-  const scranA = scranAData[0];
-  const scranB = scranBData[0];
-
-  const percentageA = Math.floor(getLikesPercentage({
-    numberOfLikes: scranA.numberOfLikes,
-    numberOfDislikes: scranA.numberOfDislikes,
-  }));
-  const percentageB = Math.floor(getLikesPercentage({
-    numberOfLikes: scranB.numberOfLikes,
-    numberOfDislikes: scranB.numberOfDislikes,
-  }));
-
-  let correctScranId = percentageA >= percentageB ? scranAId : scranBId;
-
-  if (percentageA === percentageB) {
-    correctScranId = chosenScranId
-  }
-
-  const isCorrect = chosenScranId === correctScranId;
 
   return {
-    success: true,
-    roundNumber,
-    isCorrect,
-    chosenScranId,
-    correctScranId,
-    percentageA,
-    percentageB,
+    success: true as const,
+    roundNumber: result.roundNumber,
+    isCorrect: result.isCorrect,
+    chosenScranId: result.chosenScranId,
+    correctScranId: result.correctScranId,
+    percentageA: result.percentageA,
+    percentageB: result.percentageB,
     fingerprint,
   };
 }
 
+/**
+ * Finalize daily. Score is computed only from stored round votes — client score ignored.
+ */
 export async function submitDailyResult(
   date: string,
-  score: number,
-  fingerprint: string | null
+  _clientScore: number | null | undefined,
+  fingerprint: string | null,
 ) {
   const clientIp = await getClientIpFromHeaders();
 
   const rateLimitResult = await checkRateLimit(
     `daily-result:${clientIp}`,
     1,
-    10
+    10,
   );
 
   if (!rateLimitResult.allowed) {
     return { error: "Too many requests. Please wait.", status: 429 };
   }
 
-  if (!date || typeof score !== "number" || score < 0 || score > 10) {
-    return { error: "Invalid date or score", status: 400 };
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { error: "Invalid date", status: 400 };
   }
 
-  // Use fingerprint as session ID
-  const sessionId = fingerprint || `anon-${clientIp}-${Date.now()}`;
-
-  const existing = await db
-    .select()
-    .from(dailyUserResults)
-    .where(
-      and(
-        eq(dailyUserResults.date, date),
-        eq(dailyUserResults.sessionId, sessionId)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) {
-    return {
-      message: "Score already recorded",
-      score: existing[0].score,
-      alreadyPlayed: true,
-    };
-  }
-
-  await db.insert(dailyUserResults).values({
+  const sessionId = resolvePlaySessionId(fingerprint, clientIp);
+  const result = await computeAndStoreDailyResult({
     date,
     sessionId,
-    fingerprintHash: fingerprint,
-    score,
-    createdAt: new Date(),
+    fingerprint,
   });
 
-  return { success: true, score, fingerprint };
+  if ("error" in result) {
+    return { error: result.error, status: result.status };
+  }
+
+  return {
+    success: true as const,
+    score: result.score,
+    alreadyPlayed: result.alreadyPlayed ?? false,
+    fingerprint,
+  };
 }
 
 export async function getDailyAverage(date: string) {
@@ -166,7 +150,7 @@ export async function getDailyAverage(date: string) {
   });
 
   const scoreDistribution = Array.from(distributionMap.entries()).map(
-    ([score, count]) => ({ score, count })
+    ([score, count]) => ({ score, count }),
   );
 
   return {

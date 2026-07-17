@@ -29,7 +29,7 @@ export function AlreadyPlayedServer({ result }: AlreadyPlayedServerProps) {
 
         <Link
           href="/"
-          className="pixel-btn mt-4 inline-block border-4 border-black bg-yellow-400 px-8 py-4 text-lg text-black hover:bg-yellow-300"
+          className="pixel-btn mt-4 inline-block px-8 py-4 text-lg"
         >
           На главную
         </Link>
