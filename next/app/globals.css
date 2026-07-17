@@ -55,102 +55,295 @@ body {
     animation: scale-rotate 7s ease-in-out infinite;
 }
 
+/* Minecraft buttons: unlayered so Tailwind bg/text utilities cannot flatten them. */
+.pixel-btn {
+    font-family: var(--font-pixel), monospace;
+    image-rendering: pixelated;
+    background: #8b8b8b;
+    color: #fff;
+    border: 2px solid #000;
+    box-shadow:
+        inset 2px 2px 0 #c6c6c6,
+        inset -2px -2px 0 #555;
+    text-shadow: 2px 2px 0 #3f3f3f;
+    transition: all 0.05s;
+    cursor: pointer;
+}
+
+.pixel-btn:hover:not(:disabled) {
+    background: #a0a0a0;
+    color: #ffffa0;
+}
+
+.pixel-btn:active:not(:disabled) {
+    box-shadow:
+        inset -2px -2px 0 #c6c6c6,
+        inset 2px 2px 0 #555;
+    transform: translate(1px, 1px);
+}
+
+.pixel-btn:disabled {
+    background: #6b6b6b;
+    color: #aaa;
+    box-shadow:
+        inset 2px 2px 0 #888,
+        inset -2px -2px 0 #444;
+    cursor: not-allowed;
+    text-shadow: none;
+}
+
+/* Semantic skins — same bevel language, not flat Tailwind fills */
+.pixel-btn.pixel-btn-ok {
+    background: #3d8b40;
+    box-shadow:
+        inset 2px 2px 0 #7dce7f,
+        inset -2px -2px 0 #1e4d20;
+    text-shadow: 2px 2px 0 #1a3a1b;
+}
+
+.pixel-btn.pixel-btn-ok:hover:not(:disabled) {
+    background: #4caf50;
+    color: #ffffa0;
+}
+
+.pixel-btn.pixel-btn-danger {
+    background: #b33a3a;
+    box-shadow:
+        inset 2px 2px 0 #e08080,
+        inset -2px -2px 0 #6b1f1f;
+    text-shadow: 2px 2px 0 #3f1414;
+}
+
+.pixel-btn.pixel-btn-danger:hover:not(:disabled) {
+    background: #d04545;
+    color: #ffffa0;
+}
+
+.pixel-btn.pixel-btn-warn {
+    background: #c9a227;
+    color: #1a1400;
+    box-shadow:
+        inset 2px 2px 0 #f0d76a,
+        inset -2px -2px 0 #6b5610;
+    text-shadow: 1px 1px 0 #f5e7a0;
+}
+
+.pixel-btn.pixel-btn-warn:hover:not(:disabled) {
+    background: #e0b82e;
+    color: #1a1400;
+}
+
+.pixel-btn.pixel-btn-info {
+    background: #3a7ab3;
+    box-shadow:
+        inset 2px 2px 0 #80b0e0,
+        inset -2px -2px 0 #1f446b;
+    text-shadow: 2px 2px 0 #14283f;
+}
+
+.pixel-btn.pixel-btn-info:hover:not(:disabled) {
+    background: #4590d0;
+    color: #ffffa0;
+}
+
+.pixel-btn.pixel-btn-ok:disabled,
+.pixel-btn.pixel-btn-danger:disabled,
+.pixel-btn.pixel-btn-warn:disabled,
+.pixel-btn.pixel-btn-info:disabled {
+    background: #6b6b6b;
+    color: #aaa;
+    box-shadow:
+        inset 2px 2px 0 #888,
+        inset -2px -2px 0 #444;
+    text-shadow: none;
+}
+
 /*
- * Component layer: Tailwind utilities (text-*, bg-*) must be able to override.
- * Do not use the `background` shorthand on containers — it clobbers bg-*.
+ * Dark-surface pixel label: white fill + black outline.
+ * Never pair with text-black (outline+fill both black).
+ * Light cards: .pixel-text-on-light
  */
-@layer components {
-    .pixel-btn {
-        font-family: var(--font-pixel), monospace;
-        image-rendering: pixelated;
-        background-color: #8b8b8b;
-        color: #fff;
-        border: 2px solid #000;
-        box-shadow:
-            inset 2px 2px 0 #c6c6c6,
-            inset -2px -2px 0 #555;
-        text-shadow: 2px 2px 0 #3f3f3f;
-        transition: background-color 0.05s, color 0.05s, transform 0.05s, box-shadow 0.05s;
-    }
+.pixel-text {
+    font-family: var(--font-pixel), monospace;
+    image-rendering: pixelated;
+    color: #fff;
+    text-shadow:
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        2px 2px 0 #000,
+        -2px 0 0 #000,
+        2px 0 0 #000,
+        0 -2px 0 #000,
+        0 2px 0 #000;
+}
 
-    .pixel-btn:hover {
-        background-color: #a0a0a0;
-        color: #ffffa0;
-    }
+.pixel-text-on-light {
+    font-family: var(--font-pixel), monospace;
+    image-rendering: pixelated;
+    color: #111;
+    text-shadow: none;
+}
 
-    .pixel-btn:active {
-        box-shadow:
-            inset -2px -2px 0 #c6c6c6,
-            inset 2px 2px 0 #555;
-        transform: translate(1px, 1px);
-    }
+/* background-color (not shorthand) so intentional bg-* can still win when needed */
+.pixel-container {
+    background-color: rgba(0, 0, 0, 0.7);
+    border: 4px solid #000;
+    box-shadow:
+        0 6px 0 #000,
+        6px 6px 0 #000,
+        6px 0 0 #000;
+}
 
-    .pixel-btn:disabled {
-        background-color: #6b6b6b;
-        color: #aaa;
-        box-shadow:
-            inset 2px 2px 0 #888,
-            inset -2px -2px 0 #444;
-    }
+.pixel-card {
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 4px solid #000;
+    box-shadow:
+        0 4px 0 #000,
+        4px 4px 0 #000,
+        4px 0 0 #000;
+    transition: all 0.1s;
+}
 
-    /*
-     * Dark-surface pixel label: white fill + black pixel outline.
-     * Never pair with text-black — outline and fill both black = invisible.
-     * On light cards use .pixel-text-on-light instead.
-     */
-    .pixel-text {
-        font-family: var(--font-pixel), monospace;
-        image-rendering: pixelated;
-        color: #fff;
-        text-shadow:
-            -2px -2px 0 #000,
-            2px -2px 0 #000,
-            -2px 2px 0 #000,
-            2px 2px 0 #000,
-            -2px 0 0 #000,
-            2px 0 0 #000,
-            0 -2px 0 #000,
-            0 2px 0 #000;
-    }
+.pixel-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow:
+        0 6px 0 #000,
+        6px 6px 0 #000,
+        6px 0 0 #000;
+}
 
-    /* Light surfaces (login cards, error screens): dark fill, no outline. */
-    .pixel-text-on-light {
-        font-family: var(--font-pixel), monospace;
-        image-rendering: pixelated;
-        color: #111;
-        text-shadow: none;
-    }
+/* Admin form controls */
+.pixel-input,
+.pixel-select,
+.pixel-textarea {
+    width: 100%;
+    border: 2px solid #52525b;
+    background-color: #09090b;
+    color: #fff;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    border-radius: 0;
+    outline: none;
+}
 
-    .pixel-container {
-        background-color: rgba(0, 0, 0, 0.7);
-        border: 4px solid #000;
-        box-shadow:
-            0 6px 0 #000,
-            6px 6px 0 #000,
-            6px 0 0 #000;
-    }
+.pixel-input::placeholder,
+.pixel-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
 
-    .pixel-card {
-        background-color: rgba(255, 255, 255, 0.95);
-        border: 4px solid #000;
-        box-shadow:
-            0 4px 0 #000,
-            4px 4px 0 #000,
-            4px 0 0 #000;
-        transition: transform 0.1s, box-shadow 0.1s;
-    }
+.pixel-input:focus,
+.pixel-select:focus,
+.pixel-textarea:focus {
+    border-color: #fbbf24;
+}
 
-    .pixel-card:hover {
-        transform: translate(-2px, -2px);
-        box-shadow:
-            0 6px 0 #000,
-            6px 6px 0 #000,
-            6px 0 0 #000;
-    }
+.pixel-select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #a1a1aa 50%),
+        linear-gradient(135deg, #a1a1aa 50%, transparent 50%);
+    background-position:
+        calc(100% - 14px) calc(50% - 3px),
+        calc(100% - 9px) calc(50% - 3px);
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    cursor: pointer;
+}
+
+.pixel-textarea {
+    resize: vertical;
+    min-height: 4.5rem;
+}
+
+.pixel-check {
+    appearance: none;
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+    border: 2px solid #a1a1aa;
+    background-color: #09090b;
+    border-radius: 0;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.pixel-check:checked {
+    background-color: #c9a227;
+    border-color: #000;
+    box-shadow: inset 2px 2px 0 #f0d76a, inset -2px -2px 0 #6b5610;
+}
+
+.pixel-check:focus-visible {
+    outline: 2px solid #fbbf24;
+    outline-offset: 2px;
+}
+
+.pixel-radio-row {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: 0.5rem;
+    border: 2px solid #000;
+    background: #3f3f46;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #fff;
+    box-shadow:
+        inset 2px 2px 0 #71717a,
+        inset -2px -2px 0 #27272a;
+    text-shadow: 1px 1px 0 #18181b;
+}
+
+.pixel-radio-row:hover {
+    background: #52525b;
+    color: #ffffa0;
+}
+
+.pixel-radio-row[data-checked="true"] {
+    background: #b33a3a;
+    box-shadow:
+        inset 2px 2px 0 #e08080,
+        inset -2px -2px 0 #6b1f1f;
+    color: #fff;
+}
+
+.pixel-radio {
+    appearance: none;
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    border: 2px solid #000;
+    background: #09090b;
+    border-radius: 0;
+    cursor: pointer;
+    box-shadow: inset 1px 1px 0 #555;
+}
+
+.pixel-radio:checked {
+    background: #ffffa0;
+    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #888;
+}
+
+.pixel-link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font-pixel), monospace;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.pixel-link-btn:hover {
+    color: #ffffa0;
 }
 
 .retro-bg {
-    background-image: url('/background.jpg');
+    background-image: url("/background.jpg");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

@@ -89,7 +89,8 @@ export function AuthorCardModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-sm text-white/50 hover:text-white"
+            className="pixel-btn px-2 py-1 text-sm font-bold"
+            aria-label="Закрыть"
           >
             ✕
           </button>
@@ -163,7 +164,7 @@ export function AuthorCardModal({
                   onFilterAuthor(data.telegramId);
                   onClose();
                 }}
-                className="pixel-btn w-full bg-amber-400 px-3 py-2 text-sm font-bold text-black active:scale-[0.97]"
+                className="pixel-btn pixel-btn-warn w-full px-3 py-2 text-sm font-bold"
               >
                 Фильтр по автору
               </button>

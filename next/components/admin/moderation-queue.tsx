@@ -59,7 +59,7 @@ export function ModerationQueue({
         <button
           type="button"
           onClick={onStartReview}
-          className="pixel-btn bg-amber-400 px-4 py-2 text-sm font-bold text-black hover:bg-amber-300"
+          className="pixel-btn pixel-btn-warn px-4 py-2 text-sm font-bold"
         >
           Режим проверки →
         </button>
@@ -130,7 +130,7 @@ export function ModerationQueue({
                     <span className="mx-2 text-white/30">·</span>
                     <button
                       type="button"
-                      className="text-sky-300 underline-offset-2 hover:underline"
+                      className="text-sky-300 underline-offset-2underline"
                       onClick={() => onAuthor?.(scran.telegramId)}
                     >
                       {authorLabel(scran)}
@@ -148,11 +148,12 @@ export function ModerationQueue({
 
                 <div className="mt-auto flex flex-wrap gap-2">
                   {onToggleSelect && (
-                    <label className="flex min-h-11 items-center gap-2 px-1 text-xs text-white/60">
+                    <label className="flex min-h-11 cursor-pointer items-center gap-2 px-1 text-xs text-white/60">
                       <input
                         type="checkbox"
                         checked={selectedIds?.has(scran.id) ?? false}
                         onChange={() => onToggleSelect(scran.id)}
+                        className="pixel-check"
                       />
                       bulk
                     </label>
@@ -162,14 +163,14 @@ export function ModerationQueue({
                       <button
                         type="button"
                         onClick={() => onApprove(scran.id)}
-                        className="pixel-btn min-h-11 flex-1 bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-500 sm:flex-none active:scale-[0.97]"
+                        className="pixel-btn pixel-btn-ok min-h-11 flex-1 px-4 py-2 text-sm font-bold sm:flex-none"
                       >
                         Одобрить
                       </button>
                       <button
                         type="button"
                         onClick={() => onReject(scran.id)}
-                        className="pixel-btn min-h-11 flex-1 bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500 sm:flex-none active:scale-[0.97]"
+                        className="pixel-btn pixel-btn-danger min-h-11 flex-1 px-4 py-2 text-sm font-bold sm:flex-none"
                       >
                         Отклонить
                       </button>
@@ -179,7 +180,7 @@ export function ModerationQueue({
                     <button
                       type="button"
                       onClick={() => onBan(scran.id)}
-                      className="pixel-btn min-h-11 flex-1 bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500 sm:flex-none"
+                      className="pixel-btn pixel-btn-warn min-h-11 flex-1 px-4 py-2 text-sm font-bold sm:flex-none"
                     >
                       Снять
                     </button>
@@ -188,7 +189,7 @@ export function ModerationQueue({
                     <button
                       type="button"
                       onClick={() => onRecheck(scran.id)}
-                      className="pixel-btn min-h-11 flex-1 bg-sky-600 px-4 py-2 text-sm font-bold text-white hover:bg-sky-500 sm:flex-none"
+                      className="pixel-btn pixel-btn-info min-h-11 flex-1 px-4 py-2 text-sm font-bold sm:flex-none"
                     >
                       SVAGA recheck
                     </button>
@@ -197,7 +198,7 @@ export function ModerationQueue({
                     <button
                       type="button"
                       onClick={() => onDelete(scran)}
-                      className="pixel-btn min-h-11 flex-1 bg-zinc-700 px-4 py-2 text-sm font-bold text-white hover:bg-zinc-600 sm:flex-none"
+                      className="pixel-btn min-h-11 flex-1 px-4 py-2 text-sm font-bold sm:flex-none"
                     >
                       Удалить
                     </button>

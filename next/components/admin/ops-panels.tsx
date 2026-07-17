@@ -132,7 +132,7 @@ export function AuditPanel(): ReactElement {
       <button
         type="button"
         onClick={() => setTick((t) => t + 1)}
-        className="pixel-btn bg-zinc-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-600 active:scale-[0.97]"
+        className="pixel-btn px-3 py-1.5 text-xs font-bold"
       >
         Обновить
       </button>
@@ -302,7 +302,7 @@ export function HealthPanel(): ReactElement {
       <button
         type="button"
         onClick={reload}
-        className="pixel-btn bg-zinc-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-600 active:scale-[0.97]"
+        className="pixel-btn px-3 py-1.5 text-xs font-bold"
       >
         Обновить
       </button>

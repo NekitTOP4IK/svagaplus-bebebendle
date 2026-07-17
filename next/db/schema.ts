@@ -141,6 +141,13 @@ export const telegramVotes = pgTable("telegram_votes", {
   uniqueVote: uniqueIndex("unique_telegram_vote").on(table.telegramId, table.scranId),
 }));
 
+/** Key-value runtime flags (admin-toggleable). */
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type Scran = typeof scrans.$inferSelect;
 export type DailyScrandle = typeof dailyScrandles.$inferSelect;
 export type ScrandleVote = typeof scrandleVotes.$inferSelect;
@@ -149,3 +156,4 @@ export type TelegramVote = typeof telegramVotes.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type UserSession = typeof userSessions.$inferSelect;
 export type ModerationAuditLog = typeof moderationAuditLog.$inferSelect;
+export type AppSetting = typeof appSettings.$inferSelect;

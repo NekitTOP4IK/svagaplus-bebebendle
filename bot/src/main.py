@@ -211,21 +211,43 @@ async def database_session() -> AsyncIterator[Database]:
         await db.close()
 
 
+# Reminder shown on /start and at the start of /suggest.
+SVAGA_PRIORITY_HINT = (
+    "⭐ Подписка на СУПЕР ПЛАТНЫЙ ТГ-канал (СВАГА+) даёт приоритет "
+    "в очереди модерации — твои блюда разбирают раньше."
+)
+
+
+def _format_svaga_bonus_line(snapshot: SubscriberSnapshot) -> str:
+    """Short line for profile / post-submit summary."""
+    if snapshot.source == "unknown" or snapshot.is_subscriber is None:
+        return "СВАГА+: статус сейчас неизвестен (сервис недоступен или ещё не проверяли)."
+    if snapshot.is_subscriber:
+        return "🎁 Бонус за СВАГУ: активна — приоритет в очереди модерации."
+    return "СВАГА+: подписка не активна — обычный приоритет в очереди."
+
+
 def _format_svaga_snapshot(snapshot: SubscriberSnapshot) -> str:
+    """Longer status used after submit."""
     if snapshot.source == "unknown" or snapshot.is_subscriber is None:
         return (
-            "Статус SVAGA+ сейчас неизвестен (сервис недоступен или ещё не проверяли).\n"
+            "Статус СВАГА+ сейчас неизвестен (сервис недоступен или ещё не проверяли).\n"
             "Предложение всё равно можно отправить — модераторы увидят «Не проверено»."
         )
     if snapshot.is_subscriber:
-        return (
-            f"✅ SVAGA+: активная подписка (source={snapshot.source}).\n"
-            "В очереди модерации у тебя будет приоритет."
-        )
+        return "🎁 Бонус за СВАГУ: подписка активна — в очереди модерации у тебя приоритет."
     return (
-        f"SVAGA+: подписка не активна (source={snapshot.source}).\n"
+        "СВАГА+: подписка не активна.\n"
         "Предлагать блюда можно, приоритет очереди обычный."
     )
+
+
+def _scran_status_label(scran: dict) -> str:
+    if scran.get("approved"):
+        return "✅ одобрено"
+    if scran.get("rejected"):
+        return "❌ отклонено"
+    return "⏳ на модерации"
 
 
 @router.message(Command("start"))
@@ -233,10 +255,10 @@ async def cmd_start(message: Message) -> None:
     welcome_text = (
         "👋 Привет! Я овсянка, бот бебебендла.\n\n"
         "Я помогу тебе предложить новое блюдо для дейлика.\n\n"
+        f"{SVAGA_PRIORITY_HINT}\n\n"
         "📋 Команды:\n"
         "/suggest — предложить блюдо\n"
-        "/status — мои предложения\n"
-        "/svaga — статус подписки SVAGA+\n"
+        "/profile — мои скраны и бонус СВАГА+\n"
         "/vote — голосовать за блюда\n"
         "/help — помощь\n"
     )
@@ -250,28 +272,16 @@ async def cmd_help(message: Message) -> None:
         "Как предложить блюдо:\n"
         "1. /suggest\n"
         "2. Фото → название → описание → цена → подтверждение\n\n"
-        "SVAGA+:\n"
-        "• При отправке предложения бот спрашивает статус подписки у бебебендла\n"
-        "• /svaga — проверить статус сейчас\n"
-        "• Подписчики Olesha SVAGA+ выше в очереди модерации\n\n"
+        f"{SVAGA_PRIORITY_HINT}\n\n"
+        "Профиль:\n"
+        "• /profile — сколько скранов, статусы и бонус за СВАГУ\n\n"
         "Лимит: не больше 6 предложений одновременно на модерации.\n\n"
         "Команды:\n"
-        "/suggest /status /svaga /vote /help\n\n"
+        "/suggest /profile /vote /help\n\n"
         "Психологическая помощь по РФ:\n"
         "8 (800) 333-44-34"
     )
     await message.answer(help_text)
-
-
-@router.message(Command("svaga"))
-async def cmd_svaga(message: Message) -> None:
-    if not message.from_user:
-        await message.answer("Не удалось получить Telegram id.")
-        return
-    telegram_id = str(message.from_user.id)
-    await message.answer("Проверяю SVAGA+…")
-    snapshot = await get_svaga_subscriber_status(telegram_id)
-    await message.answer(_format_svaga_snapshot(snapshot))
 
 
 @router.message(Command("vote"))
@@ -429,7 +439,9 @@ async def cmd_suggest(message: Message, state: FSMContext) -> None:
     )
 
     await message.answer(
-        "📸 Отлично! Давай добавим новое блюдо.\n\nШаг 1/4: Отправь фото блюда (только одно фото)",
+        "📸 Отлично! Давай добавим новое блюдо.\n\n"
+        f"{SVAGA_PRIORITY_HINT}\n\n"
+        "Шаг 1/4: Отправь фото блюда (только одно фото)",
         reply_markup=cancel_keyboard,
     )
     await state.set_state(SuggestStates.photo)
@@ -657,9 +669,9 @@ async def cancel_suggestion(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(Command("status"))
-async def cmd_status(message: Message) -> None:
-    """Handle /status command."""
+@router.message(Command("profile"))
+async def cmd_profile(message: Message) -> None:
+    """Profile: scran stats + SVAGA bonus line."""
     if not message.from_user:
         await message.answer("Ошибка: не удалось получить информацию о пользователе.")
         return
@@ -667,42 +679,77 @@ async def cmd_status(message: Message) -> None:
     telegram_id = str(message.from_user.id)
 
     try:
+        await message.answer("Собираю профиль…")
+        snapshot = await get_svaga_subscriber_status(telegram_id)
+
         async with database_session() as database:
             user_scrans = await database.get_user_scrans(telegram_id)
 
+        total = len(user_scrans)
+        approved = sum(1 for s in user_scrans if s.get("approved"))
+        rejected = sum(1 for s in user_scrans if s.get("rejected") and not s.get("approved"))
+        pending = sum(
+            1 for s in user_scrans if not s.get("approved") and not s.get("rejected")
+        )
+        on_daily = sum(1 for s in user_scrans if s.get("date") is not None)
+
+        lines: list[str] = [
+            "👤 Профиль",
+            "",
+            _format_svaga_bonus_line(snapshot),
+            "",
+            f"📊 Скраны: всего {total}",
+            f"  ⏳ на модерации: {pending}",
+            f"  ✅ одобрено: {approved}",
+            f"  ❌ отклонено: {rejected}",
+            f"  📅 попадали в daily: {on_daily}",
+        ]
+
         if not user_scrans:
-            await message.answer(
-                "У тебя пока нет предложений. Используй /suggest чтобы добавить блюдо!"
+            lines.extend(
+                [
+                    "",
+                    "Пока нет предложений. /suggest — добавить блюдо.",
+                ]
             )
-            return
+        else:
+            lines.append("")
+            lines.append("Последние предложения:")
+            for i, scran in enumerate(user_scrans[:15], 1):
+                label = _scran_status_label(scran)
+                line = f"{i}. {scran['name']} — {label}"
+                if scran.get("date") is not None:
+                    line += f" (daily {scran['date']})"
+                lines.append(line)
+            if total > 15:
+                lines.append(f"…и ещё {total - 15}")
 
-        response = "📊 Твои предложения:\n\n"
-        for i, scran in enumerate(user_scrans, 1):
-            status = "✅" if scran["approved"] else "⏳"
-            response += f"{i}. {scran['name']} - {status}"
+        lines.extend(
+            [
+                "",
+                f"{SVAGA_PRIORITY_HINT}",
+            ]
+        )
 
-            if scran["date"] is not None:
-                response += f" {scran['date']}"
-
-            response += "\n"
-
-        response += "\n\n✅ - одобрено"
-        response += "\n⏳ - на ожидании (если давно - скорее всего не одобрено)"
-        response += "\nдата - дата в которую блюдо было на дейлике"
-
-        await message.answer(response)
+        await message.answer("\n".join(lines))
 
     except Exception as e:
-        logger.error(f"Error fetching status: {e}")
-        await message.answer("Произошла ошибка при получении статуса. Попробуй позже.")
+        logger.error(f"Error fetching profile: {e}")
+        await message.answer("Произошла ошибка при получении профиля. Попробуй позже.")
+
+
+@router.message(Command("status"))
+async def cmd_status(message: Message) -> None:
+    """Legacy alias → /profile."""
+    await cmd_profile(message)
 
 
 @router.message(F.text)
 async def handle_unknown(message: Message) -> None:
     """Handle unknown messages."""
     await message.answer(
-        "Я не понимаю это сообщение. Используй /suggest чтобы предложить блюдо "
-        "или /help для помощи."
+        "Я не понимаю это сообщение. Используй /suggest чтобы предложить блюдо, "
+        "/profile для профиля или /help для помощи."
     )
 
 

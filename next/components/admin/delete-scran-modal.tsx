@@ -76,21 +76,23 @@ export function DeleteScranModal({
           autoFocus
           rows={4}
           placeholder="Укажите причину удаления..."
-          className="mt-2 w-full resize-none rounded-none border-2 border-zinc-600 bg-zinc-800 px-3 py-2 text-sm text-white placeholder:text-zinc-500 focus:border-yellow-400 focus:outline-none"
+          className="pixel-textarea mt-2"
           disabled={submitting}
         />
         <div className="mt-5 flex justify-end gap-2">
           <button
+            type="button"
             onClick={onClose}
             disabled={submitting}
-            className="pixel-btn bg-zinc-700 px-4 py-2 text-sm font-bold text-white hover:bg-zinc-600 disabled:opacity-50"
+            className="pixel-btn px-4 py-2 text-sm font-bold"
           >
             Отмена
           </button>
           <button
-            onClick={handleConfirm}
+            type="button"
+            onClick={() => void handleConfirm()}
             disabled={!canSubmit}
-            className="pixel-btn bg-red-500 px-4 py-2 text-sm font-bold text-white hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="pixel-btn pixel-btn-danger px-4 py-2 text-sm font-bold"
           >
             {submitting ? "Удаление..." : "Удалить"}
           </button>

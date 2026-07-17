@@ -56,14 +56,15 @@ bot/
 
 ## 🎯 Features
 
-- **/start** - Welcome message
-- **/suggest** - Multi-step wizard to suggest new scran
+- **/start** - Welcome + SVAGA+ moderation priority hint
+- **/suggest** - Multi-step wizard to suggest new scran (repeats priority hint)
   1. Photo upload
   2. Name input
   3. Description (optional)
   4. Price
   5. Confirmation
-- **/status** - Check your suggestions status
+- **/profile** - Scran stats + SVAGA bonus line (replaces `/svaga`)
+- **/status** - Alias of `/profile`
 - **/help** - Show help information
 
 ## 🗄️ Database
@@ -126,7 +127,8 @@ Set up commands in BotFather:
 ```
 start - Запустить бота
 suggest - Предложить блюдо
-status - Проверить статус предложений
+profile - Мои скраны и бонус СВАГА+
+vote - Голосовать
 help - Показать помощь
 ```
 

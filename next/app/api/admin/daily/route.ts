@@ -75,6 +75,7 @@ export async function POST(request: Request) {
       message: "Daily created",
       date: result.date,
       rounds: result.rounds,
+      notify: result.notify ?? null,
     });
   } catch (error) {
     console.error("[admin/daily] POST failed", error);

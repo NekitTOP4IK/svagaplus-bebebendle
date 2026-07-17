@@ -33,7 +33,7 @@ export function EditScranModal({ scran, busy, onClose, onSave }: Props): ReactEl
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full border-2 border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-white"
+            className="pixel-input mt-1"
           />
         </label>
         <label className="mt-3 block text-xs text-white/50">
@@ -42,7 +42,7 @@ export function EditScranModal({ scran, busy, onClose, onSave }: Props): ReactEl
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="mt-1 w-full border-2 border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-white"
+            className="pixel-textarea mt-1"
           />
         </label>
         <label className="mt-3 block text-xs text-white/50">
@@ -53,7 +53,7 @@ export function EditScranModal({ scran, busy, onClose, onSave }: Props): ReactEl
             min="0"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            className="mt-1 w-full border-2 border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-white"
+            className="pixel-input mt-1"
           />
         </label>
         <div className="mt-4 flex gap-2">
@@ -61,7 +61,7 @@ export function EditScranModal({ scran, busy, onClose, onSave }: Props): ReactEl
             type="button"
             disabled={busy}
             onClick={onClose}
-            className="pixel-btn flex-1 bg-zinc-700 py-2 text-sm font-bold text-white active:scale-[0.97]"
+            className="pixel-btn flex-1 py-2 text-sm font-bold"
           >
             Отмена
           </button>
@@ -75,7 +75,7 @@ export function EditScranModal({ scran, busy, onClose, onSave }: Props): ReactEl
                 price: parseFloat(price) || 0,
               })
             }
-            className="pixel-btn flex-1 bg-amber-400 py-2 text-sm font-bold text-black active:scale-[0.97] disabled:opacity-50"
+            className="pixel-btn pixel-btn-warn flex-1 py-2 text-sm font-bold"
           >
             Сохранить
           </button>

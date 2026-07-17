@@ -290,14 +290,14 @@ export function AdminDashboard({
               <button
                 type="button"
                 onClick={onLogout}
-                className="pixel-btn bg-zinc-800 px-3 py-2 text-xs font-bold text-white hover:bg-zinc-700 active:scale-[0.97]"
+                className="pixel-btn px-3 py-2 text-xs font-bold"
               >
                 Выйти
               </button>
             )}
             <Link
               href="/"
-              className="pixel-text text-xl font-bold text-white hover:text-yellow-300"
+              className="pixel-text text-xl font-bold text-whitetext-yellow-300"
             >
               бебебендл
             </Link>
@@ -310,10 +310,10 @@ export function AdminDashboard({
               key={tab.id}
               type="button"
               onClick={() => handleSetView(tab.id)}
-              className={`pixel-btn px-3 py-1.5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${
+              className={`pixel-btn px-3 py-1.5 text-sm font-bold ${
                 view === tab.id
-                  ? "bg-yellow-400 text-black"
-                  : "bg-zinc-800 text-white hover:bg-zinc-700"
+                  ? "pixel-btn-warn"
+                  : ""
               }`}
             >
               {tab.label}
@@ -328,13 +328,13 @@ export function AdminDashboard({
               value={localSearch}
               onChange={(e) => setLocalSearch(e.target.value)}
               placeholder="Поиск: имя, tg id…"
-              className="min-w-[12rem] flex-1 border-2 border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-amber-400 focus:outline-none sm:max-w-xs"
+              className="pixel-input min-w-[12rem] flex-1 sm:max-w-xs"
             />
             {view === "list" && (
               <select
                 value={statusFilter}
                 onChange={(e) => onStatusFilterChange?.(e.target.value as ScranStatusFilter)}
-                className="border-2 border-zinc-600 bg-zinc-950 px-2 py-2 text-sm text-white"
+                className="pixel-select w-auto min-w-[10rem]"
               >
                 <option value="all">Все статусы</option>
                 <option value="pending">Pending</option>
@@ -346,7 +346,7 @@ export function AdminDashboard({
               <button
                 type="button"
                 onClick={() => onAuthorFilterChange?.("")}
-                className="pixel-btn bg-sky-800 px-3 py-1.5 text-xs font-bold text-white"
+                className="pixel-btn pixel-btn-info px-3 py-1.5 text-xs font-bold"
               >
                 Автор: {authorTelegramId} ✕
               </button>
@@ -362,9 +362,7 @@ export function AdminDashboard({
                   type="button"
                   onClick={() => onToggleSubscriberOnly?.()}
                   className={`pixel-btn px-3 py-1 text-sm font-bold ${
-                    subscriberOnly
-                      ? "bg-green-600 text-white"
-                      : "bg-zinc-800 text-white hover:bg-zinc-700"
+                    subscriberOnly ? "pixel-btn-ok" : ""
                   }`}
                 >
                   {subscriberOnly ? "✓ Только подписчики" : "Только подписчики"}
@@ -374,7 +372,7 @@ export function AdminDashboard({
                     type="button"
                     disabled={actionBusy}
                     onClick={() => void handleRecheck()}
-                    className="pixel-btn bg-sky-600 px-3 py-1 text-sm font-bold text-white hover:bg-sky-500 disabled:opacity-50"
+                    className="pixel-btn pixel-btn-info px-3 py-1 text-sm font-bold"
                   >
                     Перепроверить SVAGA ({uncheckedCount})
                   </button>
@@ -388,7 +386,7 @@ export function AdminDashboard({
                   type="button"
                   disabled={actionBusy}
                   onClick={() => void runBulk("approve")}
-                  className="pixel-btn bg-emerald-700 px-2 py-1 text-xs font-bold text-white"
+                  className="pixel-btn pixel-btn-ok px-2 py-1 text-xs font-bold"
                 >
                   Bulk ✓
                 </button>
@@ -396,25 +394,17 @@ export function AdminDashboard({
                   type="button"
                   disabled={actionBusy}
                   onClick={() => void runBulk("reject")}
-                  className="pixel-btn bg-red-700 px-2 py-1 text-xs font-bold text-white"
+                  className="pixel-btn pixel-btn-danger px-2 py-1 text-xs font-bold"
                 >
                   Bulk ✕
                 </button>
-                <button
-                  type="button"
-                  onClick={clearSelection}
-                  className="text-xs text-white/50 underline"
-                >
+                <button type="button" onClick={clearSelection} className="pixel-link-btn">
                   сброс
                 </button>
               </div>
             )}
             {(view === "queue" || view === "list") && scrans.length > 0 && (
-              <button
-                type="button"
-                onClick={selectAllOnPage}
-                className="text-xs text-white/50 underline"
-              >
+              <button type="button" onClick={selectAllOnPage} className="pixel-link-btn">
                 выбрать страницу
               </button>
             )}
@@ -484,7 +474,7 @@ export function AdminDashboard({
                                 ? "bg-yellow-400 text-black"
                                 : u.role === "moderator"
                                   ? "bg-blue-400 text-black"
-                                  : "bg-zinc-600"
+                                  : "bg-zinc-600 text-white"
                             }`}
                           >
                             {u.role}
@@ -496,7 +486,7 @@ export function AdminDashboard({
                             onChange={(e) =>
                               handleRoleChange(u.id, e.target.value as AdminUser["role"])
                             }
-                            className="border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs text-white"
+                            className="pixel-select w-auto min-w-[7rem] py-1 text-xs"
                             disabled={
                               u.role === "admin" &&
                               users.filter((x) => x.role === "admin").length === 1

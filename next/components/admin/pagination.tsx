@@ -16,29 +16,32 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
       </div>
       <div className="flex gap-2 flex-wrap">
         <button
+          type="button"
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
-          className="pixel-btn bg-zinc-800 px-4 py-2 text-sm font-bold text-white hover:bg-zinc-700 disabled:opacity-50"
+          className="pixel-btn px-4 py-2 text-sm font-bold"
         >
           Previous
         </button>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
           <button
+            type="button"
             key={page}
             onClick={() => onPageChange(page)}
             className={`pixel-btn px-4 py-2 text-sm font-bold ${
               currentPage === page
-                ? "bg-yellow-400 text-black"
-                : "bg-zinc-800 text-white hover:bg-zinc-700"
+                ? "pixel-btn-warn"
+                : ""
             }`}
           >
             {page}
           </button>
         ))}
         <button
+          type="button"
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
-          className="pixel-btn bg-zinc-800 px-4 py-2 text-sm font-bold text-white hover:bg-zinc-700 disabled:opacity-50"
+          className="pixel-btn px-4 py-2 text-sm font-bold"
         >
           Next
         </button>

@@ -63,7 +63,7 @@ export function ScranRow({
               type="checkbox"
               checked={!!selected}
               onChange={() => onToggleSelect(scran.id)}
-              className="h-4 w-4"
+              className="pixel-check"
               aria-label={`Выбрать ${scran.id}`}
             />
           </td>
@@ -115,7 +115,7 @@ export function ScranRow({
           {scran.telegramId || scran.authorUsername || scran.authorDisplayName ? (
             <button
               type="button"
-              className="text-left text-sky-300 underline-offset-2 hover:underline"
+              className="text-left text-sky-300 underline-offset-2underline"
               onClick={() => onAuthor?.(scran.telegramId)}
             >
               {authorLabel}
@@ -169,14 +169,14 @@ export function ScranRow({
                 <button
                   type="button"
                   onClick={() => onApprove(scran.id)}
-                  className="pixel-btn min-h-10 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 sm:text-sm active:scale-[0.97]"
+                  className="pixel-btn pixel-btn-ok min-h-10 px-3 py-1.5 text-xs font-bold sm:text-sm"
                 >
                   Одобрить
                 </button>
                 <button
                   type="button"
                   onClick={() => onReject(scran.id)}
-                  className="pixel-btn min-h-10 bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500 sm:text-sm active:scale-[0.97]"
+                  className="pixel-btn pixel-btn-danger min-h-10 px-3 py-1.5 text-xs font-bold sm:text-sm"
                 >
                   Отклонить
                 </button>
@@ -186,7 +186,7 @@ export function ScranRow({
               <button
                 type="button"
                 onClick={() => onRestore(scran.id)}
-                className="pixel-btn min-h-10 bg-sky-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-600 sm:text-sm active:scale-[0.97]"
+                className="pixel-btn pixel-btn-info min-h-10 px-3 py-1.5 text-xs font-bold sm:text-sm"
               >
                 В очередь
               </button>
@@ -195,7 +195,7 @@ export function ScranRow({
               <button
                 type="button"
                 onClick={() => onBan(scran.id)}
-                className="pixel-btn min-h-10 bg-orange-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-500 sm:text-sm active:scale-[0.97]"
+                className="pixel-btn pixel-btn-warn min-h-10 px-3 py-1.5 text-xs font-bold sm:text-sm"
               >
                 Снять
               </button>
@@ -204,7 +204,7 @@ export function ScranRow({
               <button
                 type="button"
                 onClick={() => onEdit(scran)}
-                className="pixel-btn min-h-10 bg-zinc-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-500 sm:text-sm active:scale-[0.97]"
+                className="pixel-btn min-h-10 px-3 py-1.5 text-xs font-bold sm:text-sm"
               >
                 Edit
               </button>
@@ -213,7 +213,7 @@ export function ScranRow({
               <button
                 type="button"
                 onClick={() => onDelete(scran)}
-                className="pixel-btn min-h-10 bg-zinc-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-600 sm:text-sm active:scale-[0.97]"
+                className="pixel-btn min-h-10 px-3 py-1.5 text-xs font-bold sm:text-sm"
                 title="Жёсткое удаление с уведомлением (admin)"
               >
                 Удалить

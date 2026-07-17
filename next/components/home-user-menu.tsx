@@ -60,7 +60,7 @@ export function HomeUserMenu(): ReactElement | null {
     <div className="flex w-full flex-col gap-2">
       <Link
         href="/profile"
-        className="pixel-btn flex min-h-11 items-center gap-3 px-3 py-2 text-left active:scale-[0.97]"
+        className="pixel-btn flex min-h-11 items-center gap-3 px-3 py-2 text-left"
       >
         {user.telegramPhotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -87,7 +87,7 @@ export function HomeUserMenu(): ReactElement | null {
       {staff && (
         <Link
           href="/admin"
-          className="pixel-btn flex min-h-11 items-center justify-center bg-amber-400 px-4 py-2 text-center text-sm font-bold text-black hover:bg-amber-300 active:scale-[0.97]"
+          className="pixel-btn pixel-btn-warn flex min-h-11 items-center justify-center px-4 py-2 text-center text-sm font-bold"
         >
           {panel}
         </Link>
@@ -132,7 +132,7 @@ export function HomeProfileRow(): ReactElement {
           disabled={loggingOut}
           title="Выйти"
           aria-label="Выйти"
-          className="pixel-btn absolute top-1/2 z-20 flex h-11 min-w-[2.75rem] -translate-y-1/2 items-center justify-center bg-zinc-950/95 px-2 text-xs font-bold text-white shadow-[3px_3px_0_0_#000] hover:bg-red-700 active:scale-[0.97] disabled:opacity-50"
+          className="pixel-btn pixel-btn-danger absolute top-1/2 z-20 flex h-11 min-w-[2.75rem] -translate-y-1/2 items-center justify-center px-2 text-xs font-bold"
           style={{
             right: "100%",
             marginRight: "0.5rem",
@@ -144,7 +144,7 @@ export function HomeProfileRow(): ReactElement {
       )}
       <Link
         href="/profile"
-        className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 active:scale-[0.97]"
+        className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
       >
         Профиль / СВАГА+
       </Link>

@@ -199,6 +199,8 @@ class Database:
                   s.id,
                   s.name,
                   s.approved,
+                  s.rejected,
+                  s.is_subscriber_at_submit,
                   d.date
                 FROM scrans s
                 LEFT JOIN daily_scrandles d ON
@@ -211,7 +213,14 @@ class Database:
             )
 
         return [
-            {"id": row["id"], "name": row["name"], "approved": row["approved"], "date": row["date"]}
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "approved": row["approved"],
+                "rejected": bool(row["rejected"]) if row["rejected"] is not None else False,
+                "is_subscriber_at_submit": row["is_subscriber_at_submit"],
+                "date": row["date"],
+            }
             for row in rows
         ]
 

@@ -33,7 +33,7 @@ export function ScranImageLightbox({ src, alt, onClose }: Props): ReactElement {
       <button
         type="button"
         onClick={onClose}
-        className="pixel-btn absolute right-4 top-4 z-10 bg-zinc-800 px-3 py-2 text-sm font-bold text-white"
+        className="pixel-btn absolute right-4 top-4 z-10 px-3 py-2 text-sm font-bold"
       >
         ✕ Закрыть
       </button>

@@ -163,7 +163,12 @@ export async function createDailyRounds(
 }
 
 export async function generateDailyForDate(date: string): Promise<
-  | { ok: true; date: string; rounds: { roundNumber: number; scranA: string; scranB: string }[] }
+  | {
+      ok: true;
+      date: string;
+      rounds: { roundNumber: number; scranA: string; scranB: string }[];
+      notify?: { sent: number; skipped: number; disabled: boolean };
+    }
   | { ok: false; error: string; status: number }
 > {
   if (await hasRoundsForDate(date)) {
@@ -181,5 +186,27 @@ export async function generateDailyForDate(date: string): Promise<
 
   const selected = shuffle(approvedScrans).slice(0, MIN_SCRANS);
   const rounds = await createDailyRounds(selected, date);
-  return { ok: true, date, rounds };
+
+  // Fire-and-log TG notifications when admin setting is on
+  let notify: { sent: number; skipped: number; disabled: boolean } | undefined;
+  try {
+    const { notifyAuthorsDailyRotation } = await import("@/lib/daily-rotation-notify");
+    notify = await notifyAuthorsDailyRotation(
+      date,
+      selected.map((s) => ({
+        id: s.id,
+        name: s.name,
+        telegramId: s.telegramId ?? null,
+      })),
+    );
+    if (!notify.disabled) {
+      console.log(
+        `[daily] rotation notify date=${date} sent=${notify.sent} skipped=${notify.skipped}`,
+      );
+    }
+  } catch (error) {
+    console.error("[daily] rotation notify failed", error);
+  }
+
+  return { ok: true, date, rounds, notify };
 }

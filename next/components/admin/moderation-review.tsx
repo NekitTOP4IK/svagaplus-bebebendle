@@ -115,7 +115,7 @@ export function ModerationReview({
             <button
               type="button"
               onClick={() => onNeedMore?.()}
-              className="pixel-btn bg-amber-400 px-4 py-2 text-sm font-bold text-black"
+              className="pixel-btn pixel-btn-warn px-4 py-2 text-sm font-bold"
             >
               Дальше по очереди
             </button>
@@ -123,7 +123,7 @@ export function ModerationReview({
           <button
             type="button"
             onClick={onExit}
-            className="pixel-btn bg-zinc-700 px-4 py-2 text-sm font-bold text-white"
+            className="pixel-btn px-4 py-2 text-sm font-bold"
           >
             К списку
           </button>
@@ -140,7 +140,7 @@ export function ModerationReview({
         <button
           type="button"
           onClick={onExit}
-          className="pixel-btn bg-zinc-800 px-3 py-2 text-xs font-bold text-white hover:bg-zinc-700"
+          className="pixel-btn px-3 py-2 text-xs font-bold"
         >
           ← Список
         </button>
@@ -228,7 +228,7 @@ export function ModerationReview({
               type="button"
               disabled={disabled}
               onClick={() => void handleReject()}
-              className="pixel-btn min-h-14 bg-red-600 text-base font-bold text-white hover:bg-red-500 disabled:opacity-50"
+              className="pixel-btn pixel-btn-danger min-h-14 text-base font-bold"
             >
               Отклонить
               <span className="mt-0.5 block text-[10px] font-normal opacity-80">← / D</span>
@@ -237,7 +237,7 @@ export function ModerationReview({
               type="button"
               disabled={disabled}
               onClick={() => void handleApprove()}
-              className="pixel-btn min-h-14 bg-emerald-600 text-base font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
+              className="pixel-btn pixel-btn-ok min-h-14 text-base font-bold"
             >
               Одобрить
               <span className="mt-0.5 block text-[10px] font-normal opacity-80">→ / A</span>
@@ -248,7 +248,7 @@ export function ModerationReview({
             type="button"
             disabled={disabled}
             onClick={handleSkip}
-            className="w-full text-center text-xs text-white/45 underline-offset-2 hover:text-white/70 hover:underline"
+            className="w-full text-center text-xs text-white/45 underline-offset-2text-white/70underline"
           >
             Пропустить без решения (Space)
           </button>
