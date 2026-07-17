@@ -33,6 +33,7 @@ interface AdminDashboardProps {
   scrans: Scran[];
   loading: boolean;
   currentPage: number;
+  totalItems: number;
   totalPages: number;
   sortField: SortField;
   sortOrder: SortOrder;
@@ -100,6 +101,7 @@ export function AdminDashboard({
   scrans,
   loading,
   currentPage,
+  totalItems,
   totalPages,
   sortField,
   sortOrder,
@@ -521,6 +523,7 @@ export function AdminDashboard({
         ) : view === "queue" && queueMode === "review" ? (
           <ModerationReview
             scrans={scrans}
+            totalCount={totalItems}
             role={role}
             busy={actionBusy}
             onApprove={handleApprove}
@@ -536,6 +539,7 @@ export function AdminDashboard({
           <>
             <ModerationQueue
               scrans={scrans}
+              totalCount={totalItems}
               role={role}
               selectedIds={selected}
               onToggleSelect={toggleSelect}

@@ -6,6 +6,7 @@ import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
 
 type Props = Readonly<{
   scrans: Scran[];
+  totalCount?: number;
   role?: "moderator" | "admin" | null;
   selectedIds?: Set<number>;
   onToggleSelect?: (id: number) => void;
@@ -28,6 +29,7 @@ function authorLabel(scran: Scran): string {
 
 export function ModerationQueue({
   scrans,
+  totalCount,
   role,
   selectedIds,
   onToggleSelect,
@@ -40,6 +42,7 @@ export function ModerationQueue({
   onStartReview,
 }: Props): ReactElement {
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+  const visibleCount = totalCount ?? scrans.length;
 
   if (scrans.length === 0) {
     return (
@@ -63,7 +66,7 @@ export function ModerationQueue({
           }}
         >
           <span className="text-white/55">В списке:</span>{" "}
-          <span className="text-amber-300">{scrans.length}</span>
+          <span className="text-amber-300">{visibleCount}</span>
         </div>
         <button
           type="button"
