@@ -2,6 +2,7 @@
 
 import { Twitch, Github, Send } from "lucide-react";
 import { InfoButton } from "@/components/info-button";
+import { LogoutButton } from "@/components/home-user-menu";
 
 function telegramBotUrl(): string {
   const username = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "").trim().replace(/^@/, "");
@@ -48,7 +49,12 @@ export function SocialLinks() {
           <span className="sm:hidden">{link.mobileLabel}</span>
         </a>
       ))}
-      <div className="flex justify-end">
+      {/* Bottom row: logout expands, info stays square — gap between */}
+      <div className="flex w-full items-center justify-end gap-2 sm:gap-3 2xl:gap-4">
+        <LogoutButton
+          hideWhenLoggedOut
+          className="flex h-10 min-h-10 flex-1 items-center justify-center px-3 text-xs sm:h-12 sm:min-h-12 sm:px-4 sm:text-sm 2xl:h-14 2xl:min-h-14 2xl:text-base 4xl:h-16 4xl:min-h-16"
+        />
         <InfoButton />
       </div>
     </div>

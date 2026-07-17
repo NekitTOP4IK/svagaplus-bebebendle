@@ -59,10 +59,8 @@ export function HomeUserMenu(): ReactElement | null {
   const staff = user.role === "admin" || user.role === "moderator";
   const panel = panelLabel(user.role);
   const tone = resolveIdentityTone(user.role, user.isSubscriber);
-  const chipClass =
-    tone === "default" ? "" : `user-chip--${tone}`;
-  const avatarClass =
-    tone === "default" ? "" : `user-avatar--${tone}`;
+  const chipClass = tone === "default" ? "" : `user-chip--${tone}`;
+  const avatarClass = tone === "default" ? "" : `user-avatar--${tone}`;
 
   return (
     <div className="flex w-full flex-col gap-2 overflow-visible">
@@ -107,8 +105,29 @@ export function HomeUserMenu(): ReactElement | null {
   );
 }
 
-/** Profile CTA with logout button protruding left of the column when logged in. */
+/** Profile CTA only (logout lives next to info at the bottom of the column). */
 export function HomeProfileRow(): ReactElement {
+  return (
+    <Link
+      href="/profile"
+      className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+    >
+      Профиль / СВАГА+
+    </Link>
+  );
+}
+
+type LogoutButtonProps = Readonly<{
+  /** When true, only render if session exists (home bottom row). */
+  hideWhenLoggedOut?: boolean;
+  className?: string;
+}>;
+
+/** Shared logout control for home bottom row and profile page. */
+export function LogoutButton({
+  hideWhenLoggedOut = false,
+  className = "",
+}: LogoutButtonProps): ReactElement | null {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -129,37 +148,30 @@ export function HomeProfileRow(): ReactElement {
     } catch {
       // ignore
     }
-    window.location.reload();
+    window.location.href = "/";
   }, []);
 
-  const loggedIn = user != null;
+  if (user === undefined) {
+    // Avoid layout jump: reserve nothing until we know
+    return null;
+  }
+  if (hideWhenLoggedOut && user === null) {
+    return null;
+  }
+  if (user === null) {
+    return null;
+  }
 
   return (
-    <div className="relative w-full overflow-visible">
-      {loggedIn && (
-        <button
-          type="button"
-          onClick={() => void logout()}
-          disabled={loggingOut}
-          title="Выйти"
-          aria-label="Выйти"
-          className="pixel-btn pixel-btn-danger absolute top-1/2 z-20 flex h-11 min-w-[2.75rem] -translate-y-1/2 items-center justify-center px-2 text-xs font-bold"
-          style={{
-            right: "100%",
-            marginRight: "0.5rem",
-            transition:
-              "transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease",
-          }}
-        >
-          {loggingOut ? "…" : "Выход"}
-        </button>
-      )}
-      <Link
-        href="/profile"
-        className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-      >
-        Профиль / СВАГА+
-      </Link>
-    </div>
+    <button
+      type="button"
+      onClick={() => void logout()}
+      disabled={loggingOut}
+      title="Выйти"
+      aria-label="Выйти"
+      className={`pixel-btn pixel-btn-danger font-bold ${className}`}
+    >
+      {loggingOut ? "…" : "Выход"}
+    </button>
   );
 }

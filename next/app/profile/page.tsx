@@ -10,6 +10,7 @@ import {
 } from "@/components/profile-svaga-status";
 import { UserIdentity } from "@/components/user-identity";
 import { resolveIdentityTone } from "@/lib/user-identity";
+import { LogoutButton } from "@/components/home-user-menu";
 
 interface UserInfo {
   id: number;
@@ -177,11 +178,17 @@ export default function ProfilePage(): ReactElement {
     <div className="retro-bg relative min-h-dvh px-4 py-8 text-white">
       <div className="retro-overlay pointer-events-none fixed inset-0" />
       <div className="relative z-10 mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <h1 className="pixel-text text-3xl font-bold">Мой профиль</h1>
-          <Link href="/" className="pixel-btn min-h-11 px-4 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400">
-            ← На главную
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <LogoutButton className="min-h-11 px-4 py-2 text-sm" />
+            <Link
+              href="/"
+              className="pixel-btn min-h-11 px-4 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            >
+              ← На главную
+            </Link>
+          </div>
         </div>
 
         <div

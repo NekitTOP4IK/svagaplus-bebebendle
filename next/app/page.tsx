@@ -97,10 +97,7 @@ export default async function HomePage() {
             unavailableReason={dailyStatus.reason}
           />
           <HomeUserMenu />
-          {/* Logout protrudes left of the profile button (outside the column) */}
-          <div className="relative z-20 overflow-visible">
-            <HomeProfileRow />
-          </div>
+          <HomeProfileRow />
           <SocialLinks />
         </div>
       </main>
