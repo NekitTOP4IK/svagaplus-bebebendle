@@ -23,7 +23,7 @@ describe("CountdownTimer", () => {
     render(<CountdownTimer />);
     
     // Should show Russian text for "Until next daily"
-    expect(screen.getByText("До следующего дейлика")).toBeInTheDocument();
+    expect(screen.getByText("До следующего дейлика:")).toBeInTheDocument();
   });
 
   it("should update timer after mount", async () => {
@@ -80,8 +80,8 @@ describe("CountdownTimer", () => {
     });
     
     // After mount the label and countdown share one line.
-    const timeText = screen.getByText(/До следующего дейлика \d{2}:\d{2}:\d{2}/).textContent;
-    expect(timeText).toMatch(/До следующего дейлика \d{2}:\d{2}:\d{2}/);
+    const timeText = screen.getByText(/До следующего дейлика: \d{2}:\d{2}:\d{2}/).textContent;
+    expect(timeText).toMatch(/До следующего дейлика: \d{2}:\d{2}:\d{2}/);
   });
 
   it("should cleanup interval on unmount", async () => {

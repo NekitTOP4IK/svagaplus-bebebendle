@@ -39,7 +39,7 @@ export function CountdownTimer() {
           className="text-sm sm:text-base md:text-lg 2xl:text-xl 4xl:text-2xl font-medium mb-1 2xl:mb-2"
           style={textShadowStyle}
         >
-          До следующего дейлика
+          До следующего дейлика:
         </p>
         <p
           className="text-xl sm:text-2xl md:text-3xl 2xl:text-4xl 4xl:text-5xl font-black"
@@ -57,7 +57,7 @@ export function CountdownTimer() {
         className="pixel-text text-left text-[10px] leading-tight text-white/90 sm:text-xs md:text-sm 2xl:text-base 4xl:text-lg"
         style={textShadowStyle}
       >
-        До следующего дейлика {timeLeft}
+        До следующего дейлика: {timeLeft}
       </p>
     </div>
   );

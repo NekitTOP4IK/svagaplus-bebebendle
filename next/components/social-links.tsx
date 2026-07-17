@@ -3,34 +3,39 @@
 import { Twitch, Github, Send } from "lucide-react";
 import { InfoButton } from "@/components/info-button";
 
-const socialLinks = [
-  {
-    href: "https://t.me/bebebendle_bot",
-    icon: Send,
-    label: "Предложить свой слоп",
-    mobileLabel: "слоп",
-    skin: "pixel-btn-tg",
-  },
-  {
-    href: "https://www.twitch.tv/olesha",
-    icon: Twitch,
-    label: "olesha",
-    mobileLabel: "twitch",
-    skin: "pixel-btn-twitch",
-  },
-  {
-    href: "https://github.com/catlilface/bebebendle",
-    icon: Github,
-    label: "github",
-    mobileLabel: "git",
-    skin: "",
-  },
-] as const;
+function telegramBotUrl(): string {
+  const username = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "").trim().replace(/^@/, "");
+  return username ? `https://t.me/${username}` : "https://t.me/bebebendle_bot";
+}
 
 export function SocialLinks() {
+  const links = [
+    {
+      href: telegramBotUrl(),
+      icon: Send,
+      label: "Предложить свой слоп",
+      mobileLabel: "слоп",
+      skin: "pixel-btn-tg",
+    },
+    {
+      href: "https://www.twitch.tv/olesha",
+      icon: Twitch,
+      label: "olesha",
+      mobileLabel: "twitch",
+      skin: "pixel-btn-twitch",
+    },
+    {
+      href: "https://github.com/catlilface/bebebendle",
+      icon: Github,
+      label: "github",
+      mobileLabel: "git",
+      skin: "",
+    },
+  ] as const;
+
   return (
     <div className="flex w-full flex-col gap-2 sm:gap-3 2xl:gap-4 4xl:gap-5">
-      {socialLinks.map((link) => (
+      {links.map((link) => (
         <a
           key={link.href}
           href={link.href}
