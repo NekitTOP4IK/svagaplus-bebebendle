@@ -122,6 +122,13 @@ describe("DailyPlayButton", () => {
     expect(screen.getByText(/Набор ещё не готов/)).toBeInTheDocument();
   });
 
+  it("shows custom unavailable reason when provided", () => {
+    render(
+      <DailyPlayButton available={false} unavailableReason="Техработы до вечера" />,
+    );
+    expect(screen.getByText("Техработы до вечера")).toBeInTheDocument();
+  });
+
   it("prefers unavailable state over play link even if not played", () => {
     mockHasPlayedToday.mockReturnValue(false);
     render(<DailyPlayButton available={false} />);

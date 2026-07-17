@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState, type ReactElement } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api-client";
+import { auditActionLabel, auditDetailsPreview } from "@/lib/audit-labels";
 
 type Stats = {
   scrans: {
@@ -148,24 +150,47 @@ export function AuditPanel(): ReactElement {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
-            {logs.map((l) => (
-              <tr key={l.id}>
-                <td className="whitespace-nowrap py-1.5 pr-3 text-xs text-white/50">
-                  {new Date(l.createdAt).toLocaleString("ru-RU")}
-                </td>
-                <td className="py-1.5 pr-3 text-xs">
-                  {l.actorDisplayName || l.actorUsername || "—"}
-                </td>
-                <td className="py-1.5 pr-3 font-bold">{l.action}</td>
-                <td className="py-1.5 pr-3">{l.scranId ?? "—"}</td>
-                <td
-                  className="max-w-xs truncate py-1.5 text-xs text-white/60"
-                  title={l.details ?? ""}
-                >
-                  {l.details || l.targetTelegramId || "—"}
-                </td>
-              </tr>
-            ))}
+            {logs.map((l) => {
+              const detailLabel = auditDetailsPreview(l.details);
+              return (
+                <tr key={l.id}>
+                  <td className="whitespace-nowrap py-1.5 pr-3 text-xs text-white/50">
+                    {new Date(l.createdAt).toLocaleString("ru-RU")}
+                  </td>
+                  <td className="py-1.5 pr-3 text-xs">
+                    {l.actorDisplayName || l.actorUsername || "—"}
+                  </td>
+                  <td className="py-1.5 pr-3 font-bold">{auditActionLabel(l.action)}</td>
+                  <td className="py-1.5 pr-3">
+                    {l.scranId != null ? (
+                      <Link
+                        href={`/admin/scrans?id=${l.scranId}`}
+                        className="text-sky-300 underline-offset-2 hover:underline"
+                      >
+                        #{l.scranId}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="max-w-xs truncate py-1.5 text-xs text-white/60">
+                    {l.scranId != null && detailLabel !== "—" ? (
+                      <Link
+                        href={`/admin/scrans?id=${l.scranId}`}
+                        className="text-amber-200/90 underline-offset-2 hover:underline"
+                        title={l.details ?? ""}
+                      >
+                        {detailLabel}
+                      </Link>
+                    ) : (
+                      <span title={l.details ?? ""}>
+                        {detailLabel !== "—" ? detailLabel : l.targetTelegramId || "—"}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {logs.length === 0 && (
               <tr>
                 <td colSpan={5} className="py-4 text-white/40">

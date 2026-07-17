@@ -11,6 +11,7 @@ export interface CurrentUser {
   telegramPhotoUrl: string | null;
   displayName: string | null;
   role: "player" | "moderator" | "admin";
+  isSubscriber: boolean | null;
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -40,6 +41,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         telegramPhotoUrl: users.telegramPhotoUrl,
         displayName: users.displayName,
         role: users.role,
+        isSubscriber: users.isSubscriber,
       })
       .from(users)
       .innerJoin(userSessions, eq(userSessions.userId, users.id))
@@ -70,6 +72,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       telegramPhotoUrl: u.telegramPhotoUrl,
       displayName: u.displayName,
       role: u.role as CurrentUser["role"],
+      isSubscriber: u.isSubscriber,
     };
   } catch (error) {
     console.error("getCurrentUser error:", error);

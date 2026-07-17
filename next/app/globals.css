@@ -149,13 +149,62 @@ body {
 .pixel-btn.pixel-btn-ok:disabled,
 .pixel-btn.pixel-btn-danger:disabled,
 .pixel-btn.pixel-btn-warn:disabled,
-.pixel-btn.pixel-btn-info:disabled {
+.pixel-btn.pixel-btn-info:disabled,
+.pixel-btn.pixel-btn-tg:disabled,
+.pixel-btn.pixel-btn-twitch:disabled {
     background: #6b6b6b;
     color: #aaa;
     box-shadow:
         inset 2px 2px 0 #888,
         inset -2px -2px 0 #444;
     text-shadow: none;
+}
+
+/* Social brand skins (Minecraft bevel) */
+.pixel-btn.pixel-btn-tg {
+    background: #229ed9;
+    box-shadow:
+        inset 2px 2px 0 #7ec8ee,
+        inset -2px -2px 0 #0f5f88;
+    text-shadow: 2px 2px 0 #0a3d57;
+}
+
+.pixel-btn.pixel-btn-tg:hover:not(:disabled) {
+    background: #2aabee;
+    color: #ffffa0;
+}
+
+.pixel-btn.pixel-btn-twitch {
+    background: #6441a5;
+    box-shadow:
+        inset 2px 2px 0 #9b7fd4,
+        inset -2px -2px 0 #3a2266;
+    text-shadow: 2px 2px 0 #241442;
+}
+
+.pixel-btn.pixel-btn-twitch:hover:not(:disabled) {
+    background: #772ce8;
+    color: #ffffa0;
+}
+
+/* SVAGA+ subscriber nick glow on home menu */
+.subscriber-nick {
+    color: #f5e6a8;
+    text-shadow:
+        0 0 6px rgba(245, 200, 80, 0.85),
+        0 0 14px rgba(212, 160, 40, 0.55),
+        1px 1px 0 #3d2a08;
+}
+
+.subscriber-avatar {
+    box-shadow: 0 0 0 2px #d4a028, 0 0 10px rgba(212, 160, 40, 0.7);
+}
+
+.subscriber-chip {
+    box-shadow:
+        inset 2px 2px 0 #c6c6c6,
+        inset -2px -2px 0 #555,
+        0 0 12px rgba(212, 160, 40, 0.35);
 }
 
 /*

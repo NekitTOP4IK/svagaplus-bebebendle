@@ -266,13 +266,13 @@ export function AdminDashboard({
   const showScranToolbar = view === "queue" || view === "list" || view === "rejected";
 
   return (
-    <div className="retro-bg min-h-dvh">
-      <div className="retro-overlay absolute inset-0" />
+    <div className="retro-bg relative min-h-dvh">
+      <div className="retro-overlay pointer-events-none fixed inset-0" />
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="pixel-text text-3xl font-bold text-white">
-              {role === "moderator" ? "Модерация" : "Админка"}
+              {role === "moderator" ? "Модерация" : "Админ-панель"}
               {role && (
                 <span className="ml-3 align-middle bg-white/20 px-2 py-0.5 text-xs font-bold text-white">
                   {role.toUpperCase()}

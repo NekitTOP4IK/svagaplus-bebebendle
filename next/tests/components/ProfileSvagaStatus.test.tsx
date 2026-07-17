@@ -27,7 +27,7 @@ describe("ProfileSvagaStatus", () => {
       />,
     );
     expect(screen.getByText("Подписка СВАГА+")).toBeInTheDocument();
-    expect(screen.getByText("Подписка на Olesha активна")).toBeInTheDocument();
+    expect(screen.getByText("Подписка активна")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Проверить подписку" })).toBeInTheDocument();
   });
 

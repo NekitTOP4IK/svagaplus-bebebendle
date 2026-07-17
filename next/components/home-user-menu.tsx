@@ -11,6 +11,7 @@ type SessionUser = Readonly<{
   telegramPhotoUrl: string | null;
   displayName: string | null;
   role: "player" | "moderator" | "admin";
+  isSubscriber: boolean | null;
 }>;
 
 function initials(user: SessionUser): string {
@@ -19,7 +20,7 @@ function initials(user: SessionUser): string {
 }
 
 function panelLabel(role: SessionUser["role"]): string {
-  if (role === "admin") return "Админка";
+  if (role === "admin") return "Админ-панель";
   if (role === "moderator") return "Модерация";
   return "";
 }
@@ -55,31 +56,48 @@ export function HomeUserMenu(): ReactElement | null {
   const name = user.displayName || user.telegramUsername || `tg:${user.telegramId}`;
   const staff = user.role === "admin" || user.role === "moderator";
   const panel = panelLabel(user.role);
+  const isSub = user.isSubscriber === true;
 
   return (
     <div className="flex w-full flex-col gap-2">
       <Link
         href="/profile"
-        className="pixel-btn flex min-h-11 items-center gap-3 px-3 py-2 text-left"
+        className={`pixel-btn flex min-h-11 items-center gap-3 px-3 py-2 text-left ${
+          isSub ? "subscriber-chip" : ""
+        }`}
       >
         {user.telegramPhotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={user.telegramPhotoUrl}
             alt=""
-            className="h-9 w-9 shrink-0 border-2 border-black object-cover"
+            className={`h-9 w-9 shrink-0 border-2 border-black object-cover ${
+              isSub ? "subscriber-avatar" : ""
+            }`}
             referrerPolicy="no-referrer"
           />
         ) : (
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold text-white">
+          <span
+            className={`flex h-9 w-9 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold text-white ${
+              isSub ? "subscriber-avatar" : ""
+            }`}
+          >
             {initials(user)}
           </span>
         )}
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-bold text-white">{name}</span>
+          <span
+            className={`block truncate text-sm font-bold ${
+              isSub ? "subscriber-nick" : "text-white"
+            }`}
+          >
+            {name}
+            {isSub ? " ✦" : ""}
+          </span>
           <span className="block truncate text-[10px] text-white/60">
             {user.telegramUsername ? `@${user.telegramUsername}` : "профиль"}
             {staff ? ` · ${user.role}` : ""}
+            {isSub && !staff ? " · СВАГА+" : ""}
           </span>
         </span>
       </Link>
@@ -136,7 +154,8 @@ export function HomeProfileRow(): ReactElement {
           style={{
             right: "100%",
             marginRight: "0.5rem",
-            transition: "transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease",
+            transition:
+              "transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease",
           }}
         >
           {loggingOut ? "…" : "Выход"}

@@ -5,6 +5,7 @@ import { CountdownTimer } from "@/components/countdown-timer";
 import { SplashText } from "@/components/splash-text";
 import { HomeProfileRow, HomeUserMenu } from "@/components/home-user-menu";
 import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
+import { getDailyPublicStatus } from "@/lib/app-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +58,8 @@ const splashTexts = [
 ];
 
 export default async function HomePage() {
-  const dailyAvailable = await hasDailyForToday();
+  const hasDaily = await hasDailyForToday();
+  const dailyStatus = await getDailyPublicStatus(hasDaily);
 
   return (
     <div
@@ -90,7 +92,10 @@ export default async function HomePage() {
         </div>
 
         <div className="flex w-full max-w-[320px] flex-col gap-2 overflow-visible sm:max-w-[400px] sm:gap-4 2xl:max-w-[480px] 2xl:gap-5 4xl:max-w-[560px]">
-          <DailyPlayButton available={dailyAvailable} />
+          <DailyPlayButton
+            available={dailyStatus.available}
+            unavailableReason={dailyStatus.reason}
+          />
           <HomeUserMenu />
           {/* Logout protrudes left of the profile button (outside the column) */}
           <div className="relative z-20 overflow-visible">

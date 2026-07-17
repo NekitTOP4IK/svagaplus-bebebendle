@@ -33,7 +33,7 @@ export function ProfileSvagaStatus({ initialStatus }: Props): ReactElement {
 
   const confirmedLabel =
     status?.isSubscriber === true
-      ? "Подписка на Olesha активна"
+      ? "Подписка активна"
       : status?.isSubscriber === false
         ? "Активная подписка на Olesha не найдена"
         : "Статус подписки пока не удалось проверить";

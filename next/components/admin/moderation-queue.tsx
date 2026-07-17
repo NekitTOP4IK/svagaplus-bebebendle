@@ -108,9 +108,12 @@ export function ModerationQueue({
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-white/50">#{scran.id}</span>
-                    <h3 className="pixel-text truncate text-base font-bold text-white sm:text-lg">
+                    <a
+                      href={`/admin/scrans?id=${scran.id}`}
+                      className="pixel-text truncate text-base font-bold text-amber-200 underline-offset-2 hover:underline sm:text-lg"
+                    >
                       {scran.name}
-                    </h3>
+                    </a>
                     {isSub && (
                       <span className="bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-black">
                         SVAGA+
@@ -130,7 +133,7 @@ export function ModerationQueue({
                     <span className="mx-2 text-white/30">·</span>
                     <button
                       type="button"
-                      className="text-sky-300 underline-offset-2underline"
+                      className="text-sky-300 underline-offset-2 hover:underline"
                       onClick={() => onAuthor?.(scran.telegramId)}
                     >
                       {authorLabel(scran)}

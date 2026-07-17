@@ -19,6 +19,7 @@ export async function GET() {
       telegramPhotoUrl: user.telegramPhotoUrl,
       displayName: user.displayName,
       role: user.role,
+      isSubscriber: user.isSubscriber,
     },
   });
 }

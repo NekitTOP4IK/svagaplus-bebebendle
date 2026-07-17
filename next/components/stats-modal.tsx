@@ -59,63 +59,60 @@ export function StatsModal({ isOpen, onClose }: StatsModalProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-black/60"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ duration: 0.2 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
             className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-md -translate-x-1/2 -translate-y-1/2"
           >
-            <div className="pixel-container rounded-2xl bg-zinc-900 p-6 sm:p-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="pixel-text text-2xl font-bold text-white">
+            {/* Light Minecraft panel — not pixel-container (that forces dark glass) */}
+            <div
+              className="border-4 border-black p-6 sm:p-8"
+              style={{
+                background: "#c6c6c6",
+                boxShadow:
+                  "inset 3px 3px 0 #efefef, inset -3px -3px 0 #555, 6px 6px 0 #000",
+              }}
+            >
+              <div className="mb-5 flex items-center justify-between">
+                <h2 className="pixel-text-on-light text-2xl font-bold">
                   Статистика
                 </h2>
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="text-zinc-400 hover:text-white transition-colors"
+                  className="pixel-btn px-2 py-1 text-sm font-bold"
+                  aria-label="Закрыть"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
               {loading ? (
-                <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-yellow-400 border-t-transparent" />
+                <div className="py-8 text-center">
+                  <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-black border-t-transparent" />
                 </div>
               ) : stats ? (
-                <div className="space-y-4">
-                  <div className="pixel-container rounded-xl bg-zinc-800/50 p-4">
-                    <p className="text-sm text-zinc-400 mb-1">
-                      Одобренных скранов
-                    </p>
-                    <p className="pixel-text text-xl font-bold text-white">
-                      {stats.approvedScransCount}
-                    </p>
-                  </div>
-
-                  <div className="pixel-container rounded-xl bg-zinc-800/50 p-4">
-                    <p className="text-sm text-zinc-400 mb-1">
-                      Общая стоимость всех скранов
-                    </p>
-                    <p className="pixel-text text-xl font-bold text-yellow-400">
-                      {stats.totalPrice.toFixed(2)} ₽
-                    </p>
-                  </div>
-
-                  <div className="pixel-container rounded-xl bg-zinc-800/50 p-4">
-                    <p className="text-sm text-zinc-400 mb-1">
-                      Чаттеров загрузило:
-                    </p>
-                    <p className="pixel-text text-xl font-bold text-white">
-                      {stats.distinctUploaders}
-                    </p>
-                  </div>
+                <div className="space-y-3">
+                  <StatRow
+                    label="Одобренных скранов"
+                    value={String(stats.approvedScransCount)}
+                  />
+                  <StatRow
+                    label="Общая стоимость всех скранов"
+                    value={`${stats.totalPrice.toFixed(2)} ₽`}
+                    highlight
+                  />
+                  <StatRow
+                    label="Чаттеров загрузило"
+                    value={String(stats.distinctUploaders)}
+                  />
                 </div>
               ) : (
-                <div className="text-center py-8 text-zinc-400">
+                <div className="py-8 text-center text-sm font-bold text-zinc-800">
                   Не удалось загрузить статистику
                 </div>
               )}
@@ -124,5 +121,41 @@ export function StatsModal({ isOpen, onClose }: StatsModalProps) {
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+function StatRow({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className="border-2 border-black px-4 py-3"
+      style={{
+        background: "#ececec",
+        boxShadow: "inset 2px 2px 0 #fff, inset -2px -2px 0 #8b8b8b",
+      }}
+    >
+      <p className="mb-1 text-xs font-bold uppercase tracking-wide text-zinc-600">
+        {label}
+      </p>
+      <p
+        className={`font-[family-name:var(--font-pixel)] text-xl font-bold ${
+          highlight ? "text-amber-800" : "text-zinc-900"
+        }`}
+        style={
+          highlight
+            ? { textShadow: "1px 1px 0 #f5e6a8" }
+            : undefined
+        }
+      >
+        {value}
+      </p>
+    </div>
   );
 }

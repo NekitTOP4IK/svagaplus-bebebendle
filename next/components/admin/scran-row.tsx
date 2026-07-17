@@ -92,7 +92,12 @@ export function ScranRow({
         </td>
         <td className="max-w-[12rem] px-3 py-3 sm:max-w-xs sm:px-4">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-bold text-white">{scran.name}</div>
+            <a
+              href={`/admin/scrans?id=${scran.id}`}
+              className="text-sm font-bold text-amber-200 underline-offset-2 hover:underline"
+            >
+              {scran.name}
+            </a>
             {isSub && (
               <span className="inline-flex bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-black">
                 SVAGA+
@@ -115,7 +120,7 @@ export function ScranRow({
           {scran.telegramId || scran.authorUsername || scran.authorDisplayName ? (
             <button
               type="button"
-              className="text-left text-sky-300 underline-offset-2underline"
+              className="text-left text-sky-300 underline-offset-2 hover:underline"
               onClick={() => onAuthor?.(scran.telegramId)}
             >
               {authorLabel}

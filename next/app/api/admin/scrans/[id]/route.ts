@@ -1,16 +1,107 @@
 import { NextResponse } from "next/server";
-import { eq, or } from "drizzle-orm";
+import { desc, eq, or } from "drizzle-orm";
 import {
   dailyScrandles,
   db,
+  moderationAuditLog,
   scrandleVotes,
   scrans,
   telegramVotes,
+  users,
 } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
 import { writeAuditLog } from "@/lib/moderation-audit";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
+
+/** Full admin view of a single scran */
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await getCurrentUser();
+  if (!user || !["moderator", "admin"].includes(user.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { id } = await params;
+    const scranId = parseInt(id, 10);
+    if (Number.isNaN(scranId)) {
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    }
+
+    const rows = await db
+      .select({
+        scran: scrans,
+        author: {
+          id: users.id,
+          telegramUsername: users.telegramUsername,
+          displayName: users.displayName,
+          telegramPhotoUrl: users.telegramPhotoUrl,
+          role: users.role,
+          isSubscriber: users.isSubscriber,
+        },
+      })
+      .from(scrans)
+      .leftJoin(users, eq(scrans.submittedByUserId, users.id))
+      .where(eq(scrans.id, scranId))
+      .limit(1);
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "Scran not found" }, { status: 404 });
+    }
+
+    const dailyRows = await db
+      .select({
+        date: dailyScrandles.date,
+        roundNumber: dailyScrandles.roundNumber,
+        scranAId: dailyScrandles.scranAId,
+        scranBId: dailyScrandles.scranBId,
+      })
+      .from(dailyScrandles)
+      .where(
+        or(eq(dailyScrandles.scranAId, scranId), eq(dailyScrandles.scranBId, scranId)),
+      )
+      .orderBy(desc(dailyScrandles.date))
+      .limit(50);
+
+    const audit = await db
+      .select({
+        id: moderationAuditLog.id,
+        action: moderationAuditLog.action,
+        details: moderationAuditLog.details,
+        createdAt: moderationAuditLog.createdAt,
+        actorUsername: users.telegramUsername,
+        actorDisplayName: users.displayName,
+      })
+      .from(moderationAuditLog)
+      .leftJoin(users, eq(moderationAuditLog.actorUserId, users.id))
+      .where(eq(moderationAuditLog.scranId, scranId))
+      .orderBy(desc(moderationAuditLog.createdAt))
+      .limit(40);
+
+    const authorRow = rows[0].author;
+    const author =
+      authorRow && authorRow.id != null
+        ? authorRow
+        : null;
+
+    return NextResponse.json({
+      scran: rows[0].scran,
+      author,
+      daily: dailyRows.map((d) => ({
+        date: d.date,
+        roundNumber: d.roundNumber,
+        side: d.scranAId === scranId ? "A" : "B",
+      })),
+      audit,
+    });
+  } catch (error) {
+    console.error("[admin/scrans GET id]", error);
+    return NextResponse.json({ error: "Failed to load scran" }, { status: 500 });
+  }
+}
 
 async function sendDeletionNotification(
   telegramId: string,

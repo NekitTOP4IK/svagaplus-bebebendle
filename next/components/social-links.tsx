@@ -9,33 +9,36 @@ const socialLinks = [
     icon: Send,
     label: "Предложить свой слоп",
     mobileLabel: "слоп",
+    skin: "pixel-btn-tg",
   },
   {
     href: "https://www.twitch.tv/olesha",
     icon: Twitch,
     label: "olesha",
     mobileLabel: "twitch",
+    skin: "pixel-btn-twitch",
   },
   {
     href: "https://github.com/catlilface/bebebendle",
     icon: Github,
     label: "github",
     mobileLabel: "git",
+    skin: "",
   },
-];
+] as const;
 
 export function SocialLinks() {
   return (
-    <div className="flex flex-col gap-2 sm:gap-3 2xl:gap-4 4xl:gap-5 w-full">
+    <div className="flex w-full flex-col gap-2 sm:gap-3 2xl:gap-4 4xl:gap-5">
       {socialLinks.map((link) => (
         <a
           key={link.href}
           href={link.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="pixel-btn inline-flex items-center justify-center gap-1.5 sm:gap-2 2xl:gap-3 4xl:gap-4 px-2 sm:px-4 py-1.5 sm:py-2 2xl:px-6 2xl:py-3 4xl:px-8 4xl:py-4 text-xs sm:text-sm md:text-base 2xl:text-xl 4xl:text-2xl"
+          className={`pixel-btn ${link.skin} inline-flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs sm:gap-2 sm:px-4 sm:py-2 sm:text-sm md:text-base 2xl:gap-3 2xl:px-6 2xl:py-3 2xl:text-xl 4xl:gap-4 4xl:px-8 4xl:py-4 4xl:text-2xl`}
         >
-          <link.icon className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 2xl:w-7 2xl:h-7 4xl:w-9 4xl:h-9" />
+          <link.icon className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 2xl:h-7 2xl:w-7 4xl:h-9 4xl:w-9" />
           <span className="hidden sm:inline">{link.label}</span>
           <span className="sm:hidden">{link.mobileLabel}</span>
         </a>

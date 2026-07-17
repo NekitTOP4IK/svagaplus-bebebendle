@@ -34,13 +34,13 @@ export function buildDailyRotationMessage(
 ): string {
   if (scranNames.length === 1) {
     return (
-      `🍽 Твоё блюдо «${scranNames[0]}» попало в сегодняшнюю ротацию daily (${date})!\n` +
-      `Заходи играть и голосуй ✌️`
+      `🍽 Поздравляю! Твоё блюдо «${scranNames[0]}» попало в сегодняшнюю ротацию дейлика (${date})!\n` +
+      `Заходи играть!`
     );
   }
   const list = scranNames.map((n) => `• ${n}`).join("\n");
   return (
-    `🍽 Твои блюда попали в сегодняшнюю ротацию daily (${date}):\n${list}\n\n` +
-    `Заходи играть и голосуй ✌️`
+    `🍽 Поздравляю! Твои блюда попали в сегодняшнюю ротацию дейлика (${date}):\n${list}\n\n` +
+    `Заходи играть!`
   );
 }

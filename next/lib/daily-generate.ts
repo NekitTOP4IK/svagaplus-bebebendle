@@ -171,6 +171,18 @@ export async function generateDailyForDate(date: string): Promise<
     }
   | { ok: false; error: string; status: number }
 > {
+  const { isDailyGenerationEnabled, getDailyDisabledReason } = await import(
+    "@/lib/app-settings"
+  );
+  if (!(await isDailyGenerationEnabled())) {
+    const reason = await getDailyDisabledReason();
+    return {
+      ok: false,
+      error: `Генерация daily выключена: ${reason}`,
+      status: 403,
+    };
+  }
+
   if (await hasRoundsForDate(date)) {
     return { ok: false, error: "Daily scrandles already exist for this date", status: 409 };
   }

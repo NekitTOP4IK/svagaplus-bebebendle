@@ -19,6 +19,12 @@ type DailyData = {
   calendar: Array<{ date: string; rounds: number }>;
 };
 
+type Settings = {
+  dailyRotationNotify: boolean;
+  dailyGenerationEnabled: boolean;
+  dailyDisabledReason: string;
+};
+
 type Props = Readonly<{
   role: "moderator" | "admin" | null;
 }>;
@@ -28,9 +34,10 @@ export function DailyPanel({ role }: Props): ReactElement {
   const [data, setData] = useState<DailyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [notifyEnabled, setNotifyEnabled] = useState(false);
-  const [notifyLoading, setNotifyLoading] = useState(true);
-  const [notifySaving, setNotifySaving] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [reasonDraft, setReasonDraft] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,17 +56,18 @@ export function DailyPanel({ role }: Props): ReactElement {
   }, [date]);
 
   const loadSettings = useCallback(async () => {
-    setNotifyLoading(true);
+    setSettingsLoading(true);
     try {
       const res = await apiFetch("/api/admin/settings");
       if (res.ok) {
-        const json = (await res.json()) as { dailyRotationNotify?: boolean };
-        setNotifyEnabled(Boolean(json.dailyRotationNotify));
+        const json = (await res.json()) as Settings;
+        setSettings(json);
+        setReasonDraft(json.dailyDisabledReason ?? "");
       }
     } catch {
-      // non-fatal for mods
+      // non-fatal
     } finally {
-      setNotifyLoading(false);
+      setSettingsLoading(false);
     }
   }, []);
 
@@ -103,40 +111,40 @@ export function DailyPanel({ role }: Props): ReactElement {
     }
   };
 
-  const toggleNotify = async () => {
+  const patchSettings = async (patch: Partial<Settings> & { dailyDisabledReason?: string }) => {
     if (role !== "admin") return;
-    const next = !notifyEnabled;
-    setNotifySaving(true);
+    setSettingsSaving(true);
     try {
       const res = await apiFetch("/api/admin/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dailyRotationNotify: next }),
+        body: JSON.stringify(patch),
       });
       if (res.ok) {
-        const json = (await res.json()) as { dailyRotationNotify?: boolean };
-        setNotifyEnabled(Boolean(json.dailyRotationNotify));
-        toast.success(
-          next
-            ? "Уведомления о ротации включены"
-            : "Уведомления о ротации выключены",
-        );
+        const json = (await res.json()) as Settings;
+        setSettings(json);
+        setReasonDraft(json.dailyDisabledReason ?? "");
+        toast.success("Настройки сохранены");
       } else {
-        toast.error("Не удалось сохранить настройку");
+        toast.error("Не удалось сохранить");
       }
     } catch {
       toast.error("Ошибка сети");
     } finally {
-      setNotifySaving(false);
+      setSettingsSaving(false);
     }
   };
+
+  const genEnabled = settings?.dailyGenerationEnabled !== false;
+  const canGenerate =
+    Boolean(data?.canGenerate) && genEnabled && role === "admin";
 
   return (
     <div className="pixel-container space-y-4 border-4 border-black bg-zinc-900/80 p-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="pixel-text text-xl font-bold text-white">Daily</h2>
-          <p className="text-sm text-white/60">Статус, превью раундов, генерация</p>
+          <p className="text-sm text-white/60">Статус, превью, генерация, переключатели</p>
         </div>
         <label className="text-xs text-white/50">
           Дата
@@ -150,31 +158,80 @@ export function DailyPanel({ role }: Props): ReactElement {
       </div>
 
       {role === "admin" && (
-        <div className="flex flex-wrap items-center gap-3 border-2 border-zinc-700 bg-zinc-950 px-3 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-white">TG: блюдо в сегодняшней ротации</p>
-            <p className="text-xs text-white/50">
-              Когда daily генерируется (cron или кнопка), авторам выбранных блюд
-              уходит сообщение в бота.
-            </p>
+        <div className="space-y-3 border-2 border-zinc-700 bg-zinc-950 p-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-white">Генерация daily</p>
+              <p className="text-xs text-white/50">
+                Если выкл — cron и кнопка не создают ротацию; игрокам показывается причина.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={settingsLoading || settingsSaving}
+              onClick={() =>
+                void patchSettings({ dailyGenerationEnabled: !genEnabled })
+              }
+              className={`pixel-btn px-4 py-2 text-sm font-bold ${
+                genEnabled ? "pixel-btn-ok" : "pixel-btn-danger"
+              }`}
+              aria-pressed={genEnabled}
+            >
+              {settingsLoading ? "…" : genEnabled ? "Вкл" : "Выкл"}
+            </button>
           </div>
-          <button
-            type="button"
-            disabled={notifyLoading || notifySaving}
-            onClick={() => void toggleNotify()}
-            className={`pixel-btn px-4 py-2 text-sm font-bold ${
-              notifyEnabled ? "pixel-btn-ok" : ""
-            }`}
-            aria-pressed={notifyEnabled}
-          >
-            {notifyLoading
-              ? "…"
-              : notifySaving
-                ? "Сохраняю…"
-                : notifyEnabled
+
+          {!genEnabled && (
+            <div className="space-y-2">
+              <label className="block text-xs text-white/50">
+                Причина для игроков
+                <textarea
+                  value={reasonDraft}
+                  onChange={(e) => setReasonDraft(e.target.value.slice(0, 500))}
+                  rows={2}
+                  placeholder="Например: техработы, загляни вечером"
+                  className="pixel-textarea mt-1"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={settingsSaving}
+                onClick={() =>
+                  void patchSettings({ dailyDisabledReason: reasonDraft })
+                }
+                className="pixel-btn px-3 py-1.5 text-xs font-bold"
+              >
+                Сохранить причину
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-zinc-800 pt-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-white">TG: блюдо в ротации</p>
+              <p className="text-xs text-white/50">
+                Уведомлять авторов, когда их блюдо попало в daily.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={settingsLoading || settingsSaving}
+              onClick={() =>
+                void patchSettings({
+                  dailyRotationNotify: !settings?.dailyRotationNotify,
+                })
+              }
+              className={`pixel-btn px-4 py-2 text-sm font-bold ${
+                settings?.dailyRotationNotify ? "pixel-btn-ok" : ""
+              }`}
+            >
+              {settingsLoading
+                ? "…"
+                : settings?.dailyRotationNotify
                   ? "Вкл"
                   : "Выкл"}
-          </button>
+            </button>
+          </div>
         </div>
       )}
 
@@ -191,20 +248,25 @@ export function DailyPanel({ role }: Props): ReactElement {
             <Stat label="Кандидаты" value={String(data.candidateCount)} />
             <Stat
               label="Можно сгенерировать"
-              value={data.canGenerate ? "Да" : "Нет"}
-              tone={data.canGenerate ? "ok" : "muted"}
+              value={canGenerate ? "Да" : "Нет"}
+              tone={canGenerate ? "ok" : "muted"}
             />
           </div>
 
           {role === "admin" && (
             <button
               type="button"
-              disabled={busy || !data.canGenerate}
+              disabled={busy || !canGenerate}
               onClick={() => void generate()}
               className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
             >
               {busy ? "Генерация…" : `Сгенерировать на ${date}`}
             </button>
+          )}
+          {role === "admin" && !genEnabled && (
+            <p className="text-xs text-amber-300">
+              Генерация выключена — сначала включи переключатель выше.
+            </p>
           )}
           {role !== "admin" && (
             <p className="text-xs text-white/40">Генерация доступна только админу</p>

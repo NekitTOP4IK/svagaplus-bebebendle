@@ -221,7 +221,7 @@ SVAGA_PRIORITY_HINT = (
 def _format_svaga_bonus_line(snapshot: SubscriberSnapshot) -> str:
     """Short line for profile / post-submit summary."""
     if snapshot.source == "unknown" or snapshot.is_subscriber is None:
-        return "СВАГА+: статус сейчас неизвестен (сервис недоступен или ещё не проверяли)."
+        return "СВАГА+: статус сейчас неизвестен (сервис недоступен или ещё не проверялся)."
     if snapshot.is_subscriber:
         return "🎁 Бонус за СВАГУ: активна — приоритет в очереди модерации."
     return "СВАГА+: подписка не активна — обычный приоритет в очереди."
@@ -231,7 +231,7 @@ def _format_svaga_snapshot(snapshot: SubscriberSnapshot) -> str:
     """Longer status used after submit."""
     if snapshot.source == "unknown" or snapshot.is_subscriber is None:
         return (
-            "Статус СВАГА+ сейчас неизвестен (сервис недоступен или ещё не проверяли).\n"
+            "Статус СВАГА+ сейчас неизвестен (сервис недоступен или ещё не проверялся).\n"
             "Предложение всё равно можно отправить — модераторы увидят «Не проверено»."
         )
     if snapshot.is_subscriber:

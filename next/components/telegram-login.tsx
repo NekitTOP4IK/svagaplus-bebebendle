@@ -23,6 +23,11 @@ declare global {
   }
 }
 
+/**
+ * Official Telegram Login Widget.
+ * Colors/shape of the blue TG button itself are controlled by Telegram
+ * (data-size / data-radius / data-userpic only). We style the shell around it.
+ */
 export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -66,6 +71,8 @@ export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement
       script.setAttribute("data-telegram-login", botUsername);
       script.setAttribute("data-size", "large");
       script.setAttribute("data-radius", "0");
+      script.setAttribute("data-userpic", "true");
+      script.setAttribute("data-lang", "ru");
       script.setAttribute("data-onauth", "onTelegramAuth(user)");
       script.setAttribute("data-request-access", "write");
       container.appendChild(script);
@@ -78,7 +85,7 @@ export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement
 
   if (!botUsername) {
     return (
-      <p className="text-sm font-bold text-red-600">
+      <p className="text-sm font-bold text-red-400">
         Telegram login not configured. Set NEXT_PUBLIC_TELEGRAM_BOT_USERNAME.
       </p>
     );
@@ -86,16 +93,20 @@ export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement
 
   return (
     <div className="text-center">
-      <p className="mb-4 text-sm text-zinc-800">
+      <p className="mb-4 text-sm text-white/80">
         {context === "player"
           ? "Войти через Telegram"
-          : "Войдите через Telegram. Доступ к админке проверяется по роли после входа."}
+          : "Войдите через Telegram. Доступ к админке — по роли."}
       </p>
-      {error && <p className="mb-4 text-sm font-bold text-red-600" role="alert">{error}</p>}
-      {isLoading && <p className="mb-4 text-sm">Вход через Telegram...</p>}
+      {error && (
+        <p className="mb-4 text-sm font-bold text-red-400" role="alert">
+          {error}
+        </p>
+      )}
+      {isLoading && <p className="mb-4 text-sm text-white/70">Вход через Telegram…</p>}
       <div
         id={`telegram-login-${containerId}`}
-        className="flex min-h-[60px] justify-center"
+        className="telegram-login-shell mx-auto flex min-h-[60px] justify-center rounded-none border-2 border-black bg-[#1e2732] px-3 py-3 shadow-[inset_2px_2px_0_#3d4f63,inset_-2px_-2px_0_#0d1218]"
       />
     </div>
   );

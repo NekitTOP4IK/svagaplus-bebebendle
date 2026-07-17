@@ -137,10 +137,10 @@ export default function ProfilePage(): ReactElement {
   if (!user) {
     return (
       <div className="retro-bg relative flex min-h-dvh flex-col items-center justify-center px-4">
-        <div className="retro-overlay absolute inset-0" />
-        <div className="pixel-card relative z-10 w-full max-w-md rounded-none p-8 text-center text-zinc-900">
-          <h1 className="pixel-text-on-light mb-4 text-2xl font-bold">Профиль</h1>
-          <p className="mb-4 text-sm text-zinc-800">
+        <div className="retro-overlay pointer-events-none fixed inset-0" />
+        <div className="pixel-container relative z-10 w-full max-w-md rounded-none border-4 border-black bg-zinc-900/95 p-8 text-center">
+          <h1 className="pixel-text mb-4 text-2xl font-bold">Профиль</h1>
+          <p className="mb-4 text-sm text-white/80">
             Войдите через Telegram, чтобы увидеть профиль и проверить подписку СВАГА+.
           </p>
           <TelegramLogin onAuthenticated={handleLogin} context="player" />
@@ -156,7 +156,7 @@ export default function ProfilePage(): ReactElement {
 
   return (
     <div className="retro-bg relative min-h-dvh px-4 py-8 text-white">
-      <div className="retro-overlay absolute inset-0" />
+      <div className="retro-overlay pointer-events-none fixed inset-0" />
       <div className="relative z-10 mx-auto max-w-4xl">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="pixel-text text-3xl font-bold">Мой профиль</h1>
