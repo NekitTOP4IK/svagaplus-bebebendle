@@ -5,23 +5,35 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-STUBS="$TMP/stubs"
-mkdir -p "$STUBS"
-export PATH="$STUBS:$PATH"
+# Isolate HOME so deploy-release prepends empty ~/.bun/bin, not the real bun.
+export HOME="$TMP/home"
+mkdir -p "$HOME/.bun/bin" "$HOME/bin" "$HOME/.nvm"
+STUBS="$HOME/.bun/bin"
+export PATH="$STUBS:$HOME/bin:/usr/bin:/bin"
 
 cat >"$STUBS/bun" <<'EOF'
 #!/usr/bin/env bash
+exit 0
+EOF
+cat >"$HOME/bin/node" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "-p" ]]; then
+  echo 20
+  exit 0
+fi
 exit 0
 EOF
 cat >"$STUBS/uv" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-cat >"$STUBS/pm2" <<'EOF'
+# uv is looked up on PATH after bun dir — put in HOME/bin too
+cp "$STUBS/uv" "$HOME/bin/uv"
+cat >"$HOME/bin/pm2" <<'EOF'
 #!/usr/bin/env bash
 exit 0
 EOF
-cat >"$STUBS/pg_dump" <<'EOF'
+cat >"$HOME/bin/pg_dump" <<'EOF'
 #!/usr/bin/env bash
 out=""
 while [[ $# -gt 0 ]]; do
@@ -34,22 +46,14 @@ done
 [[ -n "$out" ]] && : >"$out"
 exit 0
 EOF
-cat >"$STUBS/curl" <<'EOF'
+cat >"$HOME/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 if [[ -f "${BEBEBENDLE_TEST_HEALTH_OK:-/tmp/bebe-health-ok}" ]]; then
   exit 0
 fi
 exit 1
 EOF
-cat >"$STUBS/tar" <<'EOF'
-#!/usr/bin/env bash
-exec /usr/bin/tar "$@"
-EOF
-cat >"$STUBS/bunx" <<'EOF'
-#!/usr/bin/env bash
-exit 0
-EOF
-chmod +x "$STUBS"/*
+chmod +x "$STUBS"/* "$HOME/bin"/*
 
 DEPLOY_ROOT="$TMP/deploy"
 mkdir -p "$DEPLOY_ROOT"/{incoming,releases,shared/uploads,shared/logs,backups}
@@ -75,7 +79,10 @@ PY
 )"
 WORK="$TMP/src"
 mkdir -p "$WORK"/{next,bot/src,scripts,ops}
-echo '{"name":"x"}' >"$WORK/next/package.json"
+printf '%s\n' '{"name":"x","scripts":{"db:migrate":"true"}}' >"$WORK/next/package.json"
+mkdir -p "$WORK/next/node_modules/.bin"
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' >"$WORK/next/node_modules/.bin/drizzle-kit"
+chmod +x "$WORK/next/node_modules/.bin/drizzle-kit"
 echo 'lock' >"$WORK/next/bun.lock"
 echo '[project]
 name="b"
