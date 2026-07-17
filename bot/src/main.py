@@ -34,6 +34,7 @@ from dotenv import load_dotenv
 
 from database import Database, PendingSuggestionLimitError
 from health import start_health_server
+from logging_setup import setup_logging
 
 # Load .env from project root if available (for non-Docker runs)
 root_env = Path(__file__).resolve().parents[2] / ".env"
@@ -42,11 +43,7 @@ if root_env.exists():
 else:
     load_dotenv()
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # Bot configuration
@@ -184,10 +181,17 @@ async def get_svaga_subscriber_status(telegram_id: str) -> SubscriberSnapshot:
             )
             return SubscriberSnapshot(raw_sub, checked_at, source)
     except TimeoutError:
-        logger.error(f"Timeout fetching SVAGA subscriber status for {telegram_id}")
+        logger.error(
+            "Timeout fetching SVAGA subscriber status for telegram_id=%s",
+            telegram_id,
+        )
         return _unknown_snapshot()
     except Exception as e:
-        logger.error(f"Error fetching SVAGA subscriber status for {telegram_id}: {e}")
+        logger.error(
+            "Error fetching SVAGA subscriber status for telegram_id=%s: %s",
+            telegram_id,
+            str(e),
+        )
         return _unknown_snapshot()
 
 
@@ -285,18 +289,15 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
             return
 
         telegram_id = str(message.from_user.id)
-        logger.info(f"{telegram_id=}")
-
         if user_id:
             telegram_id = user_id
+        logger.info("vote: start for telegram_id=%s", telegram_id)
 
         async with database_session() as database:
             # Get 1 least-voted scran that user hasn't voted for yet
             available_scrans = await database.get_least_voted_scrans(
                 limit=1, telegram_id=telegram_id
             )
-
-            logger.info(f"{available_scrans=}")
 
             if not available_scrans:
                 await message.answer(
@@ -306,18 +307,17 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
                 return
 
             scran = available_scrans[0]
+            scran_id = int(scran["id"])
+            scran_name = str(scran["name"])
 
             # Build caption with name, description and price
-            caption = f"<b>{escape(str(scran['name']))}</b>"
+            caption = f"<b>{escape(scran_name)}</b>"
             if scran.get("description"):
                 caption += f"\n\n{escape(str(scran['description']))}"
             caption += f"\n\n💰 {scran['price']:.2f} ₽"
-            logger.info(f"{caption=}")
 
             # Handle local files vs external URLs
-            media = get_media_input(scran["image_url"])
-
-            logger.info(f"{media=}")
+            media = get_media_input(str(scran["image_url"]))
 
             # Create inline keyboard with like/dislike buttons
             keyboard = InlineKeyboardMarkup(
@@ -325,11 +325,11 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
                     [
                         InlineKeyboardButton(
                             text="🤩 Слопал бы",
-                            callback_data=f"vote:{scran['id']}:like",
+                            callback_data=f"vote:{scran_id}:like",
                         ),
                         InlineKeyboardButton(
                             text="💩 Слоп",
-                            callback_data=f"vote:{scran['id']}:dislike",
+                            callback_data=f"vote:{scran_id}:dislike",
                         ),
                     ]
                 ]
@@ -342,10 +342,15 @@ async def cmd_vote(message: Message, user_id: str | None = None) -> None:
                 reply_markup=keyboard,
                 parse_mode="HTML",
             )
-            logger.error("Готово")
+            logger.info(
+                "vote: sent scran_id=%s name=%s to telegram_id=%s",
+                scran_id,
+                scran_name,
+                telegram_id,
+            )
 
     except Exception as e:
-        logger.error(f"Error in vote command: {e}")
+        logger.error("Error in vote command: %s", str(e))
         await message.answer("😜 Хаха попался ламер xd. Нажми еще раз /vote или офай")
 
 
@@ -404,7 +409,7 @@ async def process_vote(callback: CallbackQuery) -> None:
         await cmd_vote(callback.message, telegram_id)
 
     except Exception as e:
-        logger.error(f"Error processing vote: {e}")
+        logger.error("Error processing vote: %s", str(e))
         await callback.answer("❌ Ошибка при сохранении голоса")
 
 
@@ -470,7 +475,7 @@ async def process_photo(message: Message, state: FSMContext) -> None:
         )
         await state.set_state(SuggestStates.name)
     except Exception as e:
-        logger.error(f"Error getting photo: {e}")
+        logger.error("Error getting photo: %s", str(e))
         await message.answer("Ошибка при получении фото. Попробуй другое фото.")
 
 
@@ -626,8 +631,12 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
                 reply_markup=ReplyKeyboardRemove(),
             )
             logger.info(
-                f"New scran suggested by user {data['telegram_id']}: {data['name']} "
-                f"(subscriber={snapshot.is_subscriber}, source={snapshot.source})"
+                "New scran suggested by user telegram_id=%s name=%s "
+                "subscriber=%s source=%s",
+                str(data["telegram_id"]),
+                str(data["name"]),
+                str(snapshot.is_subscriber),
+                str(snapshot.source),
             )
 
         except PendingSuggestionLimitError:
@@ -639,7 +648,7 @@ async def process_confirmation(message: Message, state: FSMContext) -> None:
             await state.clear()
             return
         except Exception as e:
-            logger.error(f"Error saving scran: {e}")
+            logger.error("Error saving scran: %s", str(e))
             await message.answer(
                 "❌ Произошла ошибка при сохранении. Попробуй позже.",
                 reply_markup=ReplyKeyboardRemove(),
@@ -727,7 +736,7 @@ async def cmd_profile(message: Message) -> None:
         await message.answer("\n".join(lines))
 
     except Exception as e:
-        logger.error(f"Error fetching profile: {e}")
+        logger.error("Error fetching profile: %s", str(e))
         await message.answer("Произошла ошибка при получении профиля. Попробуй позже.")
 
 
@@ -755,10 +764,10 @@ async def main() -> None:
     health_host = os.getenv("BOT_HEALTH_HOST", "127.0.0.1")
     health_port = int(os.getenv("BOT_HEALTH_PORT", "3011"))
     health_server = await start_health_server(health_host, health_port)
-    logger.info("Bot health listening on %s:%s", health_host, health_port)
+    logger.info("Bot health listening on %s:%s", str(health_host), str(health_port))
 
     try:
-        logger.info("Starting bot...")
+        logger.info("Starting bot")
         await dp.start_polling(bot)
     finally:
         health_server.close()

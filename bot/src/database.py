@@ -52,7 +52,7 @@ class Database:
                 min_size=1,
                 max_size=pool_max,
             )
-            logger.debug("Connected to PostgreSQL database via DATABASE_URL")
+            logger.info("Connected to PostgreSQL via DATABASE_URL")
             return
 
         host = os.getenv("POSTGRES_HOST", "localhost")
@@ -70,7 +70,12 @@ class Database:
             min_size=1,
             max_size=pool_max,
         )
-        logger.debug(f"Connected to PostgreSQL database: {database}@{host}:{port}")
+        logger.info(
+            "Connected to PostgreSQL database=%s host=%s port=%s",
+            str(database),
+            str(host),
+            str(port),
+        )
 
     async def close(self) -> None:
         """Close database connection pool."""
@@ -175,8 +180,10 @@ class Database:
         if scran_id is None:
             raise RuntimeError("Failed to get ID after insert")
         logger.info(
-            f"Inserted scran with ID {scran_id}: {name} "
-            f"(is_subscriber_at_submit={is_subscriber})"
+            "Inserted scran id=%s name=%s is_subscriber_at_submit=%s",
+            str(scran_id),
+            str(name),
+            str(is_subscriber),
         )
         return int(scran_id)
 
@@ -270,7 +277,7 @@ class Database:
                 scran_id,
             )
 
-        logger.info(f"Approved scran {scran_id}")
+        logger.info("Approved scran id=%s", str(scran_id))
         return True
 
     async def get_least_voted_scrans(
@@ -410,7 +417,11 @@ class Database:
                 scran_id,
             )
 
-        logger.info(f"{'Like' if is_like else 'Dislike'} added to scran {scran_id}")
+        logger.info(
+            "%s added to scran id=%s",
+            "Like" if is_like else "Dislike",
+            str(scran_id),
+        )
         return True
 
     async def get_voted_scran_ids(self, telegram_id: str) -> list[int]:
@@ -459,4 +470,9 @@ class Database:
                 is_like,
             )
 
-        logger.info(f"Telegram vote recorded: user {telegram_id}, scran {scran_id}, like={is_like}")
+        logger.info(
+            "Telegram vote recorded telegram_id=%s scran_id=%s like=%s",
+            str(telegram_id),
+            str(scran_id),
+            str(is_like),
+        )

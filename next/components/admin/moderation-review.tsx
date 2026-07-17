@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import type { Scran } from "@/types/scran";
 import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
 
@@ -106,15 +106,26 @@ export function ModerationReview({
   const [index, setIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [acting, setActing] = useState(false);
+  /** Skipped for this review session only — do not show again until exit. */
+  const [skippedIds, setSkippedIds] = useState<Set<number>>(() => new Set());
 
-  const current = scrans[index] ?? null;
-  const remaining = Math.max(scrans.length - index, 0);
+  const queue = useMemo(
+    () => scrans.filter((s) => !skippedIds.has(s.id)),
+    [scrans, skippedIds],
+  );
+
+  const current = queue[index] ?? null;
+  const remaining = Math.max(queue.length - index, 0);
 
   useEffect(() => {
-    if (index >= scrans.length && scrans.length > 0) {
+    if (queue.length === 0) {
+      setIndex(0);
+      return;
+    }
+    if (index >= queue.length) {
       setIndex(0);
     }
-  }, [scrans, index]);
+  }, [queue.length, index]);
 
   useEffect(() => {
     if (!current && hasMorePages) {
@@ -127,6 +138,7 @@ export function ModerationReview({
     setActing(true);
     try {
       await onApprove(current.id);
+      // Parent refetch drops the item; stay on this index for next in queue
       setIndex(0);
     } finally {
       setActing(false);
@@ -145,21 +157,28 @@ export function ModerationReview({
   }, [current, acting, busy, onReject]);
 
   const handleSkip = useCallback(() => {
-    if (acting || busy) return;
-    setIndex((i) => i + 1);
-  }, [acting, busy]);
+    if (!current || acting || busy) return;
+    const id = current.id;
+    // Remove from this session; next item lands at the same index
+    setSkippedIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, [current, acting, busy]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
-      if (e.key === "ArrowRight" || e.key === "a" || e.key === "A") {
-        e.preventDefault();
-        void handleApprove();
-      } else if (e.key === "ArrowLeft" || e.key === "d" || e.key === "D") {
+      // A = left = reject, D = right = approve (WASD spatial mapping)
+      if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") {
         e.preventDefault();
         void handleReject();
+      } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") {
+        e.preventDefault();
+        void handleApprove();
       } else if (e.key === "s" || e.key === "S" || e.key === " ") {
         e.preventDefault();
         handleSkip();
@@ -178,7 +197,9 @@ export function ModerationReview({
         <p className="mt-3 text-sm font-bold text-white/70">
           {hasMorePages
             ? "Загрузи следующую страницу или выйди в список."
-            : "Очередь пуста. Можно выдохнуть."}
+            : skippedIds.size > 0
+              ? "Остались только пропущенные в этой сессии. Выйди и зайди снова, если нужно."
+              : "Очередь пуста. Можно выдохнуть."}
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           {hasMorePages && (
@@ -226,7 +247,10 @@ export function ModerationReview({
         >
           <span className="text-white/55">Осталось:</span>{" "}
           <span className="text-amber-300">{remaining}</span>
-          <span className="text-white/40"> / {scrans.length}</span>
+          <span className="text-white/40"> / {queue.length}</span>
+          {skippedIds.size > 0 && (
+            <span className="ml-2 text-white/40">· skip {skippedIds.size}</span>
+          )}
         </div>
       </div>
 
@@ -323,7 +347,7 @@ export function ModerationReview({
             >
               Отклонить
               <span className="mt-0.5 block text-[10px] font-bold opacity-80">
-                ← / D
+                ← / A
               </span>
             </button>
             <button
@@ -334,7 +358,7 @@ export function ModerationReview({
             >
               Одобрить
               <span className="mt-0.5 block text-[10px] font-bold opacity-80">
-                → / A
+                → / D
               </span>
             </button>
           </div>
@@ -349,7 +373,7 @@ export function ModerationReview({
           </button>
 
           <p className="text-center text-[10px] font-bold leading-relaxed text-white/35">
-            Esc — к списку · стрелки / A D — решение
+            Esc — к списку · ← A отклонить · → D одобрить
           </p>
         </div>
       </article>
