@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
+import type { RejectReasonCode } from "@/lib/reject-reasons";
 
 interface UseScranMutationsParams {
   onUnauthorized: () => void;
@@ -11,10 +12,21 @@ interface UseScranMutationsParams {
 
 interface UseScranMutationsReturn {
   approveScran: (id: number) => Promise<void>;
-  rejectScran: (id: number) => Promise<void>;
+  rejectScran: (id: number, reason?: RejectReasonCode, note?: string) => Promise<void>;
   banScran: (id: number) => Promise<void>;
   deleteScran: (id: number, comment: string) => Promise<boolean>;
   recheckSubscriber: (scranId?: number) => Promise<void>;
+  bulkAction: (
+    action: "approve" | "reject",
+    ids: number[],
+    reason?: RejectReasonCode,
+    note?: string,
+  ) => Promise<void>;
+  editScran: (
+    id: number,
+    patch: { name: string; description: string; price: number },
+  ) => Promise<boolean>;
+  restoreScran: (id: number) => Promise<void>;
 }
 
 export function useScranMutations({
@@ -52,14 +64,16 @@ export function useScranMutations({
   );
 
   const rejectScran = useCallback(
-    async (id: number) => {
+    async (id: number, reason: RejectReasonCode = "other", note = "") => {
       try {
         const response = await apiFetch(`/api/admin/scrans/${id}/reject`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason, note }),
         });
 
         if (response.ok) {
-          toast.success("Блюдо отклонено", { description: `ID: ${id}` });
+          toast.success("Блюдо отклонено", { description: `ID: ${id} · ${reason}` });
           onSuccess();
         } else if (response.status === 401) {
           onUnauthorized();
@@ -186,11 +200,99 @@ export function useScranMutations({
     [onSuccess, onUnauthorized],
   );
 
+  const bulkAction = useCallback(
+    async (
+      action: "approve" | "reject",
+      ids: number[],
+      reason?: RejectReasonCode,
+      note?: string,
+    ) => {
+      if (ids.length === 0) return;
+      try {
+        const response = await apiFetch("/api/admin/scrans/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action, ids, reason, note }),
+        });
+        if (response.ok) {
+          const data = (await response.json()) as { ok?: number };
+          toast.success(
+            action === "approve"
+              ? `Одобрено: ${data.ok ?? ids.length}`
+              : `Отклонено: ${data.ok ?? ids.length}`,
+          );
+          onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
+        } else {
+          toast.error("Массовое действие не удалось");
+        }
+      } catch (error) {
+        console.error("bulk error", error);
+        toast.error("Ошибка bulk");
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
+  const editScran = useCallback(
+    async (
+      id: number,
+      patch: { name: string; description: string; price: number },
+    ): Promise<boolean> => {
+      try {
+        const response = await apiFetch(`/api/admin/scrans/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        });
+        if (response.ok) {
+          toast.success("Сохранено");
+          onSuccess();
+          return true;
+        }
+        if (response.status === 401) onUnauthorized();
+        else toast.error("Не удалось сохранить");
+        return false;
+      } catch {
+        toast.error("Ошибка сохранения");
+        return false;
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
+  const restoreScran = useCallback(
+    async (id: number) => {
+      try {
+        const response = await apiFetch(`/api/admin/scrans/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ restore: true }),
+        });
+        if (response.ok) {
+          toast.success("Возвращено в очередь");
+          onSuccess();
+        } else if (response.status === 401) {
+          onUnauthorized();
+        } else {
+          toast.error("Не удалось восстановить");
+        }
+      } catch {
+        toast.error("Ошибка restore");
+      }
+    },
+    [onSuccess, onUnauthorized],
+  );
+
   return {
     approveScran,
     rejectScran,
     banScran,
     deleteScran,
     recheckSubscriber,
+    bulkAction,
+    editScran,
+    restoreScran,
   };
 }

@@ -4,13 +4,23 @@ import { useState, useCallback } from "react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useAdminSorting } from "@/hooks/use-admin-sorting";
 import { useAdminPagination } from "@/hooks/use-admin-pagination";
-import { useScransData } from "@/hooks/use-scrans-data";
+import { useScransData, type ScranStatusFilter } from "@/hooks/use-scrans-data";
 import { useScranMutations } from "@/hooks/use-scran-mutations";
 import type { Scran } from "@/types/scran";
+import type { RejectReasonCode } from "@/lib/reject-reasons";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
-type ViewMode = "list" | "queue" | "users";
+export type ViewMode =
+  | "list"
+  | "queue"
+  | "users"
+  | "rejected"
+  | "daily"
+  | "stats"
+  | "audit"
+  | "duplicates"
+  | "health";
 
 interface UseAdminReturn {
   isAuthenticated: boolean;
@@ -25,55 +35,96 @@ interface UseAdminReturn {
   subscriberOnly: boolean;
   subscriberCount?: number;
   regularCount?: number;
+  searchQuery: string;
+  statusFilter: ScranStatusFilter;
+  authorTelegramId: string;
   login: (data: Record<string, string>) => Promise<boolean>;
   logout: () => void;
   approveScran: (id: number) => Promise<void>;
-  rejectScran: (id: number) => Promise<void>;
+  rejectScran: (id: number, reason?: RejectReasonCode, note?: string) => Promise<void>;
   banScran: (id: number) => Promise<void>;
   deleteScran: (id: number, comment: string) => Promise<boolean>;
   recheckSubscriber: (scranId?: number) => Promise<void>;
+  bulkAction: (
+    action: "approve" | "reject",
+    ids: number[],
+    reason?: RejectReasonCode,
+    note?: string,
+  ) => Promise<void>;
+  editScran: (
+    id: number,
+    patch: { name: string; description: string; price: number },
+  ) => Promise<boolean>;
+  restoreScran: (id: number) => Promise<void>;
   handleSort: (field: SortField) => void;
   setCurrentPage: (page: number) => void;
   setView: (mode: ViewMode) => void;
   setSubscriberOnly: (only: boolean) => void;
   toggleSubscriberOnly: () => void;
+  setSearchQuery: (q: string) => void;
+  setStatusFilter: (s: ScranStatusFilter) => void;
+  setAuthorTelegramId: (id: string) => void;
   refresh: () => void;
 }
 
 export function useAdmin(): UseAdminReturn {
-  // Compose smaller hooks
   const { isAuthenticated, role, login, logout } = useAdminAuth();
   const { sortField, sortOrder, handleSort } = useAdminSorting();
-  const {
-    currentPage,
-    totalPages,
-    setCurrentPage,
-    setTotalItems,
-  } = useAdminPagination();
+  const { currentPage, totalPages, setCurrentPage, setTotalItems } = useAdminPagination();
 
-  // Queue view state (Task 5 hybrid moderation queue)
   const [view, setViewState] = useState<ViewMode>("queue");
-  const [subscriberOnly, setSubscriberOnlyState] = useState<boolean>(false);
+  const [subscriberOnly, setSubscriberOnlyState] = useState(false);
+  const [searchQuery, setSearchQueryState] = useState("");
+  const [statusFilter, setStatusFilterState] = useState<ScranStatusFilter>("all");
+  const [authorTelegramId, setAuthorTelegramIdState] = useState("");
 
-  const setView = useCallback((mode: ViewMode) => {
-    setViewState(mode);
-    setCurrentPage(1); // reset pagination on view switch
-  }, [setCurrentPage]);
+  const setView = useCallback(
+    (mode: ViewMode) => {
+      setViewState(mode);
+      setCurrentPage(1);
+    },
+    [setCurrentPage],
+  );
 
-  const setSubscriberOnly = useCallback((only: boolean) => {
-    setSubscriberOnlyState(only);
-    setCurrentPage(1);
-  }, [setCurrentPage]);
+  const setSubscriberOnly = useCallback(
+    (only: boolean) => {
+      setSubscriberOnlyState(only);
+      setCurrentPage(1);
+    },
+    [setCurrentPage],
+  );
 
   const toggleSubscriberOnly = useCallback(() => {
     setSubscriberOnlyState((prev) => {
-      const next = !prev;
       setCurrentPage(1);
-      return next;
+      return !prev;
     });
   }, [setCurrentPage]);
 
-  // Data fetching with dependencies (no longer needs password; uses cookie)
+  const setSearchQuery = useCallback(
+    (q: string) => {
+      setSearchQueryState(q);
+      setCurrentPage(1);
+    },
+    [setCurrentPage],
+  );
+
+  const setStatusFilter = useCallback(
+    (s: ScranStatusFilter) => {
+      setStatusFilterState(s);
+      setCurrentPage(1);
+    },
+    [setCurrentPage],
+  );
+
+  const setAuthorTelegramId = useCallback(
+    (id: string) => {
+      setAuthorTelegramIdState(id);
+      setCurrentPage(1);
+    },
+    [setCurrentPage],
+  );
+
   const { scrans, loading, refetch, subscriberCount, regularCount } = useScransData({
     isAuthenticated,
     currentPage,
@@ -81,16 +132,26 @@ export function useAdmin(): UseAdminReturn {
     sortOrder,
     view,
     subscriberOnly,
+    searchQuery,
+    statusFilter,
+    authorTelegramId,
     onUnauthorized: logout,
     onTotalItems: setTotalItems,
   });
 
-  // Mutations (no longer needs password; uses cookie for server auth)
-  const { approveScran, rejectScran, banScran, deleteScran, recheckSubscriber } =
-    useScranMutations({
-      onUnauthorized: logout,
-      onSuccess: refetch,
-    });
+  const {
+    approveScran,
+    rejectScran,
+    banScran,
+    deleteScran,
+    recheckSubscriber,
+    bulkAction,
+    editScran,
+    restoreScran,
+  } = useScranMutations({
+    onUnauthorized: logout,
+    onSuccess: refetch,
+  });
 
   return {
     isAuthenticated,
@@ -105,6 +166,9 @@ export function useAdmin(): UseAdminReturn {
     subscriberOnly,
     subscriberCount,
     regularCount,
+    searchQuery,
+    statusFilter,
+    authorTelegramId,
     login,
     logout,
     approveScran,
@@ -112,11 +176,17 @@ export function useAdmin(): UseAdminReturn {
     banScran,
     deleteScran,
     recheckSubscriber,
+    bulkAction,
+    editScran,
+    restoreScran,
     handleSort,
     setCurrentPage,
     setView,
     setSubscriberOnly,
     toggleSubscriberOnly,
+    setSearchQuery,
+    setStatusFilter,
+    setAuthorTelegramId,
     refresh: refetch,
   };
 }

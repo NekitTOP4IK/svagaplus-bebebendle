@@ -7,11 +7,14 @@ import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
 type Props = Readonly<{
   scrans: Scran[];
   role?: "moderator" | "admin" | null;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (scran: Scran) => void;
   onRecheck?: (id: number) => void;
+  onAuthor?: (telegramId: string | null | undefined) => void;
   onStartReview: () => void;
 }>;
 
@@ -26,11 +29,14 @@ function authorLabel(scran: Scran): string {
 export function ModerationQueue({
   scrans,
   role,
+  selectedIds,
+  onToggleSelect,
   onApprove,
   onReject,
   onBan,
   onDelete,
   onRecheck,
+  onAuthor,
   onStartReview,
 }: Props): ReactElement {
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
@@ -122,7 +128,13 @@ export function ModerationQueue({
                   <p className="text-sm text-white/80">
                     {scran.price.toFixed(2)} ₽
                     <span className="mx-2 text-white/30">·</span>
-                    <span className="text-white/70">{authorLabel(scran)}</span>
+                    <button
+                      type="button"
+                      className="text-sky-300 underline-offset-2 hover:underline"
+                      onClick={() => onAuthor?.(scran.telegramId)}
+                    >
+                      {authorLabel(scran)}
+                    </button>
                     {pendingCount != null && (
                       <span
                         className={`ml-1 text-xs ${overLimit ? "font-bold text-red-400" : "text-amber-400"}`}
@@ -135,19 +147,29 @@ export function ModerationQueue({
                 </div>
 
                 <div className="mt-auto flex flex-wrap gap-2">
-                  {!scran.approved && (
+                  {onToggleSelect && (
+                    <label className="flex min-h-11 items-center gap-2 px-1 text-xs text-white/60">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds?.has(scran.id) ?? false}
+                        onChange={() => onToggleSelect(scran.id)}
+                      />
+                      bulk
+                    </label>
+                  )}
+                  {!scran.approved && !scran.rejected && (
                     <>
                       <button
                         type="button"
                         onClick={() => onApprove(scran.id)}
-                        className="pixel-btn min-h-11 flex-1 bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-500 sm:flex-none"
+                        className="pixel-btn min-h-11 flex-1 bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-500 sm:flex-none active:scale-[0.97]"
                       >
                         Одобрить
                       </button>
                       <button
                         type="button"
                         onClick={() => onReject(scran.id)}
-                        className="pixel-btn min-h-11 flex-1 bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500 sm:flex-none"
+                        className="pixel-btn min-h-11 flex-1 bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-500 sm:flex-none active:scale-[0.97]"
                       >
                         Отклонить
                       </button>

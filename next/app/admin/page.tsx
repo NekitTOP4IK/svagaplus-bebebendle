@@ -18,17 +18,27 @@ export default function AdminPage() {
     subscriberOnly,
     subscriberCount,
     regularCount,
+    searchQuery,
+    statusFilter,
+    authorTelegramId,
     login,
+    logout,
     approveScran,
     rejectScran,
     banScran,
     deleteScran,
     recheckSubscriber,
+    bulkAction,
+    editScran,
+    restoreScran,
     handleSort,
     setCurrentPage,
     setView,
     setSubscriberOnly,
     toggleSubscriberOnly,
+    setSearchQuery,
+    setStatusFilter,
+    setAuthorTelegramId,
   } = useAdmin();
 
   if (!isAuthenticated) {
@@ -48,6 +58,9 @@ export default function AdminPage() {
       subscriberOnly={subscriberOnly}
       subscriberCount={subscriberCount}
       regularCount={regularCount}
+      searchQuery={searchQuery}
+      statusFilter={statusFilter}
+      authorTelegramId={authorTelegramId}
       onSort={handleSort}
       onPageChange={setCurrentPage}
       onApprove={approveScran}
@@ -55,9 +68,16 @@ export default function AdminPage() {
       onBan={banScran}
       onDelete={deleteScran}
       onRecheckSubscriber={recheckSubscriber}
+      onBulk={bulkAction}
+      onEdit={editScran}
+      onRestore={restoreScran}
       onSetView={setView}
       onSetSubscriberOnly={setSubscriberOnly}
       onToggleSubscriberOnly={toggleSubscriberOnly}
+      onSearchChange={setSearchQuery}
+      onStatusFilterChange={setStatusFilter}
+      onAuthorFilterChange={setAuthorTelegramId}
+      onLogout={logout}
     />
   );
 }

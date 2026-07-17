@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, scrans } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
+import { writeAuditLog } from "@/lib/moderation-audit";
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
@@ -55,6 +56,14 @@ export async function POST(
     if (result[0].telegramId) {
       await sendApprovalNotification(result[0].telegramId, result[0].name);
     }
+
+    await writeAuditLog({
+      actorUserId: user.id,
+      action: "scran.approve",
+      scranId,
+      targetTelegramId: result[0].telegramId,
+      details: result[0].name,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

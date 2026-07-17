@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, scrans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth-server";
+import { writeAuditLog } from "@/lib/moderation-audit";
 
 export async function POST(
   _request: Request,
@@ -27,10 +28,23 @@ export async function POST(
       );
     }
 
-    await db
+    const updated = await db
       .update(scrans)
       .set({ approved: false })
-      .where(eq(scrans.id, scranId));
+      .where(eq(scrans.id, scranId))
+      .returning({ telegramId: scrans.telegramId, name: scrans.name });
+
+    if (updated.length === 0) {
+      return NextResponse.json({ error: "Scran not found" }, { status: 404 });
+    }
+
+    await writeAuditLog({
+      actorUserId: user.id,
+      action: "scran.unpublish",
+      scranId,
+      targetTelegramId: updated[0].telegramId,
+      details: updated[0].name,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

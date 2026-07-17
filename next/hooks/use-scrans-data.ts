@@ -6,14 +6,18 @@ import { apiFetch } from "@/lib/api-client";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
+export type ScranStatusFilter = "all" | "pending" | "approved" | "rejected";
 
 interface UseScransDataParams {
   isAuthenticated: boolean;
   currentPage: number;
   sortField: SortField;
   sortOrder: SortOrder;
-  view?: "list" | "queue" | "users";
+  view?: "list" | "queue" | "users" | "rejected" | "daily" | "stats" | "audit" | "duplicates" | "health";
   subscriberOnly?: boolean;
+  searchQuery?: string;
+  statusFilter?: ScranStatusFilter;
+  authorTelegramId?: string;
   onUnauthorized: () => void;
   onTotalItems: (total: number) => void;
 }
@@ -26,6 +30,8 @@ interface UseScransDataReturn {
   regularCount?: number;
 }
 
+const DATA_VIEWS = new Set(["list", "queue", "rejected"]);
+
 export function useScransData({
   isAuthenticated,
   currentPage,
@@ -33,6 +39,9 @@ export function useScransData({
   sortOrder,
   view,
   subscriberOnly,
+  searchQuery,
+  statusFilter,
+  authorTelegramId,
   onUnauthorized,
   onTotalItems,
 }: UseScransDataParams): UseScransDataReturn {
@@ -43,19 +52,29 @@ export function useScransData({
   const [regularCount, setRegularCount] = useState<number | undefined>(undefined);
 
   const fetchScrans = useCallback(async () => {
-    if (!isAuthenticated || view === "users") {
+    if (!isAuthenticated || !view || !DATA_VIEWS.has(view)) {
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      const viewParam = view ? `&view=${view}` : "";
-      const subParam = subscriberOnly ? `&subscriber_only=true` : "";
-      const response = await apiFetch(
-        `/api/admin/scrans?page=${currentPage}&limit=10&sort=${sortField}&order=${sortOrder}${viewParam}${subParam}`
-        // Cookie sent automatically; server validates via getCurrentUser + role
-      );
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: "10",
+        sort: sortField,
+        order: sortOrder,
+        view: view === "rejected" ? "rejected" : view,
+      });
+      if (subscriberOnly) params.set("subscriber_only", "true");
+      if (searchQuery?.trim()) params.set("q", searchQuery.trim());
+      if (statusFilter && statusFilter !== "all" && view === "list") {
+        params.set("status", statusFilter);
+      }
+      if (view === "rejected") params.set("status", "rejected");
+      if (authorTelegramId?.trim()) params.set("telegram_id", authorTelegramId.trim());
+
+      const response = await apiFetch(`/api/admin/scrans?${params.toString()}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -71,7 +90,19 @@ export function useScransData({
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, currentPage, sortField, sortOrder, view, subscriberOnly, onUnauthorized, onTotalItems]);
+  }, [
+    isAuthenticated,
+    currentPage,
+    sortField,
+    sortOrder,
+    view,
+    subscriberOnly,
+    searchQuery,
+    statusFilter,
+    authorTelegramId,
+    onUnauthorized,
+    onTotalItems,
+  ]);
 
   useEffect(() => {
     if (isAuthenticated) {

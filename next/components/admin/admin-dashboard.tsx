@@ -1,18 +1,30 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import type { Scran } from "@/types/scran";
+import type { ViewMode } from "@/hooks/use-admin";
+import type { ScranStatusFilter } from "@/hooks/use-scrans-data";
+import type { RejectReasonCode } from "@/lib/reject-reasons";
 import { ScranTable } from "@/components/admin/scran-table";
 import { ModerationQueue } from "@/components/admin/moderation-queue";
 import { ModerationReview } from "@/components/admin/moderation-review";
 import { Pagination } from "@/components/admin/pagination";
 import { DeleteScranModal } from "@/components/admin/delete-scran-modal";
+import { RejectScranModal } from "@/components/admin/reject-scran-modal";
+import { AuthorCardModal } from "@/components/admin/author-card-modal";
+import { EditScranModal } from "@/components/admin/edit-scran-modal";
+import { DailyPanel } from "@/components/admin/daily-panel";
+import {
+  StatsPanel,
+  AuditPanel,
+  DuplicatesPanel,
+  HealthPanel,
+} from "@/components/admin/ops-panels";
 import { getUsers, updateUserRole, type AdminUser } from "@/app/admin/actions";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
-type ViewMode = "list" | "queue" | "users";
 type QueueMode = "cards" | "review";
 
 interface AdminDashboardProps {
@@ -27,16 +39,34 @@ interface AdminDashboardProps {
   subscriberOnly?: boolean;
   subscriberCount?: number;
   regularCount?: number;
+  searchQuery?: string;
+  statusFilter?: ScranStatusFilter;
+  authorTelegramId?: string;
   onSort: (field: SortField) => void;
   onPageChange: (page: number) => void;
   onApprove: (id: number) => void | Promise<void>;
-  onReject: (id: number) => void | Promise<void>;
+  onReject: (id: number, reason?: RejectReasonCode, note?: string) => void | Promise<void>;
   onBan: (id: number) => void | Promise<void>;
   onDelete: (id: number, comment: string) => Promise<boolean>;
   onRecheckSubscriber?: (scranId?: number) => void | Promise<void>;
+  onBulk?: (
+    action: "approve" | "reject",
+    ids: number[],
+    reason?: RejectReasonCode,
+    note?: string,
+  ) => void | Promise<void>;
+  onEdit?: (
+    id: number,
+    patch: { name: string; description: string; price: number },
+  ) => Promise<boolean>;
+  onRestore?: (id: number) => void | Promise<void>;
   onSetView?: (mode: ViewMode) => void;
   onSetSubscriberOnly?: (only: boolean) => void;
   onToggleSubscriberOnly?: () => void;
+  onSearchChange?: (q: string) => void;
+  onStatusFilterChange?: (s: ScranStatusFilter) => void;
+  onAuthorFilterChange?: (id: string) => void;
+  onLogout?: () => void;
 }
 
 function LoadingState() {
@@ -46,6 +76,18 @@ function LoadingState() {
     </div>
   );
 }
+
+const MOD_TABS: { id: ViewMode; label: string; adminOnly?: boolean }[] = [
+  { id: "queue", label: "Очередь" },
+  { id: "list", label: "Все записи" },
+  { id: "rejected", label: "Отклонённые" },
+  { id: "daily", label: "Daily" },
+  { id: "stats", label: "Статистика" },
+  { id: "duplicates", label: "Дубликаты" },
+  { id: "users", label: "Пользователи", adminOnly: true },
+  { id: "audit", label: "Audit", adminOnly: true },
+  { id: "health", label: "Health", adminOnly: true },
+];
 
 export function AdminDashboard({
   scrans,
@@ -59,6 +101,9 @@ export function AdminDashboard({
   subscriberOnly = false,
   subscriberCount,
   regularCount,
+  searchQuery = "",
+  statusFilter = "all",
+  authorTelegramId = "",
   onSort,
   onPageChange,
   onApprove,
@@ -66,20 +111,38 @@ export function AdminDashboard({
   onBan,
   onDelete,
   onRecheckSubscriber,
+  onBulk,
+  onEdit,
+  onRestore,
   onSetView,
   onToggleSubscriberOnly,
+  onSearchChange,
+  onStatusFilterChange,
+  onAuthorFilterChange,
+  onLogout,
 }: AdminDashboardProps) {
   const [deletingScran, setDeletingScran] = useState<Scran | null>(null);
+  const [rejectingScran, setRejectingScran] = useState<Scran | null>(null);
+  const [editingScran, setEditingScran] = useState<Scran | null>(null);
+  const [authorTg, setAuthorTg] = useState<string | null>(null);
   const [queueMode, setQueueMode] = useState<QueueMode>("cards");
   const [actionBusy, setActionBusy] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [localSearch, setLocalSearch] = useState(searchQuery);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
-  const [usersError, setUsersError] = useState<string>("");
+  const [usersError, setUsersError] = useState("");
+
+  const visibleTabs = useMemo(
+    () => MOD_TABS.filter((t) => !t.adminOnly || role === "admin"),
+    [role],
+  );
 
   const handleSetView = useCallback(
     (mode: ViewMode) => {
       setQueueMode("cards");
+      setSelected(new Set());
       onSetView?.(mode);
     },
     [onSetView],
@@ -97,16 +160,23 @@ export function AdminDashboard({
     [onApprove],
   );
 
-  const handleReject = useCallback(
-    async (id: number) => {
+  const openReject = useCallback((id: number) => {
+    const scran = scrans.find((s) => s.id === id) ?? null;
+    setRejectingScran(scran);
+  }, [scrans]);
+
+  const confirmReject = useCallback(
+    async (reason: RejectReasonCode, note: string) => {
+      if (!rejectingScran) return;
       setActionBusy(true);
       try {
-        await onReject(id);
+        await onReject(rejectingScran.id, reason, note);
+        setRejectingScran(null);
       } finally {
         setActionBusy(false);
       }
     },
-    [onReject],
+    [onReject, rejectingScran],
   );
 
   const handleRecheck = useCallback(
@@ -120,6 +190,35 @@ export function AdminDashboard({
       }
     },
     [onRecheckSubscriber],
+  );
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllOnPage = useCallback(() => {
+    setSelected(new Set(scrans.map((s) => s.id)));
+  }, [scrans]);
+
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+
+  const runBulk = useCallback(
+    async (action: "approve" | "reject") => {
+      if (!onBulk || selected.size === 0) return;
+      setActionBusy(true);
+      try {
+        await onBulk(action, [...selected], action === "reject" ? "other" : undefined);
+        setSelected(new Set());
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [onBulk, selected],
   );
 
   const uncheckedCount = scrans.filter((s) => s.isSubscriberAtSubmit === null).length;
@@ -138,27 +237,39 @@ export function AdminDashboard({
     }
   }, [role]);
 
-  const handleRoleChange = useCallback(async (userId: number, newRole: AdminUser["role"]) => {
-    setUsersError("");
-    const result = await updateUserRole(userId, newRole);
-    if (result.success) {
-      await loadUsers();
-    } else {
-      setUsersError(result.message || "Не удалось изменить роль");
-    }
-  }, [loadUsers]);
+  const handleRoleChange = useCallback(
+    async (userId: number, newRole: AdminUser["role"]) => {
+      setUsersError("");
+      const result = await updateUserRole(userId, newRole);
+      if (result.success) await loadUsers();
+      else setUsersError(result.message || "Не удалось изменить роль");
+    },
+    [loadUsers],
+  );
 
   useEffect(() => {
-    if (view === "users") {
-      loadUsers();
-    }
+    if (view === "users") loadUsers();
   }, [view, loadUsers]);
+
+  useEffect(() => {
+    setLocalSearch(searchQuery);
+  }, [searchQuery]);
+
+  // Debounce search commit
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (localSearch !== searchQuery) onSearchChange?.(localSearch);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [localSearch, searchQuery, onSearchChange]);
+
+  const showScranToolbar = view === "queue" || view === "list" || view === "rejected";
 
   return (
     <div className="retro-bg min-h-dvh">
       <div className="retro-overlay absolute inset-0" />
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="pixel-text text-3xl font-bold text-white">
               {role === "moderator" ? "Модерация" : "Админка"}
@@ -168,76 +279,171 @@ export function AdminDashboard({
                 </span>
               )}
             </h1>
-            <p className="pixel-text mt-2 text-white">
+            <p className="pixel-text mt-2 text-white/80">
               {role === "moderator"
-                ? "Очередь: одобрить или отклонить блюда"
-                : "Модерация, снятие с публикации и пользователи"}
+                ? "Очередь, daily и отклонения"
+                : "Модерация, daily, audit и health"}
             </p>
           </div>
-          <Link
-            href="/"
-            className="pixel-text text-xl font-bold text-white hover:text-yellow-300"
-          >
-            бебебендл
-          </Link>
-        </div>
-
-        <div className="mb-4 flex flex-wrap items-center gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleSetView("queue")}
-              className={`pixel-btn px-3 py-1 text-sm font-bold ${view === "queue" ? "bg-yellow-400 text-black" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
-            >
-              Очередь
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSetView("list")}
-              className={`pixel-btn px-3 py-1 text-sm font-bold ${view === "list" ? "bg-yellow-400 text-black" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
-            >
-              Все записи
-            </button>
-            {role === "admin" && (
+          <div className="flex items-center gap-3">
+            {onLogout && (
               <button
                 type="button"
-                onClick={() => handleSetView("users")}
-                className={`pixel-btn px-3 py-1 text-sm font-bold ${view === "users" ? "bg-yellow-400 text-black" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
+                onClick={onLogout}
+                className="pixel-btn bg-zinc-800 px-3 py-2 text-xs font-bold text-white hover:bg-zinc-700 active:scale-[0.97]"
               >
-                Пользователи
+                Выйти
               </button>
             )}
+            <Link
+              href="/"
+              className="pixel-text text-xl font-bold text-white hover:text-yellow-300"
+            >
+              бебебендл
+            </Link>
           </div>
+        </div>
 
-          {view === "queue" && queueMode === "cards" && (
-            <>
-              <div className="text-sm text-white/80">
-                SVAGA+: <span className="font-bold text-white">{subscriberCount ?? "—"}</span>
-                {" · "}
-                Обычные: <span className="font-bold text-white">{regularCount ?? "—"}</span>
-              </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {visibleTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => handleSetView(tab.id)}
+              className={`pixel-btn px-3 py-1.5 text-sm font-bold transition-colors duration-150 active:scale-[0.97] ${
+                view === tab.id
+                  ? "bg-yellow-400 text-black"
+                  : "bg-zinc-800 text-white hover:bg-zinc-700"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {showScranToolbar && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <input
+              type="search"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              placeholder="Поиск: имя, tg id…"
+              className="min-w-[12rem] flex-1 border-2 border-zinc-600 bg-zinc-950 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-amber-400 focus:outline-none sm:max-w-xs"
+            />
+            {view === "list" && (
+              <select
+                value={statusFilter}
+                onChange={(e) => onStatusFilterChange?.(e.target.value as ScranStatusFilter)}
+                className="border-2 border-zinc-600 bg-zinc-950 px-2 py-2 text-sm text-white"
+              >
+                <option value="all">Все статусы</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            )}
+            {authorTelegramId && (
               <button
                 type="button"
-                onClick={() => onToggleSubscriberOnly?.()}
-                className={`pixel-btn px-3 py-1 text-sm font-bold ${subscriberOnly ? "bg-green-600 text-white" : "bg-zinc-800 text-white hover:bg-zinc-700"}`}
+                onClick={() => onAuthorFilterChange?.("")}
+                className="pixel-btn bg-sky-800 px-3 py-1.5 text-xs font-bold text-white"
               >
-                {subscriberOnly ? "✓ Только подписчики" : "Только подписчики"}
+                Автор: {authorTelegramId} ✕
               </button>
-              {uncheckedCount > 0 && onRecheckSubscriber && (
+            )}
+            {view === "queue" && queueMode === "cards" && (
+              <>
+                <div className="text-sm text-white/80">
+                  SVAGA+: <span className="font-bold text-white">{subscriberCount ?? "—"}</span>
+                  {" · "}
+                  Обычные: <span className="font-bold text-white">{regularCount ?? "—"}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleSubscriberOnly?.()}
+                  className={`pixel-btn px-3 py-1 text-sm font-bold ${
+                    subscriberOnly
+                      ? "bg-green-600 text-white"
+                      : "bg-zinc-800 text-white hover:bg-zinc-700"
+                  }`}
+                >
+                  {subscriberOnly ? "✓ Только подписчики" : "Только подписчики"}
+                </button>
+                {uncheckedCount > 0 && onRecheckSubscriber && (
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => void handleRecheck()}
+                    className="pixel-btn bg-sky-600 px-3 py-1 text-sm font-bold text-white hover:bg-sky-500 disabled:opacity-50"
+                  >
+                    Перепроверить SVAGA ({uncheckedCount})
+                  </button>
+                )}
+              </>
+            )}
+            {(view === "queue" || view === "list") && selected.size > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-white/60">Выбрано: {selected.size}</span>
                 <button
                   type="button"
                   disabled={actionBusy}
-                  onClick={() => void handleRecheck()}
-                  className="pixel-btn bg-sky-600 px-3 py-1 text-sm font-bold text-white hover:bg-sky-500 disabled:opacity-50"
+                  onClick={() => void runBulk("approve")}
+                  className="pixel-btn bg-emerald-700 px-2 py-1 text-xs font-bold text-white"
                 >
-                  Перепроверить SVAGA ({uncheckedCount})
+                  Bulk ✓
                 </button>
-              )}
-            </>
-          )}
-        </div>
+                <button
+                  type="button"
+                  disabled={actionBusy}
+                  onClick={() => void runBulk("reject")}
+                  className="pixel-btn bg-red-700 px-2 py-1 text-xs font-bold text-white"
+                >
+                  Bulk ✕
+                </button>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="text-xs text-white/50 underline"
+                >
+                  сброс
+                </button>
+              </div>
+            )}
+            {(view === "queue" || view === "list") && scrans.length > 0 && (
+              <button
+                type="button"
+                onClick={selectAllOnPage}
+                className="text-xs text-white/50 underline"
+              >
+                выбрать страницу
+              </button>
+            )}
+          </div>
+        )}
 
-        {view === "users" ? (
+        {view === "daily" ? (
+          <DailyPanel role={role} />
+        ) : view === "stats" ? (
+          <div className="pixel-container border-4 border-black bg-zinc-900/80 p-4">
+            <h2 className="pixel-text mb-4 text-xl font-bold text-white">Статистика</h2>
+            <StatsPanel />
+          </div>
+        ) : view === "audit" ? (
+          <div className="pixel-container border-4 border-black bg-zinc-900/80 p-4">
+            <h2 className="pixel-text mb-4 text-xl font-bold text-white">Audit log</h2>
+            <AuditPanel />
+          </div>
+        ) : view === "duplicates" ? (
+          <div className="pixel-container border-4 border-black bg-zinc-900/80 p-4">
+            <h2 className="pixel-text mb-4 text-xl font-bold text-white">Дубликаты имён</h2>
+            <DuplicatesPanel />
+          </div>
+        ) : view === "health" ? (
+          <div className="pixel-container border-4 border-black bg-zinc-900/80 p-4">
+            <h2 className="pixel-text mb-4 text-xl font-bold text-white">Health</h2>
+            <HealthPanel />
+          </div>
+        ) : view === "users" ? (
           <div className="pixel-container overflow-hidden border-4 border-black bg-zinc-900/80 p-4">
             <h2 className="pixel-text mb-4 text-xl font-bold text-white">Пользователи</h2>
             {usersLoading ? (
@@ -273,7 +479,13 @@ export function AdminDashboard({
                         <td className="py-2 pr-4">{u.displayName || "—"}</td>
                         <td className="py-2 pr-4">
                           <span
-                            className={`inline px-2 py-0.5 text-xs font-bold ${u.role === "admin" ? "bg-yellow-400 text-black" : u.role === "moderator" ? "bg-blue-400 text-black" : "bg-zinc-600"}`}
+                            className={`inline px-2 py-0.5 text-xs font-bold ${
+                              u.role === "admin"
+                                ? "bg-yellow-400 text-black"
+                                : u.role === "moderator"
+                                  ? "bg-blue-400 text-black"
+                                  : "bg-zinc-600"
+                            }`}
                           >
                             {u.role}
                           </span>
@@ -310,7 +522,7 @@ export function AdminDashboard({
             role={role}
             busy={actionBusy}
             onApprove={handleApprove}
-            onReject={handleReject}
+            onReject={(id) => openReject(id)}
             onExit={() => setQueueMode("cards")}
             hasMorePages={currentPage < totalPages}
             onNeedMore={() => onPageChange(currentPage + 1)}
@@ -320,11 +532,14 @@ export function AdminDashboard({
             <ModerationQueue
               scrans={scrans}
               role={role}
+              selectedIds={selected}
+              onToggleSelect={toggleSelect}
               onApprove={(id) => void handleApprove(id)}
-              onReject={(id) => void handleReject(id)}
+              onReject={(id) => openReject(id)}
               onBan={onBan}
               onDelete={setDeletingScran}
               onRecheck={(id) => void handleRecheck(id)}
+              onAuthor={(tg) => tg && setAuthorTg(tg)}
               onStartReview={() => setQueueMode("review")}
             />
             <Pagination
@@ -339,13 +554,22 @@ export function AdminDashboard({
               scrans={scrans}
               sortField={sortField}
               sortOrder={sortOrder}
-              view={view}
+              view={view === "rejected" ? "list" : view}
               role={role}
+              selectedIds={selected}
+              onToggleSelect={toggleSelect}
               onSort={onSort}
               onApprove={(id) => void handleApprove(id)}
-              onReject={(id) => void handleReject(id)}
+              onReject={(id) => openReject(id)}
               onBan={onBan}
               onDelete={setDeletingScran}
+              onAuthor={(tg) => tg && setAuthorTg(tg)}
+              onEdit={role === "admin" ? setEditingScran : undefined}
+              onRestore={
+                view === "rejected" && onRestore
+                  ? (id) => void onRestore(id)
+                  : undefined
+              }
             />
             <Pagination
               currentPage={currentPage}
@@ -362,6 +586,41 @@ export function AdminDashboard({
         onClose={() => setDeletingScran(null)}
         onConfirm={onDelete}
       />
+
+      <RejectScranModal
+        open={!!rejectingScran}
+        scranName={rejectingScran?.name ?? ""}
+        busy={actionBusy}
+        onClose={() => setRejectingScran(null)}
+        onConfirm={confirmReject}
+      />
+
+      <AuthorCardModal
+        telegramId={authorTg}
+        onClose={() => setAuthorTg(null)}
+        onFilterAuthor={(id) => {
+          onAuthorFilterChange?.(id);
+          handleSetView("list");
+        }}
+      />
+
+      {editingScran && onEdit && (
+        <EditScranModal
+          key={editingScran.id}
+          scran={editingScran}
+          busy={actionBusy}
+          onClose={() => setEditingScran(null)}
+          onSave={async (patch) => {
+            setActionBusy(true);
+            try {
+              const ok = await onEdit(editingScran.id, patch);
+              if (ok) setEditingScran(null);
+            } finally {
+              setActionBusy(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

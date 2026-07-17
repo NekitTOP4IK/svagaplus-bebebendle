@@ -13,20 +13,25 @@ interface ScranTableProps {
   sortOrder: SortOrder;
   view?: ViewMode;
   role?: "moderator" | "admin" | null;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
   onSort: (field: SortField) => void;
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (scran: Scran) => void;
+  onAuthor?: (telegramId: string | null | undefined) => void;
+  onEdit?: (scran: Scran) => void;
+  onRestore?: (id: number) => void;
 }
 
-function SortableHeader({ 
-  field, 
-  label, 
-  currentField, 
-  currentOrder, 
-  onSort 
-}: { 
+function SortableHeader({
+  field,
+  label,
+  currentField,
+  currentOrder,
+  onSort,
+}: {
   field: SortField;
   label: string;
   currentField: SortField;
@@ -34,7 +39,7 @@ function SortableHeader({
   onSort: (field: SortField) => void;
 }) {
   const icon = currentField !== field ? "↕️" : currentOrder === "asc" ? "↑" : "↓";
-  
+
   return (
     <th
       className="cursor-pointer px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-white hover:bg-zinc-700"
@@ -51,11 +56,16 @@ export function ScranTable({
   sortOrder,
   view,
   role,
+  selectedIds,
+  onToggleSelect,
   onSort,
   onApprove,
   onReject,
   onBan,
   onDelete,
+  onAuthor,
+  onEdit,
+  onRestore,
 }: ScranTableProps) {
   const isQueue = view === "queue";
   return (
@@ -63,6 +73,9 @@ export function ScranTable({
       <table className="w-full min-w-[720px]">
         <thead className="bg-zinc-800">
           <tr>
+            {onToggleSelect && (
+              <th className="px-2 py-3 text-xs font-bold text-white">✓</th>
+            )}
             <SortableHeader
               field="id"
               label="ID"
@@ -80,7 +93,11 @@ export function ScranTable({
               currentOrder={sortOrder}
               onSort={onSort}
             />
-            {isQueue && (
+            {isQueue ? (
+              <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-white">
+                Автор
+              </th>
+            ) : (
               <th className="px-6 py-3 text-left text-xs font-bold uppercase tracking-wider text-white">
                 Автор
               </th>
@@ -128,10 +145,15 @@ export function ScranTable({
               scran={scran}
               view={view}
               role={role}
+              selected={selectedIds?.has(scran.id)}
+              onToggleSelect={onToggleSelect}
               onApprove={onApprove}
               onReject={onReject}
               onBan={onBan}
               onDelete={onDelete}
+              onAuthor={onAuthor}
+              onEdit={onEdit}
+              onRestore={onRestore}
             />
           ))}
         </tbody>

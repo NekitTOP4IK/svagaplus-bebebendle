@@ -11,6 +11,9 @@ export interface Scran {
   numberOfLikes: number;
   numberOfDislikes: number;
   approved?: boolean;
+  rejected?: boolean;
+  rejectReason?: string | null;
+  rejectedAt?: string | null;
   // Queue / moderation enrichment (populated in ?view=queue)
   telegramId?: string | null;
   submittedByUserId?: number | null;

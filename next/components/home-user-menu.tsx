@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api-client";
 
@@ -24,24 +24,25 @@ function panelLabel(role: SessionUser["role"]): string {
   return "";
 }
 
+async function fetchSessionUser(): Promise<SessionUser | null> {
+  try {
+    const res = await apiFetch("/api/auth/session");
+    if (!res.ok) return null;
+    const data = (await res.json()) as { user: SessionUser | null };
+    return data.user;
+  } catch {
+    return null;
+  }
+}
+
 export function HomeUserMenu(): ReactElement | null {
   const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const res = await apiFetch("/api/auth/session");
-        if (!res.ok) {
-          if (!cancelled) setUser(null);
-          return;
-        }
-        const data = (await res.json()) as { user: SessionUser | null };
-        if (!cancelled) setUser(data.user);
-      } catch {
-        if (!cancelled) setUser(null);
-      }
-    })();
+    void fetchSessionUser().then((u) => {
+      if (!cancelled) setUser(u);
+    });
     return () => {
       cancelled = true;
     };
@@ -59,7 +60,7 @@ export function HomeUserMenu(): ReactElement | null {
     <div className="flex w-full flex-col gap-2">
       <Link
         href="/profile"
-        className="pixel-btn flex min-h-11 items-center gap-3 px-3 py-2 text-left"
+        className="pixel-btn flex min-h-11 items-center gap-3 px-3 py-2 text-left active:scale-[0.97]"
       >
         {user.telegramPhotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -86,11 +87,67 @@ export function HomeUserMenu(): ReactElement | null {
       {staff && (
         <Link
           href="/admin"
-          className="pixel-btn flex min-h-11 items-center justify-center bg-amber-400 px-4 py-2 text-center text-sm font-bold text-black hover:bg-amber-300"
+          className="pixel-btn flex min-h-11 items-center justify-center bg-amber-400 px-4 py-2 text-center text-sm font-bold text-black hover:bg-amber-300 active:scale-[0.97]"
         >
           {panel}
         </Link>
       )}
+    </div>
+  );
+}
+
+/** Profile CTA with logout button protruding left of the column when logged in. */
+export function HomeProfileRow(): ReactElement {
+  const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchSessionUser().then((u) => {
+      if (!cancelled) setUser(u);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const logout = useCallback(async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/session", { method: "DELETE" });
+    } catch {
+      // ignore
+    }
+    window.location.reload();
+  }, []);
+
+  const loggedIn = user != null;
+
+  return (
+    <div className="relative w-full overflow-visible">
+      {loggedIn && (
+        <button
+          type="button"
+          onClick={() => void logout()}
+          disabled={loggingOut}
+          title="Выйти"
+          aria-label="Выйти"
+          className="pixel-btn absolute top-1/2 z-20 flex h-11 min-w-[2.75rem] -translate-y-1/2 items-center justify-center bg-zinc-950/95 px-2 text-xs font-bold text-white shadow-[3px_3px_0_0_#000] hover:bg-red-700 active:scale-[0.97] disabled:opacity-50"
+          style={{
+            right: "100%",
+            marginRight: "0.5rem",
+            transition: "transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms ease",
+          }}
+        >
+          {loggingOut ? "…" : "Выход"}
+        </button>
+      )}
+      <Link
+        href="/profile"
+        className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 active:scale-[0.97]"
+      >
+        Профиль / СВАГА+
+      </Link>
     </div>
   );
 }

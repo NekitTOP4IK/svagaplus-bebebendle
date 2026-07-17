@@ -73,12 +73,28 @@ export const scrans = pgTable("scrans", {
   numberOfDislikes: integer("number_of_dislikes").notNull().default(0),
   approved: boolean("approved").notNull().default(false),
   rejected: boolean("rejected").notNull().default(false),
+  rejectReason: text("reject_reason"),
+  rejectedAt: timestamp("rejected_at"),
+  rejectedByUserId: integer("rejected_by_user_id").references(() => users.id),
   telegramId: text("telegram_id"),
   icon: text("icon"),
   submittedByUserId: integer("submitted_by_user_id").references(() => users.id),
   isSubscriberAtSubmit: boolean("is_subscriber_at_submit"),
   subscriberCheckedAt: timestamp("subscriber_checked_at"),
 });
+
+export const moderationAuditLog = pgTable("moderation_audit_log", {
+  id: serial("id").primaryKey(),
+  actorUserId: integer("actor_user_id").references(() => users.id),
+  action: text("action").notNull(),
+  scranId: integer("scran_id"),
+  targetTelegramId: text("target_telegram_id"),
+  details: text("details"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  createdIdx: index("moderation_audit_log_created_at_idx").on(table.createdAt),
+  scranIdx: index("moderation_audit_log_scran_id_idx").on(table.scranId),
+}));
 
 export const dailyScrandles = pgTable("daily_scrandles", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -132,3 +148,4 @@ export type DailyUserResult = typeof dailyUserResults.$inferSelect;
 export type TelegramVote = typeof telegramVotes.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type UserSession = typeof userSessions.$inferSelect;
+export type ModerationAuditLog = typeof moderationAuditLog.$inferSelect;

@@ -11,20 +11,30 @@ interface ScranRowProps {
   scran: Scran;
   view?: ViewMode;
   role?: "moderator" | "admin" | null;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
   onApprove: (id: number) => void;
   onReject: (id: number) => void;
   onBan: (id: number) => void;
   onDelete: (scran: Scran) => void;
+  onAuthor?: (telegramId: string | null | undefined) => void;
+  onEdit?: (scran: Scran) => void;
+  onRestore?: (id: number) => void;
 }
 
 export function ScranRow({
   scran,
   view,
   role,
+  selected,
+  onToggleSelect,
   onApprove,
   onReject,
   onBan,
   onDelete,
+  onAuthor,
+  onEdit,
+  onRestore,
 }: ScranRowProps): ReactElement {
   const [lightbox, setLightbox] = useState(false);
   const percentage = getLikesPercentage({
@@ -41,10 +51,23 @@ export function ScranRow({
   const pendingCount = typeof scran.pendingCount === "number" ? scran.pendingCount : undefined;
   const pendingNote = pendingCount != null ? ` (${pendingCount} на модерации)` : "";
   const overLimit = pendingCount != null && pendingCount > 6;
+  const isRejected = scran.rejected === true;
+  const isPending = !scran.approved && !isRejected;
 
   return (
     <>
       <tr className="hover:bg-zinc-800/50">
+        {onToggleSelect && (
+          <td className="px-2 py-3">
+            <input
+              type="checkbox"
+              checked={!!selected}
+              onChange={() => onToggleSelect(scran.id)}
+              className="h-4 w-4"
+              aria-label={`Выбрать ${scran.id}`}
+            />
+          </td>
+        )}
         <td className="whitespace-nowrap px-3 py-3 text-sm text-white sm:px-4">
           {scran.id}
         </td>
@@ -84,20 +107,31 @@ export function ScranRow({
           {scran.description && (
             <div className="line-clamp-2 text-xs text-zinc-400">{scran.description}</div>
           )}
+          {isRejected && scran.rejectReason && (
+            <div className="mt-0.5 text-[10px] text-red-300/80">{scran.rejectReason}</div>
+          )}
         </td>
-        {isQueue && (
-          <td className="px-3 py-3 text-sm text-white sm:px-4">
-            <span className="text-white/90">{authorLabel}</span>
-            {pendingNote && (
-              <span
-                className={`ml-1 text-xs ${overLimit ? "font-bold text-red-400" : "text-amber-400"}`}
-              >
-                {pendingNote}
-                {overLimit && " ⚠️"}
-              </span>
-            )}
-          </td>
-        )}
+        <td className="px-3 py-3 text-sm text-white sm:px-4">
+          {scran.telegramId || scran.authorUsername || scran.authorDisplayName ? (
+            <button
+              type="button"
+              className="text-left text-sky-300 underline-offset-2 hover:underline"
+              onClick={() => onAuthor?.(scran.telegramId)}
+            >
+              {authorLabel}
+            </button>
+          ) : (
+            <span className="text-white/40">—</span>
+          )}
+          {isQueue && pendingNote && (
+            <span
+              className={`ml-1 text-xs ${overLimit ? "font-bold text-red-400" : "text-amber-400"}`}
+            >
+              {pendingNote}
+              {overLimit && " ⚠️"}
+            </span>
+          )}
+        </td>
         <td className="whitespace-nowrap px-3 py-3 text-sm text-white sm:px-4">
           {scran.price.toFixed(2)} ₽
         </td>
@@ -118,46 +152,68 @@ export function ScranRow({
         <td className="whitespace-nowrap px-3 py-3 sm:px-4">
           <span
             className={`inline-flex px-2 py-1 text-xs font-bold ${
-              scran.approved ? "bg-green-500 text-white" : "bg-yellow-400 text-black"
+              scran.approved
+                ? "bg-green-500 text-white"
+                : isRejected
+                  ? "bg-red-600 text-white"
+                  : "bg-yellow-400 text-black"
             }`}
           >
-            {scran.approved ? "Approved" : "Pending"}
+            {scran.approved ? "Approved" : isRejected ? "Rejected" : "Pending"}
           </span>
         </td>
         <td className="px-3 py-3 sm:px-4">
           <div className="flex min-w-[7.5rem] flex-col gap-2 sm:min-w-0 sm:flex-row sm:flex-wrap">
-            {!scran.approved && (
+            {isPending && (
               <>
                 <button
                   type="button"
                   onClick={() => onApprove(scran.id)}
-                  className="pixel-btn min-h-10 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 sm:text-sm"
+                  className="pixel-btn min-h-10 bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 sm:text-sm active:scale-[0.97]"
                 >
                   Одобрить
                 </button>
                 <button
                   type="button"
                   onClick={() => onReject(scran.id)}
-                  className="pixel-btn min-h-10 bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500 sm:text-sm"
+                  className="pixel-btn min-h-10 bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-500 sm:text-sm active:scale-[0.97]"
                 >
                   Отклонить
                 </button>
               </>
             )}
+            {isRejected && onRestore && (
+              <button
+                type="button"
+                onClick={() => onRestore(scran.id)}
+                className="pixel-btn min-h-10 bg-sky-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-600 sm:text-sm active:scale-[0.97]"
+              >
+                В очередь
+              </button>
+            )}
             {scran.approved && role === "admin" && (
               <button
                 type="button"
                 onClick={() => onBan(scran.id)}
-                className="pixel-btn min-h-10 bg-orange-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-500 sm:text-sm"
+                className="pixel-btn min-h-10 bg-orange-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-orange-500 sm:text-sm active:scale-[0.97]"
               >
                 Снять
+              </button>
+            )}
+            {role === "admin" && onEdit && (
+              <button
+                type="button"
+                onClick={() => onEdit(scran)}
+                className="pixel-btn min-h-10 bg-zinc-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-500 sm:text-sm active:scale-[0.97]"
+              >
+                Edit
               </button>
             )}
             {role === "admin" && (
               <button
                 type="button"
                 onClick={() => onDelete(scran)}
-                className="pixel-btn min-h-10 bg-zinc-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-600 sm:text-sm"
+                className="pixel-btn min-h-10 bg-zinc-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-zinc-600 sm:text-sm active:scale-[0.97]"
                 title="Жёсткое удаление с уведомлением (admin)"
               >
                 Удалить
