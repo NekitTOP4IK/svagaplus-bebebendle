@@ -2,7 +2,9 @@
 import { describe, expect, it } from "vitest";
 import { signAccessToken, verifyAccessToken } from "@/lib/session-token";
 
-const secret = "0123456789abcdef0123456789abcdef";
+// Fixture strings only — not real credentials (avoid gitleaks generic-api-key on hex blobs).
+const secret = "test-session-signing-secret-v1";
+const wrongSecret = "test-session-signing-secret-v2-wrong";
 const now = new Date("2026-07-16T12:00:00Z");
 
 describe("session access token", () => {
@@ -25,7 +27,7 @@ describe("session access token", () => {
   it("rejects expiry, future issue time, and wrong secret", () => {
     const token = signAccessToken({ sessionId: "s1", userId: 7, telegramId: "123" }, secret, now);
     expect(verifyAccessToken(token, secret, new Date("2026-07-16T13:00:01Z"))).toBeNull();
-    expect(verifyAccessToken(token, "abcdef0123456789abcdef0123456789", now)).toBeNull();
+    expect(verifyAccessToken(token, wrongSecret, now)).toBeNull();
     expect(verifyAccessToken(token, secret, new Date("2026-07-16T11:54:59Z"))).toBeNull();
   });
 });

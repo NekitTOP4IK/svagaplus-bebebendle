@@ -9,6 +9,8 @@ paths = [
   '''(^|/)\.md$''',
   '''(^|/)\.env\.sample$''',
   '''(^|/)ops/tests/''',
+  '''(^|/)bot/tests/''',
+  '''(^|/)next/tests/''',
   '''(^|/)bot/uv\.lock$''',
   '''(^|/)next/bun\.lock$''',
   '''(^|/)next/bun\.lockb$''',
