@@ -68,10 +68,17 @@ dir_hash() {
   )
 }
 
+force_rm() {
+  local path=$1
+  [[ -e "$path" || -L "$path" ]] || return 0
+  chmod -R u+w "$path" 2>/dev/null || true
+  rm -rf "$path"
+}
+
 clone_tree() {
   local src=$1
   local dst=$2
-  rm -rf "$dst"
+  force_rm "$dst"
   if cp -al "$src" "$dst" 2>/dev/null; then
     return 0
   fi
@@ -172,11 +179,11 @@ AVAILABLE_KB=$(df -Pk "$ROOT" | awk 'NR==2 {print $4}')
 PREV_RELEASE=""
 [[ -L "$ROOT/current" ]] && PREV_RELEASE="$(readlink -f "$ROOT/current")"
 
-rm -rf "$RELEASE"
+force_rm "$RELEASE"
 mkdir -p "$RELEASE"
 tar -xzf "$ARCHIVE" -C "$RELEASE"
 ln -sfn "$ENV_FILE" "$RELEASE/.env"
-rm -rf "$RELEASE/uploads"
+force_rm "$RELEASE/uploads"
 ln -sfn "$ROOT/shared/uploads" "$RELEASE/uploads"
 mkdir -p "$ROOT/shared/logs/next" "$ROOT/shared/logs/bot"
 chmod +x "$RELEASE/scripts/run-next.sh" "$RELEASE/scripts/run-bot.sh" 2>/dev/null || true
@@ -197,7 +204,7 @@ else
   echo "    bun install (cold)"
   run_low_prio bun install --frozen-lockfile
   mkdir -p "$CACHE_DIR/node_modules"
-  rm -rf "$NEXT_NM_CACHE"
+  force_rm "$NEXT_NM_CACHE"
   clone_tree "$RELEASE/next/node_modules" "$NEXT_NM_CACHE"
 fi
 
@@ -224,10 +231,10 @@ if [[ -x "$BOT_VENV/bin/python" ]]; then
   echo "    reusing bot venv $BOT_LOCK_HASH"
 else
   echo "    uv sync (cold) -> $BOT_VENV"
-  rm -rf "$BOT_VENV"
+  force_rm "$BOT_VENV"
   run_low_prio env UV_PROJECT_ENVIRONMENT="$BOT_VENV" uv sync --no-dev --frozen
 fi
-rm -rf "$RELEASE/bot/.venv"
+force_rm "$RELEASE/bot/.venv"
 ln -sfn "$BOT_VENV" "$RELEASE/bot/.venv"
 
 echo "==> prune unused bot venvs"
@@ -243,7 +250,7 @@ for venv_path in "$VENVS_DIR"/bot-*; do
     continue
   fi
   echo "    remove $base"
-  rm -rf "$venv_path"
+  force_rm "$venv_path"
 done
 shopt -u nullglob
 
@@ -341,7 +348,7 @@ for old in "${OLD_RELEASES[@]:-}"; do
   previous_target="$(readlink -f "$ROOT/previous" 2>/dev/null || true)"
   if [[ "$old" != "$current_target" && "$old" != "$previous_target" ]]; then
     echo "    remove $(basename "$old")"
-    rm -rf "$old"
+    force_rm "$old"
   fi
 done
 
@@ -368,7 +375,7 @@ mapfile -t OLD_NM < <(
 for nm in "${OLD_NM[@]:-}"; do
   [[ -n "$nm" ]] || continue
   echo "    remove $(basename "$nm")"
-  rm -rf "$nm"
+  force_rm "$nm"
 done
 
 echo "deployed $RELEASE_SHA to $DEPLOY_ENV"
