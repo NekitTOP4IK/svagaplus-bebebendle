@@ -235,7 +235,8 @@ rollback() {
   if [[ "$SWITCHED" -eq 1 && -n "$OLD_RELEASE" && -d "$OLD_RELEASE" ]]; then
     ln -sfn "$OLD_RELEASE" "$ROOT/current.rollback"
     mv -Tf "$ROOT/current.rollback" "$ROOT/current"
-    pm2 startOrReload "$ROOT/current/ecosystem.config.cjs" --update-env || true
+    pm2 delete bebebendle-next bebebendle-bot >/dev/null 2>&1 || true
+    pm2 start "$ROOT/current/ecosystem.config.cjs" || true
   elif [[ "$SWITCHED" -eq 1 ]]; then
     rm -f "$ROOT/current"
     pm2 delete bebebendle-next bebebendle-bot || true
@@ -253,7 +254,9 @@ SWITCHED=1
 
 echo "==> pm2 reload"
 export PATH="${HOME}/.bun/bin:${HOME}/bin:/usr/local/bin:${PATH}"
-pm2 startOrReload "$ROOT/current/ecosystem.config.cjs" --update-env
+# startOrReload keeps old pm_cwd/script paths; force rebind to this release.
+pm2 delete bebebendle-next bebebendle-bot >/dev/null 2>&1 || true
+pm2 start "$ROOT/current/ecosystem.config.cjs"
 pm2 save
 
 wait_for() {
