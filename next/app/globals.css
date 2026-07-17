@@ -341,7 +341,7 @@ body {
         #d4a028 100%
     );
     background-size: 200% 100%;
-    animation: svaga-gold-shimmer 4.8s linear infinite;
+    animation: svaga-gold-shimmer 2.2s linear infinite;
     text-shadow:
         0 0 4px rgba(255, 240, 180, 0.85),
         1px 1px 0 rgba(255, 255, 255, 0.35);
@@ -364,7 +364,7 @@ body {
         rgba(255, 255, 255, 0) 70%,
         transparent 100%
     );
-    animation: svaga-gold-sheen 4.8s linear infinite;
+    animation: svaga-gold-sheen 2.2s linear infinite;
     pointer-events: none;
 }
 

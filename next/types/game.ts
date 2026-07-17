@@ -8,8 +8,9 @@ export interface Scran {
   name: string;
   description: string | null;
   price: number;
-  numberOfLikes: number;
-  numberOfDislikes: number;
+  /** Omitted on public daily payload (would spoil answers). */
+  numberOfLikes?: number;
+  numberOfDislikes?: number;
   approved?: boolean;
   icon: string;
   /** Snapshot at submit: true = paid SVAGA+ subscriber dish */

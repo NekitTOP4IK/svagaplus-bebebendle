@@ -58,16 +58,29 @@ export function useDailyGame({
     getFingerprint();
   }, []);
 
-  // Submit final score
+  // Submit final score — server recomputes from stored round votes
   const submitScore = useCallback(async () => {
     if (!dailyData) return;
     const answers = getCurrentAnswers();
-    const score = answers.filter(({ isCorrect }) => isCorrect).length;
+    const clientScoreGuess = answers.filter(({ isCorrect }) => isCorrect).length;
 
     try {
       const fingerprint = await getFingerprint();
-      await submitDailyResult(dailyData.date, score, fingerprint);
+      const result = await submitDailyResult(
+        dailyData.date,
+        clientScoreGuess,
+        fingerprint,
+      );
 
+      if ("error" in result) {
+        setGameState({
+          type: "error",
+          message: result.error || "Не удалось сохранить результат",
+        });
+        return;
+      }
+
+      const score = result.score;
       const avgData = await getDailyAverage(dailyData.date);
 
       setGameState({
@@ -86,10 +99,8 @@ export function useDailyGame({
     } catch (error) {
       console.error("Error submitting score:", error);
       setGameState({
-        type: "complete",
-        score,
-        averageScore: null,
-        scoreDistribution: [],
+        type: "error",
+        message: "Не удалось сохранить результат. Попробуй ещё раз.",
       });
     }
   }, [dailyData, getCurrentAnswers, setGameState]);
@@ -113,6 +124,7 @@ export function useDailyGame({
           currentRoundData.scranA.id,
           currentRoundData.scranB.id,
           fingerprint,
+          dailyData.date,
         );
 
         if ("error" in result) {

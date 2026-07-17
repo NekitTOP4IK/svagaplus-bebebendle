@@ -43,14 +43,13 @@ export async function GET(request: Request) {
         throw new Error(`Scran not found for round ${round.roundNumber}`);
       }
 
+      // Do not expose vote counts in public daily — spoils correct answer
       const mapScran = (s: typeof scranA) => ({
         id: s.id,
         imageUrl: s.imageUrl,
         name: s.name,
         description: s.description,
         price: s.price,
-        numberOfLikes: s.numberOfLikes,
-        numberOfDislikes: s.numberOfDislikes,
         icon: s.icon ?? "Cooked_Cod.png",
         isSubscriberAtSubmit: s.isSubscriberAtSubmit ?? null,
       });

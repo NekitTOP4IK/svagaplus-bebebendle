@@ -4,6 +4,7 @@ import { db } from "@/db/schema";
 import { dailyScrandles, scrans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DailyData } from "@/types/game";
+import { publicScran } from "@/lib/daily-integrity";
 
 function todayIsoDate(): string {
   return new Date().toISOString().split("T")[0];
@@ -25,6 +26,7 @@ export async function getDailyData(): Promise<DailyData | null> {
 
   const roundsData = await db
     .select({
+      id: dailyScrandles.id,
       roundNumber: dailyScrandles.roundNumber,
       scranAId: dailyScrandles.scranAId,
       scranBId: dailyScrandles.scranBId,
@@ -46,32 +48,15 @@ export async function getDailyData(): Promise<DailyData | null> {
 
       const scranA = scranAData[0];
       const scranB = scranBData[0];
+      if (!scranA || !scranB) {
+        throw new Error(`Scran missing for daily round ${round.roundNumber}`);
+      }
 
       return {
         roundNumber: round.roundNumber,
-        scrandleId: round.roundNumber,
-        scranA: {
-          id: scranA.id,
-          imageUrl: scranA.imageUrl,
-          name: scranA.name,
-          description: scranA.description,
-          price: scranA.price,
-          numberOfLikes: scranA.numberOfLikes,
-          numberOfDislikes: scranA.numberOfDislikes,
-          icon: scranA.icon ?? "Cooked_Cod.png",
-          isSubscriberAtSubmit: scranA.isSubscriberAtSubmit ?? null,
-        },
-        scranB: {
-          id: scranB.id,
-          imageUrl: scranB.imageUrl,
-          name: scranB.name,
-          description: scranB.description,
-          price: scranB.price,
-          numberOfLikes: scranB.numberOfLikes,
-          numberOfDislikes: scranB.numberOfDislikes,
-          icon: scranB.icon ?? "Cooked_Cod.png",
-          isSubscriberAtSubmit: scranB.isSubscriberAtSubmit ?? null,
-        },
+        scrandleId: round.id,
+        scranA: publicScran(scranA),
+        scranB: publicScran(scranB),
       };
     }),
   );
