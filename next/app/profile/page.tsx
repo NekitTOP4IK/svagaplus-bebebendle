@@ -138,9 +138,9 @@ export default function ProfilePage(): ReactElement {
     return (
       <div className="retro-bg relative flex min-h-dvh flex-col items-center justify-center px-4">
         <div className="retro-overlay absolute inset-0" />
-        <div className="pixel-container relative z-10 w-full max-w-md rounded-none border-4 border-black bg-white p-8 text-center">
-          <h1 className="pixel-text mb-4 text-2xl font-bold text-black">Профиль</h1>
-          <p className="mb-4 text-sm text-black">
+        <div className="pixel-card relative z-10 w-full max-w-md rounded-none p-8 text-center text-zinc-900">
+          <h1 className="pixel-text-on-light mb-4 text-2xl font-bold">Профиль</h1>
+          <p className="mb-4 text-sm text-zinc-800">
             Войдите через Telegram, чтобы увидеть профиль и проверить подписку СВАГА+.
           </p>
           <TelegramLogin onAuthenticated={handleLogin} context="player" />

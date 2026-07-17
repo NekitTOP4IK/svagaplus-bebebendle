@@ -86,7 +86,7 @@ export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement
 
   return (
     <div className="text-center">
-      <p className="mb-4 text-sm text-black">
+      <p className="mb-4 text-sm text-zinc-800">
         {context === "player"
           ? "Войти через Telegram"
           : "Войдите через Telegram. Доступ к админке проверяется по роли после входа."}
