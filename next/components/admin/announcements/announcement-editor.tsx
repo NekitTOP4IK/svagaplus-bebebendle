@@ -161,11 +161,22 @@ export function AnnouncementEditor({
 
           <div className="space-y-2">
             <span className="block text-xs uppercase text-white/50">Превью</span>
-            <div className="pixel-container border-4 border-black bg-zinc-900/95 p-3 max-h-[60vh] overflow-y-auto">
-              <h2 className="pixel-text text-base mb-2 truncate">
-                {title.trim() || "Заголовок объявления"}
-              </h2>
-              <MarkdownView content={body || "_Превью текста появится тут_"} />
+            <div className="mc-frame">
+              <div className="mc-panel" style={{ padding: 12 }}>
+                <div className="text-center">
+                  <div
+                    className="mc-sign"
+                    style={{ margin: "-24px auto 8px" }}
+                  >
+                    <span className="mc-title">
+                      {title.trim() || "Заголовок объявления"}
+                    </span>
+                  </div>
+                </div>
+                <div className="mc-body max-h-[55vh] overflow-y-auto">
+                  <MarkdownView content={body || "_Превью текста появится тут_"} />
+                </div>
+              </div>
             </div>
           </div>
         </div>

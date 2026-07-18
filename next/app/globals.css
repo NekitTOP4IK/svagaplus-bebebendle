@@ -591,3 +591,235 @@ body {
 .retro-overlay {
     background: rgba(0, 0, 0, 0.5);
 }
+
+/*
+ * Minecraft dark-inventory style for announcement overlay.
+ * Inspired by Java Edition inventory: deepslate outer frame with beveled edges,
+ * recessed Netherrack inner panel, Dark-Oak plank sign for the title,
+ * redstone-block close button. Scoped under .mc-* prefix to avoid clashes.
+ */
+.mc-frame {
+    background-color: #2c2c33;
+    padding: 6px;
+    border: 4px solid #000;
+    box-shadow:
+        inset 4px 4px 0 #4a4a52,
+        inset -4px -4px 0 #1a1a1f,
+        0 8px 0 #000,
+        8px 8px 0 #000,
+        8px 0 0 #000;
+}
+
+.mc-panel {
+    background-color: #14141a;
+    border: 4px solid #000;
+    box-shadow:
+        inset 3px 3px 0 #2a2530,
+        inset -3px -3px 0 #050506;
+    padding: 18px;
+    position: relative;
+}
+
+.mc-sign {
+    background-color: #3b2a13;
+    border: 4px solid #1a1305;
+    box-shadow:
+        inset 2px 2px 0 #5a4023,
+        inset -2px -2px 0 #251808;
+    padding: 10px 14px;
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 100%;
+}
+
+.mc-sign .mc-title {
+    color: #f5e6a8;
+    font-family: var(--font-pixel), monospace;
+    image-rendering: pixelated;
+    font-size: 12px;
+    line-height: 1.5;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    display: block;
+    text-shadow:
+        1px 1px 0 #1a1305,
+        -1px -1px 0 #1a1305,
+        1px -1px 0 #1a1305,
+        -1px 1px 0 #1a1305;
+}
+
+.mc-close {
+    position: absolute;
+    top: -14px;
+    right: -14px;
+    width: 32px;
+    height: 32px;
+    background: #b33a3a;
+    border: 4px solid #1a1a1a;
+    box-shadow:
+        inset 2px 2px 0 #e08080,
+        inset -2px -2px 0 #6b1f1f;
+    color: #fff;
+    font-family: var(--font-pixel), monospace;
+    font-size: 10px;
+    cursor: pointer;
+    image-rendering: pixelated;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-shadow: 1px 1px 0 #000;
+    padding: 0;
+    transition: all 0.05s;
+}
+
+.mc-close:hover {
+    background: #d04545;
+    color: #ffffa0;
+}
+
+.mc-close:active {
+    box-shadow:
+        inset -2px -2px 0 #e08080,
+        inset 2px 2px 0 #6b1f1f;
+    transform: translate(1px, 1px);
+}
+
+.mc-body {
+    background-color: #0d0a0e;
+    border: 2px solid #000;
+    box-shadow:
+        inset 3px 3px 0 #1f1a25,
+        inset -2px -2px 0 #050306;
+    padding: 14px 18px;
+    color: #c9c2b8;
+    font-family: var(--font-mono), "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+/* Dark Minecraft-style scrollbar inside .mc-body */
+.mc-body::-webkit-scrollbar {
+    width: 14px;
+}
+.mc-body::-webkit-scrollbar-track {
+    background: #14141a;
+    border-left: 2px solid #000;
+    box-shadow: inset 2px 0 0 #2a2530;
+}
+.mc-body::-webkit-scrollbar-thumb {
+    background: #4a4036;
+    border: 2px solid #1a1305;
+    box-shadow:
+        inset 2px 2px 0 #6a5640,
+        inset -2px -2px 0 #2a1f10;
+}
+.mc-body::-webkit-scrollbar-thumb:hover {
+    background: #5a4d40;
+}
+
+/* Markdown accent palette inside announcement body.
+   Gold picks up the SVAGA+ tone already used across the site. */
+.mc-body h1,
+.mc-body h2,
+.mc-body h3 {
+    font-family: var(--font-pixel), monospace;
+    image-rendering: pixelated;
+    color: #f5e6a8;
+    font-size: 11px;
+    margin: 12px 0 8px;
+    text-shadow: 1px 1px 0 #1a1305;
+    line-height: 1.6;
+}
+.mc-body h4,
+.mc-body h5,
+.mc-body h6 {
+    font-family: var(--font-pixel), monospace;
+    image-rendering: pixelated;
+    color: #e0c060;
+    font-size: 10px;
+    margin: 10px 0 6px;
+    text-shadow: 1px 1px 0 #1a1305;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.mc-body p {
+    margin: 8px 0;
+}
+.mc-body strong {
+    color: #f5e6a8;
+    font-weight: 700;
+}
+.mc-body em {
+    color: #b8e0ff;
+    font-style: italic;
+}
+.mc-body del {
+    color: #707070;
+    text-decoration: line-through;
+}
+.mc-body a {
+    color: #55cdf4;
+    text-decoration: underline;
+}
+.mc-body a:hover {
+    color: #7fd9ff;
+}
+.mc-body ul,
+.mc-body ol {
+    padding-left: 22px;
+    margin: 8px 0;
+}
+.mc-body li {
+    margin: 3px 0;
+}
+.mc-body hr {
+    border: none;
+    border-top: 2px dashed #3a3025;
+    margin: 12px 0;
+}
+.mc-body blockquote {
+    border-left: 4px solid #5a4023;
+    padding-left: 12px;
+    color: #9a9288;
+    font-style: italic;
+    margin: 8px 0;
+}
+.mc-body code {
+    background: #050306;
+    color: #e0c060;
+    padding: 2px 5px;
+    border: 1px solid #2a2530;
+    font-family: var(--font-mono), monospace;
+    font-size: 12px;
+}
+.mc-body pre {
+    background: #050306;
+    border: 1px solid #2a2530;
+    box-shadow: inset 2px 2px 0 #1f1a25;
+    padding: 10px 12px;
+    overflow-x: auto;
+    margin: 8px 0;
+}
+.mc-body pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #e0c060;
+}
+.mc-body table {
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 11px;
+}
+.mc-body th,
+.mc-body td {
+    border: 1px solid #2a2530;
+    padding: 4px 8px;
+}
+.mc-body th {
+    background: #1f1a25;
+    color: #f5e6a8;
+}

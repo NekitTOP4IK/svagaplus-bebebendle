@@ -70,26 +70,33 @@ export function AnnouncementOverlay({ active }: Props): ReactElement | null {
           onClick={close}
         >
           <motion.div
-            className="pixel-container relative border-4 border-black bg-zinc-900/95 w-full max-w-xl p-5 sm:p-6"
+            className="mc-frame relative w-full max-w-xl"
             initial={{ scale: reduceMotion ? 1 : 0.98, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: reduceMotion ? 1 : 0.98, opacity: 0 }}
             transition={{ duration: reduceMotion ? 0 : 0.2 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="pixel-text text-lg sm:text-xl truncate pr-2">{shown.title}</h2>
+            <div className="mc-panel">
               <button
                 type="button"
                 aria-label="Закрыть"
                 onClick={close}
-                className="pixel-btn shrink-0 h-8 w-8 text-sm font-bold"
+                className="mc-close"
               >
                 ✕
               </button>
-            </div>
-            <div className="mt-3 max-h-[60vh] overflow-y-auto pr-2">
-              <MarkdownView content={shown.body} />
+              <div className="text-center">
+                <div
+                  className="mc-sign"
+                  style={{ margin: "-32px auto 12px" }}
+                >
+                  <span className="mc-title">{shown.title}</span>
+                </div>
+              </div>
+              <div className="mc-body max-h-[60vh] overflow-y-auto">
+                <MarkdownView content={shown.body} />
+              </div>
             </div>
           </motion.div>
         </motion.div>
