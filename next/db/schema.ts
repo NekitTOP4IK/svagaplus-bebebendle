@@ -161,6 +161,19 @@ export const appSettings = pgTable("app_settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+/** Admin-managed on-site announcements shown once per browser on the homepage. */
+export const announcements = pgTable("announcements", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdByUserId: integer("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+}, (t) => ({
+  activeCreatedIdx: index("announcements_active_created_idx").on(t.active, t.createdAt),
+}));
+
 export type Scran = typeof scrans.$inferSelect;
 export type DailyScrandle = typeof dailyScrandles.$inferSelect;
 export type ScrandleVote = typeof scrandleVotes.$inferSelect;
@@ -170,3 +183,4 @@ export type User = typeof users.$inferSelect;
 export type UserSession = typeof userSessions.$inferSelect;
 export type ModerationAuditLog = typeof moderationAuditLog.$inferSelect;
 export type AppSetting = typeof appSettings.$inferSelect;
+export type Announcement = typeof announcements.$inferSelect;

@@ -6,6 +6,8 @@ import { SplashText } from "@/components/splash-text";
 import { HomeUserMenu } from "@/components/home-user-menu";
 import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
 import { getDailyPublicStatus } from "@/lib/app-settings";
+import { getActiveAnnouncements } from "@/lib/announcements";
+import { AnnouncementOverlay } from "@/components/announcements/announcement-overlay";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +62,7 @@ const splashTexts = [
 export default async function HomePage() {
   const hasDaily = await hasDailyForToday();
   const dailyStatus = await getDailyPublicStatus(hasDaily);
+  const announcements = await getActiveAnnouncements();
 
   return (
     <div
@@ -110,6 +113,8 @@ export default async function HomePage() {
           <CountdownTimer />
         </div>
       </footer>
+
+      <AnnouncementOverlay active={announcements} />
     </div>
   );
 }

@@ -156,6 +156,10 @@ next/                   # Next.js frontend
 ├── public/           # Static assets
 └── scripts/          # Utility scripts (backfill, refresh-subscribers)
 ├── app/api/middleware/rateLimit.ts  # used for daily + now internal svaga
+├── app/api/admin/announcements/      # CRUD REST (admin only) for on-site announcements
+├── app/admin/announcements/          # Admin list + editor for announcements
+├── components/announcements/          # Overlay + MarkdownView shown on home
+└── lib/announcements.ts              # server library: getActiveAnnouncements + CRUD
 
 bot/                   # Python Telegram bot
 ├── src/              # Source code
@@ -184,3 +188,14 @@ bot/                   # Python Telegram bot
 - Bot README and AGENTS updated for the flow.
 - See design spec risks: cached status on SVAGA+ downtime; rate limits + interleaving for abuse.
 - Run `bun run lint` before commits. Multiple small commits for polish.
+
+## Announcements System (Task 10)
+
+- Admin-managed on-site cards shown once per browser on `/`. FIFO by `createdAt ASC`.
+- `localStorage["seenAnnouncementIds"]` = `number[]` (capped at 200); mark-on-render = seen.
+- Markdown via `react-markdown` + `remark-gfm` (no `rehype-raw` → no raw HTML, XSS-safe).
+- Admin-only CRUD at `/admin/announcements`; REST at `/api/admin/announcements[/:id]`.
+- Audit actions: `announcements.create`, `announcements.update`, `announcements.delete`.
+- Schema: `next/db/schema.ts` → `announcements` table; migration `0011_add_announcements.sql`.
+- Editing an announcement is silent: same `id` stays seen; to re-show, admin duplicates it.
+- See design: `docs/superpowers/specs/2026-07-18-announcements-design.md`; plan: `docs/superpowers/plans/2026-07-18-announcements.md`.
