@@ -300,6 +300,15 @@ export function AdminDashboard({
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {role === "admin" && (
+              <Link
+                href="/admin/announcements"
+                className="pixel-btn pixel-btn-info px-3 py-2 text-xs font-bold"
+                title="Управление объявлениями на главной"
+              >
+                Объявления
+              </Link>
+            )}
             {onLogout && (
               <button
                 type="button"
