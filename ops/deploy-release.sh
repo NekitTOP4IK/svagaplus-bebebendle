@@ -188,12 +188,11 @@ fi
 }
 
 # Public URL for share links / absolute client URLs.
-# GitHub Environment var APP_URL is the third CLI arg — bake into Next build.
+# GitHub Environment var APP_URL is the third CLI arg — always bake into Next build
+# (overrides stale NEXT_PUBLIC_* in shared/.env so share text tracks deploy APP_URL).
 APP_URL="${APP_URL%/}"
-export NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL:-$APP_URL}"
-export NEXT_PUBLIC_SITE_URL="${NEXT_PUBLIC_SITE_URL%/}"
-export NEXT_PUBLIC_APP_URL="${NEXT_PUBLIC_APP_URL:-$NEXT_PUBLIC_SITE_URL}"
-export NEXT_PUBLIC_APP_URL="${NEXT_PUBLIC_APP_URL%/}"
+export NEXT_PUBLIC_SITE_URL="$APP_URL"
+export NEXT_PUBLIC_APP_URL="$APP_URL"
 echo "==> public site URL (NEXT_PUBLIC_SITE_URL)=$NEXT_PUBLIC_SITE_URL"
 
 # Keep shared/.env in sync so local tooling and restarts see the same public URL

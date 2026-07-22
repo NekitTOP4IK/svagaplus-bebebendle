@@ -214,7 +214,7 @@ See [`deploy-and-rollback.md`](./deploy-and-rollback.md).
 |------|--------|
 | Host | `185.184.123.237` (`vm197765.hosted-by.u1host.com`) |
 | SSH | `ssh -i ~/.ssh/svagaplus_deploy deploy@185.184.123.237` |
-| Domain | `bebebendle.svagaplus.qzz.io` |
+| Domain | `bebebendle.svagaplus.com` (legacy: `bebebendle.svagaplus.qzz.io`) |
 | Co-located | SVAGA+ under `/opt/svagaplus` (ports 5015/5016, PM2 currently **root**-owned) |
 | Postgres / Redis / Nginx | already active |
 | App ports | `3000` (Next), `3011` (bot health) — free as of prep |
@@ -294,12 +294,23 @@ On this host SVAGA+ PM2 processes currently run as **root**. Bebebendle should s
 
 ### After root bootstrap + .env
 
-1. DNS A record: `bebebendle.svagaplus.qzz.io` → `185.184.123.237`  
-2. Nginx site from `ops/nginx/bebebendle.svagaplus.qzz.io.conf` → enable + `certbot --nginx`  
-3. GitHub Environment `production`: `DEPLOY_HOST=185.184.123.237`, `DEPLOY_USER=deploy`, `DEPLOY_PATH=/opt/bebebendle`, key, known_hosts, variable `APP_URL=https://bebebendle.svagaplus.qzz.io`  
+1. DNS A record: `bebebendle.svagaplus.com` → `185.184.123.237`  
+2. Nginx site for the public hostname → enable + `certbot --nginx`  
+3. GitHub Environment `production`: `DEPLOY_HOST=185.184.123.237`, `DEPLOY_USER=deploy`, `DEPLOY_PATH=/opt/bebebendle`, key, known_hosts, variable `APP_URL=https://bebebendle.svagaplus.com`  
 4. Required reviewers on Environment `production`  
 5. Merge verified staging → `main` → approve deploy  
-6. Smoke: [`svaga-integration-smoke.md`](./svaga-integration-smoke.md)
+6. Install daily generation cron (00:00 MSK) — see below  
+7. Smoke: [`svaga-integration-smoke.md`](./svaga-integration-smoke.md)
+
+### Daily generation cron (00:00 MSK)
+
+Host crontab (user `deploy` or root with env readable by script):
+
+```cron
+0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-daily.sh >> /opt/bebebendle/shared/logs/daily-cron.log 2>&1
+```
+
+Script: `ops/cron-generate-daily.sh` — sources `shared/.env` (`CRON_SECRET`, `BEBEBENDLE_INTERNAL_URL`) and `GET`s `/api/cron/daily`. Calendar day is **Europe/Moscow**.
 
 ### Verify after root bootstrap
 

@@ -9,6 +9,7 @@ import {
   recordDailyVote,
   resolvePlaySessionId,
 } from "@/lib/daily-integrity";
+import { todayMskDate } from "@/lib/daily-timezone";
 
 async function getClientIpFromHeaders(): Promise<string> {
   const headersList = await headers();
@@ -48,9 +49,7 @@ export async function submitDailyVote(
   }
 
   const playDate =
-    date && /^\d{4}-\d{2}-\d{2}$/.test(date)
-      ? date
-      : new Date().toISOString().split("T")[0];
+    date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayMskDate();
 
   const sessionId = resolvePlaySessionId(fingerprint, clientIp);
 

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { db, dailyScrandles, scrans } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { todayMskDate } from "@/lib/daily-timezone";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
+    const date = searchParams.get("date") || todayMskDate();
     const round = parseInt(searchParams.get("round") || "1");
 
     // Get today's scrandle for this round

@@ -6,6 +6,7 @@ import {
   computeAndStoreDailyResult,
   resolvePlaySessionId,
 } from "@/lib/daily-integrity";
+import { todayMskDate } from "@/lib/daily-timezone";
 
 export async function POST(request: Request) {
   try {
@@ -72,8 +73,7 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const date =
-      searchParams.get("date") || new Date().toISOString().split("T")[0];
+    const date = searchParams.get("date") || todayMskDate();
 
     const results = await db
       .select({

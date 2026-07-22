@@ -5,9 +5,10 @@ import { dailyScrandles, scrans } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { DailyData } from "@/types/game";
 import { publicScran } from "@/lib/daily-integrity";
+import { todayMskDate } from "@/lib/daily-timezone";
 
 function todayIsoDate(): string {
-  return new Date().toISOString().split("T")[0];
+  return todayMskDate();
 }
 
 /** Lightweight check for home CTA — does not load full scran rows. */

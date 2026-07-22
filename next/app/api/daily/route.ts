@@ -1,11 +1,12 @@
 import { db, scrans, dailyScrandles } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { todayMskDate } from "@/lib/daily-timezone";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const date = searchParams.get("date") || new Date().toISOString().split("T")[0];
+    const date = searchParams.get("date") || todayMskDate();
 
     // Get all 10 rounds for today
     const dailyScrandlesList = await db

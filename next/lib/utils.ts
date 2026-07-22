@@ -1,30 +1,20 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import {
+  formatTimeUntilMidnightMsk,
+  nextMidnightMsk,
+} from "@/lib/daily-timezone";
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
+/** @deprecated Use formatTimeUntilMidnightMsk — daily resets at 00:00 MSK. */
 export function formatTimeUntilMidnightUTC(): string {
-  const now = new Date();
-  const tomorrowUTC = new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() + 1,
-      0,
-      0,
-      0,
-    ),
-  );
-
-  const diff = tomorrowUTC.getTime() - now.getTime();
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  return formatTimeUntilMidnightMsk();
 }
+
+export { formatTimeUntilMidnightMsk, nextMidnightMsk };
 
 export function getLikesPercentage(likes: number, dislikes: number): number {
   const total = likes + dislikes;

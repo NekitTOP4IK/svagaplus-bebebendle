@@ -73,7 +73,7 @@ describe("cookies", () => {
       expect(retrieved).toEqual(result);
     });
 
-    it("should set cookie to expire at midnight UTC", () => {
+    it("should set cookie to expire at midnight MSK", () => {
       const result = {
         date: "2024-01-15",
         score: 5,

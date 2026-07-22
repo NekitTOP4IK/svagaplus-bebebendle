@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { formatTimeUntilMidnightUTC } from "@/lib/utils";
+import { formatTimeUntilMidnightMsk } from "@/lib/utils";
 
 export function CountdownTimer() {
   const [timeLeft, setTimeLeft] = useState<string>("00:00:00");
@@ -10,13 +10,13 @@ export function CountdownTimer() {
   useEffect(() => {
     const initialize = () => {
       setMounted(true);
-      setTimeLeft(formatTimeUntilMidnightUTC());
+      setTimeLeft(formatTimeUntilMidnightMsk());
     };
 
     const initTimeout = setTimeout(initialize, 0);
 
     const timer = setInterval(() => {
-      setTimeLeft(formatTimeUntilMidnightUTC());
+      setTimeLeft(formatTimeUntilMidnightMsk());
     }, 1000);
 
     return () => {

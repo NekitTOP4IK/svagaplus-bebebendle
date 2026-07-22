@@ -27,7 +27,7 @@ describe("CountdownTimer", () => {
   });
 
   it("should update timer after mount", async () => {
-    // Set time to 14:30:45 UTC (9 hours 29 minutes 15 seconds until midnight)
+    // 14:30:45 UTC → 6h 29m 15s until 00:00 MSK (21:00 UTC)
     vi.setSystemTime(new Date("2024-01-15T14:30:45Z"));
     
     await act(async () => {
@@ -39,7 +39,7 @@ describe("CountdownTimer", () => {
       vi.advanceTimersByTime(10);
     });
     
-    // Should show time until midnight UTC
+    // Should show time until midnight MSK
     expect(screen.getByText(/\d{2}:\d{2}:\d{2}/)).toBeInTheDocument();
   });
 

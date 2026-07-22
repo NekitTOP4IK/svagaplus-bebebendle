@@ -11,6 +11,7 @@ import {
   inArray,
 } from "drizzle-orm";
 import type { Scran } from "@/db/schema";
+import { todayMskDate } from "@/lib/daily-timezone";
 
 export const MIN_SCRANS = 20;
 export const ROUNDS_COUNT = 10;
@@ -25,9 +26,13 @@ function shuffle<T>(array: T[]): T[] {
   return result;
 }
 
+/** Calendar day for daily generation / lookup (00:00 Europe/Moscow). */
 export function todayUtcDate(): string {
-  return new Date().toISOString().split("T")[0];
+  // Kept export name for call-site stability; value is MSK date, not UTC.
+  return todayMskDate();
 }
+
+export { todayMskDate };
 
 export async function getApprovedScransWithVotes(): Promise<Scran[]> {
   const rating = sql<number>`

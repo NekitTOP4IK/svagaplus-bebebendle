@@ -1,5 +1,7 @@
 "use client";
 
+import { nextMidnightMsk, todayMskDate } from "@/lib/daily-timezone";
+
 const COOKIE_NAME = "daily_bebendle";
 
 type DailyResult = {
@@ -22,28 +24,14 @@ export function hasPlayedToday(): boolean {
   const result = getTodayResult();
   if (!result) return false;
 
-  const today = new Date().toISOString().split("T")[0];
-  return result.date === today;
+  return result.date === todayMskDate();
 }
 
 export function saveDailyResult(result: DailyResult): void {
   if (typeof document === "undefined") return;
 
-  const now = new Date();
-
-  // Cookie expires at 00:00 UTC (start of next day)
-  const tomorrowUTC = new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() + 1,
-      0,
-      0,
-      0,
-    ),
-  );
-
-  const expires = tomorrowUTC.toUTCString();
+  // Cookie expires at next 00:00 MSK (daily reset)
+  const expires = nextMidnightMsk().toUTCString();
   const cookieValue = encodeURIComponent(JSON.stringify(result));
   document.cookie = `${COOKIE_NAME}=${cookieValue}; expires=${expires}; path=/; SameSite=Strict`;
 }
@@ -60,8 +48,7 @@ export function getTodayResult(): DailyResult | null {
     const value = cookie.split("=")[1];
     const result = JSON.parse(decodeURIComponent(value)) as DailyResult;
 
-    const today = new Date().toISOString().split("T")[0];
-    if (result.date !== today) return null;
+    if (result.date !== todayMskDate()) return null;
 
     return result;
   } catch {
