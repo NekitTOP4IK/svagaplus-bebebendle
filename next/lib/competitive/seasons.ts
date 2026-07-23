@@ -11,6 +11,7 @@ import {
   competitiveSeasonFinalRanks,
   type CompetitiveSeason,
 } from "@/db/schema";
+import { leaderboardLabel } from "./display-name";
 
 export type SeasonStatus = "draft" | "countdown" | "active" | "ended";
 
@@ -60,17 +61,14 @@ export function shouldEnd(
 /**
  * Display name for final-rank snapshot:
  * competitiveDisplayName → @telegramUsername → Игрок #{id}
+ * (same chain as leaderboardLabel)
  */
 export function snapshotDisplayName(user: {
   id: number;
   competitiveDisplayName: string | null;
   telegramUsername: string | null;
 }): string {
-  const competitive = user.competitiveDisplayName?.trim();
-  if (competitive) return competitive;
-  const tg = user.telegramUsername?.trim();
-  if (tg) return tg.startsWith("@") ? tg : `@${tg}`;
-  return `Игрок #${user.id}`;
+  return leaderboardLabel(user);
 }
 
 function assertValidStatus(status: string): asserts status is SeasonStatus {
