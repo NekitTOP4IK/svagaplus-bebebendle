@@ -33,6 +33,7 @@ export type PoolRow = {
   id: number;
   scranId: number;
   scranName: string;
+  imageUrl: string;
   enabled: boolean;
   likesSnapshot: number;
   dislikesSnapshot: number;
@@ -163,6 +164,7 @@ export async function listPool(dateMsk: string = todayMskDate()): Promise<PoolRo
       id: competitivePoolEntries.id,
       scranId: competitivePoolEntries.scranId,
       scranName: scrans.name,
+      imageUrl: scrans.imageUrl,
       enabled: competitivePoolEntries.enabled,
       likesSnapshot: competitivePoolEntries.likesSnapshot,
       dislikesSnapshot: competitivePoolEntries.dislikesSnapshot,

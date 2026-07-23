@@ -3,8 +3,8 @@ import Link from "next/link";
 import type { CurrentUser } from "@/lib/auth-server";
 import type { HubSeasonSummary } from "@/lib/competitive/hub";
 import { COMPETITIVE_ICONS } from "@/lib/competitive/icons";
-import { CompetitiveLogout } from "./competitive-logout";
-import { HubCountdown } from "./hub-countdown";
+import { UserIdentity } from "@/components/user-identity";
+import { resolveIdentityTone } from "@/lib/user-identity";
 import "./competitive.css";
 
 type Props = Readonly<{
@@ -55,13 +55,12 @@ function seasonMiniStatus(season: HubSeasonSummary | null): {
 }
 
 /**
- * End-themed competitive shell: atmosphere, topbar, footer.
- * Product: no login CTA on hub; auth is gated by the page.
+ * Competitive shell: full-page hub chrome.
+ * Profile chip matches home (UserIdentity + badge/glow). No logout here.
  */
 export function CompetitiveShell({
   user,
   season,
-  nextDailyAt,
   children,
 }: Props): ReactElement {
   const nick =
@@ -70,32 +69,47 @@ export function CompetitiveShell({
     `tg:${user.telegramId}`;
   const initials = nick.slice(0, 2).toUpperCase();
   const mini = seasonMiniStatus(season);
+  const tone = resolveIdentityTone(user.role, user.isSubscriber);
+  const avatarClass = tone === "default" ? "" : `user-avatar--${tone}`;
 
   return (
     <div className="c-hub">
-      <div className="c-world-bg" aria-hidden />
-      <div className="c-vignette" aria-hidden />
-      <div className="c-particles" aria-hidden />
-
+      <div className="c-hub-bg" aria-hidden>
+        <div className="c-hub-bg__image" />
+        <div className="c-hub-bg__shade" />
+      </div>
       <main className="c-shell">
         <header className="c-topbar">
           <Link
-            className="c-profile-chip"
             href="/profile"
+            className="pixel-btn c-profile-chip flex min-h-11 items-center gap-3 overflow-visible px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
             aria-label="Открыть профиль"
           >
-            <span className="c-avatar">
-              {user.telegramPhotoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.telegramPhotoUrl} alt="" />
-              ) : (
-                <span className="c-avatar-fallback">{initials}</span>
-              )}
-            </span>
-            <span className="c-profile-copy">
-              <strong title={nick}>{nick}</strong>
-              <small>Профиль&nbsp;/&nbsp;СВАГА+</small>
-            </span>
+            {user.telegramPhotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.telegramPhotoUrl}
+                alt=""
+                className={`h-9 w-9 shrink-0 border-2 border-black object-cover ${avatarClass}`}
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold text-white ${avatarClass}`}
+              >
+                {initials}
+              </span>
+            )}
+            <UserIdentity
+              name={nick}
+              role={user.role}
+              isSubscriber={user.isSubscriber}
+              size="sm"
+              className="min-w-0 flex-1"
+              meta="Профиль / СВАГА+"
+              showMetaSuffix={false}
+              nickGlow
+            />
           </Link>
 
           <div className="c-brand" aria-label="Бебебендл Competitive">
@@ -104,24 +118,26 @@ export function CompetitiveShell({
               className="c-brand-logo"
               src={COMPETITIVE_ICONS.logos.competitive}
               alt="Бебебендл Competitive"
-              width={420}
-              height={120}
+              width={360}
+              height={100}
             />
           </div>
 
           <nav className="c-top-actions" aria-label="Навигация">
-            <CompetitiveLogout />
-            <Link className="c-pixel-btn" href="/">
+            <Link
+              className="pixel-btn px-3 py-1.5 text-xs font-bold sm:text-sm"
+              href="/"
+            >
               ← На главную
             </Link>
             <div className="c-season-mini">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                className="c-season-mini-logo"
-                src={COMPETITIVE_ICONS.logos.season1}
+                className="c-season-mini-pearl"
+                src={COMPETITIVE_ICONS.pearl}
                 alt=""
-                width={96}
-                height={48}
+                width={36}
+                height={36}
               />
               <span>
                 <b className={mini.className || undefined}>{mini.label}</b>
@@ -134,24 +150,11 @@ export function CompetitiveShell({
         {children}
       </main>
 
-      <footer className="c-footer">
-        <p>
-          Scrandle по еде зрителей стримера Olesha, дарованный
-          <br />
-          подписчиками платного тг-канала
+      <footer className="c-footer" aria-label="О проекте">
+        <p className="c-footer-tagline">
+          Scrandle по еде зрителей стримера Olesha, дарованный подписчиками
+          платного тг-канала
         </p>
-        {nextDailyAt ? (
-          <p>
-            До следующего дейлика:{" "}
-            <strong>
-              <HubCountdown
-                targetIso={nextDailyAt}
-                mode="hms"
-                fallback="00:00:00"
-              />
-            </strong>
-          </p>
-        ) : null}
       </footer>
     </div>
   );

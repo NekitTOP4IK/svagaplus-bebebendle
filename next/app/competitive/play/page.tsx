@@ -77,14 +77,11 @@ function UnavailablePanel({
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/competitive"
-            className="inline-block border-4 border-black bg-yellow-400 px-6 py-3 font-[family-name:var(--font-pixel)] text-sm text-black hover:bg-yellow-300"
+            className="pixel-btn pixel-btn-ok px-6 py-3 text-sm font-bold"
           >
             В хаб
           </Link>
-          <Link
-            href="/"
-            className="inline-block border-4 border-black bg-white px-6 py-3 font-[family-name:var(--font-pixel)] text-sm text-black hover:bg-zinc-100"
-          >
+          <Link href="/" className="pixel-btn px-6 py-3 text-sm font-bold">
             На главную
           </Link>
         </div>

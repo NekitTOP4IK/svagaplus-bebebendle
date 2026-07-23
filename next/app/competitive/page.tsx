@@ -26,7 +26,7 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
       <CompetitiveShell user={user} season={null}>
         <section className="c-disabled-box c-panel">
           <p>Соревновательный режим временно отключён.</p>
-          <Link className="c-pixel-btn" href="/">
+          <Link className="pixel-btn px-4 py-2 text-sm font-bold" href="/">
             ← На главную
           </Link>
         </section>

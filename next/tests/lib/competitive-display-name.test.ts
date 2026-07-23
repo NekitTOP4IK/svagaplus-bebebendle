@@ -11,6 +11,7 @@ import {
   addCalendarDays,
   computeStreakDays,
   compareStandingsRank,
+  seasonDayNumber,
 } from "@/lib/competitive/hub";
 
 describe("validateCompetitiveDisplayName", () => {
@@ -213,5 +214,16 @@ describe("compareStandingsRank", () => {
     ];
     const sorted = [...rows].sort(compareStandingsRank);
     expect(sorted.map((r) => r.userId)).toEqual([2, 4, 1, 5, 3]);
+  });
+});
+
+describe("seasonDayNumber", () => {
+  it("is 1 on season start MSK day", () => {
+    // 2026-08-01 00:00 MSK = 2026-07-31 21:00 UTC
+    expect(seasonDayNumber("2026-07-31T21:00:00.000Z", "2026-08-01")).toBe(1);
+  });
+
+  it("increments by calendar day", () => {
+    expect(seasonDayNumber("2026-07-31T21:00:00.000Z", "2026-08-05")).toBe(5);
   });
 });

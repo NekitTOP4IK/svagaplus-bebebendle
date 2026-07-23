@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
 import type { HubPayload } from "@/lib/competitive/hub";
+import { seasonDayNumber } from "@/lib/competitive/hub";
 import { COMPETITIVE_ICONS, swordSrcForPlace } from "@/lib/competitive/icons";
 import { HubCountdown } from "./hub-countdown";
 
@@ -133,12 +134,14 @@ function renderCenter(hub: HubPayload): ReactElement {
   }
 
   const swordSrc = swordSrcForPlace(hub.me.place);
+  const dayN = seasonDayNumber(season.startsAt);
+  const playLabel = `Играть: День ${dayN}`;
 
   return (
     <Link
       href="/competitive/play"
-      className="c-cta-center c-cta-center--play"
-      aria-label="Играть сегодня"
+      className="pixel-btn pixel-btn-info c-cta-center c-cta-center--play inline-flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-bold sm:text-base"
+      aria-label={playLabel}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -148,7 +151,7 @@ function renderCenter(hub: HubPayload): ReactElement {
         width={32}
         height={32}
       />
-      <b>Играть сегодня</b>
+      {playLabel}
     </Link>
   );
 }

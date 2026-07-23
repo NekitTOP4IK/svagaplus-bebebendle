@@ -10,6 +10,8 @@ export const COMPETITIVE_ICONS = {
     /** Season 1 wordmark: БЕБЕБЕНДЛ + 1СЕЗОН */
     season1: "/competitive/icons/bebebendle_s1.webp",
   },
+  /** Full-page hub background (light blur applied in CSS). */
+  background: "/competitive/competitive_background.webp",
   clock: "/competitive/icons/clock_00.png",
   pearl: "/competitive/icons/ender_pearl.png",
   swords: {

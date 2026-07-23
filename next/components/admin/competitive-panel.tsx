@@ -30,6 +30,7 @@ type PoolEntry = {
   id: number;
   scranId: number;
   scranName: string;
+  imageUrl: string;
   enabled: boolean;
   likesSnapshot: number;
   dislikesSnapshot: number;
@@ -98,11 +99,24 @@ function fromDatetimeLocal(value: string): string {
   return new Date(value).toISOString();
 }
 
+/** ISO / Date → value for `<input type="datetime-local">` (local wall time). */
+function toDatetimeLocal(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
 function formatRu(value: string | Date | null | undefined): string {
   if (!value) return "—";
   const d = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleString("ru-RU");
+}
+
+function snapPct(likes: number, dislikes: number): string {
+  const t = likes + dislikes;
+  if (t <= 0) return "—";
+  return `${Math.round((likes / t) * 100)}%`;
 }
 
 function todayDateInput(): string {
@@ -234,17 +248,39 @@ function SettingsSection(): ReactElement {
 
 // ── Seasons ────────────────────────────────────────────────────────────────
 
+type SeasonFormState = {
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  status: SeasonStatus;
+};
+
+const emptySeasonForm = (): SeasonFormState => ({
+  name: "",
+  startsAt: "",
+  endsAt: "",
+  status: "draft",
+});
+
+function seasonToForm(s: Season): SeasonFormState {
+  return {
+    name: s.name,
+    startsAt: toDatetimeLocal(s.startsAt),
+    endsAt: toDatetimeLocal(s.endsAt),
+    status: s.status,
+  };
+}
+
 function SeasonsSection(): ReactElement {
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  const [name, setName] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
-  const [status, setStatus] = useState<SeasonStatus>("draft");
-  const [creating, setCreating] = useState(false);
+  const [mode, setMode] = useState<"list" | "create" | "edit">("list");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [form, setForm] = useState<SeasonFormState>(emptySeasonForm);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -271,39 +307,64 @@ function SeasonsSection(): ReactElement {
     void load();
   }, [load]);
 
-  async function onCreate(e: FormEvent) {
-    e.preventDefault();
-    if (!name.trim() || !startsAt || !endsAt || creating) return;
-    setCreating(true);
+  function openCreate() {
+    setMode("create");
+    setEditId(null);
+    setForm(emptySeasonForm());
     setError("");
+  }
+
+  function openEdit(s: Season) {
+    setMode("edit");
+    setEditId(s.id);
+    setForm(seasonToForm(s));
+    setError("");
+  }
+
+  function cancelForm() {
+    setMode("list");
+    setEditId(null);
+    setForm(emptySeasonForm());
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim() || !form.startsAt || !form.endsAt || saving) return;
+    setSaving(true);
+    setError("");
+    const body = {
+      name: form.name.trim(),
+      startsAt: fromDatetimeLocal(form.startsAt),
+      endsAt: fromDatetimeLocal(form.endsAt),
+      status: form.status,
+    };
     try {
-      const res = await apiFetch("/api/admin/competitive/seasons", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          startsAt: fromDatetimeLocal(startsAt),
-          endsAt: fromDatetimeLocal(endsAt),
-          status,
-        }),
-      });
+      const res =
+        mode === "edit" && editId != null
+          ? await apiFetch(`/api/admin/competitive/seasons/${editId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            })
+          : await apiFetch("/api/admin/competitive/seasons", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
       if (!res.ok) {
         const msg = await readError(res);
         setError(msg);
         toast.error(msg);
         return;
       }
-      toast.success("Сезон создан");
-      setName("");
-      setStartsAt("");
-      setEndsAt("");
-      setStatus("draft");
+      toast.success(mode === "edit" ? "Сезон сохранён" : "Сезон создан");
+      cancelForm();
       await load();
     } catch {
       setError("Ошибка сети");
       toast.error("Ошибка сети");
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
@@ -330,6 +391,36 @@ function SeasonsSection(): ReactElement {
         return;
       }
       toast.success(`Сезон #${season.id} завершён`);
+      if (editId === season.id) cancelForm();
+      await load();
+    } catch {
+      setError("Ошибка сети");
+      toast.error("Ошибка сети");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function setStatusQuick(season: Season, status: SeasonStatus) {
+    if (season.status === status) return;
+    setBusyId(season.id);
+    setError("");
+    try {
+      const res = await apiFetch(
+        `/api/admin/competitive/seasons/${season.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        },
+      );
+      if (!res.ok) {
+        const msg = await readError(res);
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success(`Статус → ${STATUS_LABEL[status]}`);
       await load();
     } catch {
       setError("Ошибка сети");
@@ -341,112 +432,209 @@ function SeasonsSection(): ReactElement {
 
   return (
     <section className="pixel-container space-y-4 border-4 border-black bg-zinc-900/80 p-4">
-      <div>
-        <h2 className="pixel-text text-xl font-bold text-white">Сезоны</h2>
-        <p className="text-sm text-white/60">
-          Создание, список, завершение с snapshot рангов
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="pixel-text text-xl font-bold text-white">Сезоны</h2>
+          <p className="text-sm text-white/60">
+            Создание, редактирование, статусы, завершение с snapshot рангов
+          </p>
+        </div>
+        {mode === "list" ? (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
+          >
+            + Новый сезон
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={cancelForm}
+            className="pixel-btn px-4 py-2 text-sm font-bold"
+          >
+            К списку
+          </button>
+        )}
       </div>
 
       {error && <ErrorBox message={error} />}
 
-      <form
-        onSubmit={(e) => void onCreate(e)}
-        className="space-y-3 border-2 border-zinc-700 bg-zinc-950 p-3"
-      >
-        <p className="text-xs font-bold uppercase tracking-wide text-white/50">
-          Новый сезон
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-xs text-white/50 sm:col-span-2">
-            Название
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              maxLength={120}
-              placeholder="Июль 2026"
-              className="pixel-input mt-1 block w-full"
-            />
-          </label>
-          <label className="block text-xs text-white/50">
-            Начало
-            <input
-              type="datetime-local"
-              value={startsAt}
-              onChange={(e) => setStartsAt(e.target.value)}
-              required
-              className="pixel-input mt-1 block w-full"
-            />
-          </label>
-          <label className="block text-xs text-white/50">
-            Конец
-            <input
-              type="datetime-local"
-              value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
-              required
-              className="pixel-input mt-1 block w-full"
-            />
-          </label>
-          <label className="block text-xs text-white/50">
-            Статус
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as SeasonStatus)}
-              className="pixel-input mt-1 block w-full"
-            >
-              {SEASON_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABEL[s]} ({s})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <button
-          type="submit"
-          disabled={creating}
-          className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
+      {(mode === "create" || mode === "edit") && (
+        <form
+          onSubmit={(e) => void onSubmit(e)}
+          className="space-y-3 border-2 border-amber-700/50 bg-zinc-950 p-4"
         >
-          {creating ? "Создание…" : "Создать сезон"}
-        </button>
-      </form>
+          <p className="text-xs font-bold uppercase tracking-wide text-amber-200/80">
+            {mode === "edit" ? `Редактирование #${editId}` : "Новый сезон"}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs text-white/50 sm:col-span-2">
+              Название
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                required
+                maxLength={120}
+                placeholder="Эндовый сезон I"
+                className="pixel-input mt-1 block w-full"
+              />
+            </label>
+            <label className="block text-xs text-white/50">
+              Начало
+              <input
+                type="datetime-local"
+                value={form.startsAt}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, startsAt: e.target.value }))
+                }
+                required
+                className="pixel-input mt-1 block w-full"
+              />
+            </label>
+            <label className="block text-xs text-white/50">
+              Конец
+              <input
+                type="datetime-local"
+                value={form.endsAt}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, endsAt: e.target.value }))
+                }
+                required
+                className="pixel-input mt-1 block w-full"
+              />
+            </label>
+            <label className="block text-xs text-white/50 sm:col-span-2">
+              Статус
+              <select
+                value={form.status}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    status: e.target.value as SeasonStatus,
+                  }))
+                }
+                className="pixel-input mt-1 block w-full max-w-xs"
+              >
+                {SEASON_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]} ({s})
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-[11px] text-white/35">
+                Только один сезон может быть active. Завершение (ended) пишет
+                финальные ранги.
+              </span>
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
+            >
+              {saving
+                ? "Сохранение…"
+                : mode === "edit"
+                  ? "Сохранить"
+                  : "Создать"}
+            </button>
+            <button
+              type="button"
+              onClick={cancelForm}
+              className="pixel-btn px-4 py-2 text-sm font-bold"
+            >
+              Отмена
+            </button>
+            {mode === "edit" && editId != null && form.status !== "ended" && (
+              <button
+                type="button"
+                disabled={busyId === editId}
+                onClick={() => {
+                  const s = seasons.find((x) => x.id === editId);
+                  if (s) void endSeason(s);
+                }}
+                className="pixel-btn pixel-btn-danger px-4 py-2 text-sm font-bold"
+              >
+                Завершить сезон
+              </button>
+            )}
+          </div>
+        </form>
+      )}
 
       {loading ? (
         <p className="text-white/60">Загрузка…</p>
       ) : seasons.length === 0 ? (
-        <p className="text-sm text-white/50">Сезонов пока нет</p>
+        <p className="text-sm text-white/50">
+          Сезонов пока нет. Нажми «Новый сезон».
+        </p>
       ) : (
         <ul className="space-y-2">
           {seasons.map((s) => (
             <li
               key={s.id}
-              className="flex flex-wrap items-start justify-between gap-3 border-2 border-zinc-700 bg-zinc-950 px-3 py-3"
+              className={`border-2 bg-zinc-950 px-3 py-3 ${
+                editId === s.id
+                  ? "border-amber-500/60"
+                  : "border-zinc-700"
+              }`}
             >
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-white/45">#{s.id}</p>
-                <h3 className="pixel-text text-base font-bold text-white">
-                  {s.name}
-                </h3>
-                <p className="mt-1 text-xs text-white/50">
-                  {formatRu(s.startsAt)} → {formatRu(s.endsAt)}
-                </p>
-                <p className="mt-0.5 text-xs">
-                  <StatusBadge status={s.status} />
-                </p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-white/45">#{s.id}</p>
+                  <h3 className="pixel-text text-base font-bold text-white">
+                    {s.name}
+                  </h3>
+                  <p className="mt-1 text-xs text-white/50">
+                    {formatRu(s.startsAt)} → {formatRu(s.endsAt)}
+                  </p>
+                  <p className="mt-0.5 text-xs">
+                    <StatusBadge status={s.status} />
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(s)}
+                    className="pixel-btn pixel-btn-info px-3 py-1.5 text-xs font-bold"
+                  >
+                    Редактировать
+                  </button>
+                  {s.status === "draft" && (
+                    <button
+                      type="button"
+                      disabled={busyId === s.id}
+                      onClick={() => void setStatusQuick(s, "countdown")}
+                      className="pixel-btn pixel-btn-warn px-3 py-1.5 text-xs font-bold"
+                    >
+                      → countdown
+                    </button>
+                  )}
+                  {(s.status === "draft" || s.status === "countdown") && (
+                    <button
+                      type="button"
+                      disabled={busyId === s.id}
+                      onClick={() => void setStatusQuick(s, "active")}
+                      className="pixel-btn pixel-btn-ok px-3 py-1.5 text-xs font-bold"
+                    >
+                      → active
+                    </button>
+                  )}
+                  {s.status !== "ended" && (
+                    <button
+                      type="button"
+                      disabled={busyId === s.id}
+                      onClick={() => void endSeason(s)}
+                      className="pixel-btn pixel-btn-danger px-3 py-1.5 text-xs font-bold"
+                    >
+                      {busyId === s.id ? "…" : "Завершить"}
+                    </button>
+                  )}
+                </div>
               </div>
-              {s.status !== "ended" && (
-                <button
-                  type="button"
-                  disabled={busyId === s.id}
-                  onClick={() => void endSeason(s)}
-                  className="pixel-btn pixel-btn-danger shrink-0 px-3 py-1.5 text-xs font-bold"
-                >
-                  {busyId === s.id ? "…" : "Завершить"}
-                </button>
-              )}
             </li>
           ))}
         </ul>
@@ -473,6 +661,8 @@ function StatusBadge({ status }: { status: SeasonStatus }): ReactElement {
 
 // ── Pool ───────────────────────────────────────────────────────────────────
 
+type PoolFilter = "all" | "enabled" | "disabled" | "rotation";
+
 function PoolSection(): ReactElement {
   const [entries, setEntries] = useState<PoolEntry[]>([]);
   const [date, setDate] = useState("");
@@ -482,6 +672,7 @@ function PoolSection(): ReactElement {
   const [adding, setAdding] = useState(false);
   const [busyScranId, setBusyScranId] = useState<number | null>(null);
   const [filter, setFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<PoolFilter>("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -512,23 +703,33 @@ function PoolSection(): ReactElement {
 
   async function onAdd(e: FormEvent) {
     e.preventDefault();
-    const scranId = Number(scranIdInput.trim());
-    if (!Number.isInteger(scranId) || scranId <= 0 || adding) return;
+    const raw = scranIdInput.trim();
+    // support "1, 2, 3" or single id
+    const ids = raw
+      .split(/[\s,;]+/)
+      .map((x) => Number(x))
+      .filter((n) => Number.isInteger(n) && n > 0);
+    if (ids.length === 0 || adding) return;
     setAdding(true);
     setError("");
+    let ok = 0;
+    let fail = 0;
     try {
-      const res = await apiFetch("/api/admin/competitive/pool", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scranId }),
-      });
-      if (!res.ok) {
-        const msg = await readError(res);
+      for (const scranId of ids) {
+        const res = await apiFetch("/api/admin/competitive/pool", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scranId }),
+        });
+        if (res.ok) ok += 1;
+        else fail += 1;
+      }
+      if (ok > 0) toast.success(`Добавлено: ${ok}${fail ? ` · ошибок: ${fail}` : ""}`);
+      if (fail > 0 && ok === 0) {
+        const msg = "Не удалось добавить (проверь id / ≥15 голосов / approved)";
         setError(msg);
         toast.error(msg);
-        return;
       }
-      toast.success(`Скран #${scranId} добавлен в пул`);
       setScranIdInput("");
       await load();
     } catch {
@@ -572,13 +773,21 @@ function PoolSection(): ReactElement {
   }
 
   const q = filter.trim().toLowerCase();
-  const filtered = q
-    ? entries.filter(
-        (e) =>
-          String(e.scranId).includes(q) ||
-          e.scranName.toLowerCase().includes(q),
-      )
-    : entries;
+  let filtered = entries;
+  if (statusFilter === "enabled") filtered = filtered.filter((e) => e.enabled);
+  if (statusFilter === "disabled") filtered = filtered.filter((e) => !e.enabled);
+  if (statusFilter === "rotation")
+    filtered = filtered.filter((e) => e.inTodaysRotation);
+  if (q) {
+    filtered = filtered.filter(
+      (e) =>
+        String(e.scranId).includes(q) ||
+        e.scranName.toLowerCase().includes(q),
+    );
+  }
+
+  const enabledCount = entries.filter((e) => e.enabled).length;
+  const rotationCount = entries.filter((e) => e.inTodaysRotation).length;
 
   return (
     <section className="pixel-container space-y-4 border-4 border-black bg-zinc-900/80 p-4">
@@ -586,9 +795,9 @@ function PoolSection(): ReactElement {
         <div>
           <h2 className="pixel-text text-xl font-bold text-white">Пул</h2>
           <p className="text-sm text-white/60">
-            Allowlist скранов · snapshot L/D · last used
+            Allowlist для competitive · snapshot L/D · freeze в ротации
             {date ? (
-              <span className="text-white/40"> · ротация {date}</span>
+              <span className="text-white/40"> · MSK {date}</span>
             ) : null}
           </p>
         </div>
@@ -602,44 +811,75 @@ function PoolSection(): ReactElement {
         </button>
       </div>
 
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Stat label="Всего" value={String(entries.length)} tone="muted" />
+        <Stat label="Включено" value={String(enabledCount)} tone="ok" />
+        <Stat
+          label="В ротации сегодня"
+          value={String(rotationCount)}
+          tone={rotationCount > 0 ? "ok" : "muted"}
+        />
+      </div>
+
       {error && <ErrorBox message={error} />}
 
       <form
         onSubmit={(e) => void onAdd(e)}
-        className="flex flex-wrap items-end gap-2 border-2 border-zinc-700 bg-zinc-950 p-3"
+        className="space-y-2 border-2 border-zinc-700 bg-zinc-950 p-3"
       >
-        <label className="block min-w-[10rem] flex-1 text-xs text-white/50">
-          Добавить scran id
+        <p className="text-xs font-bold uppercase tracking-wide text-white/50">
+          Добавить в пул
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="block min-w-[14rem] flex-1 text-xs text-white/50">
+            ID скрана (можно несколько: 12, 34, 56)
+            <input
+              type="text"
+              value={scranIdInput}
+              onChange={(e) => setScranIdInput(e.target.value)}
+              required
+              placeholder="1234"
+              className="pixel-input mt-1 block w-full"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={adding}
+            className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
+          >
+            {adding ? "…" : "Добавить"}
+          </button>
+        </div>
+        <p className="text-[11px] text-white/35">
+          Нужен approved + ≥15 голосов. Уже в пуле — ошибка.
+        </p>
+      </form>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="block min-w-[12rem] flex-1 text-xs text-white/50">
+          Поиск (id / имя)
           <input
-            type="number"
-            min={1}
-            step={1}
-            value={scranIdInput}
-            onChange={(e) => setScranIdInput(e.target.value)}
-            required
-            placeholder="1234"
+            type="search"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="поиск…"
             className="pixel-input mt-1 block w-full"
           />
         </label>
-        <button
-          type="submit"
-          disabled={adding}
-          className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
-        >
-          {adding ? "…" : "Добавить"}
-        </button>
-      </form>
-
-      <label className="block text-xs text-white/50">
-        Фильтр (id / имя)
-        <input
-          type="search"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="поиск…"
-          className="pixel-input mt-1 block w-full max-w-sm"
-        />
-      </label>
+        <label className="block text-xs text-white/50">
+          Фильтр
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as PoolFilter)}
+            className="pixel-input mt-1 block w-full min-w-[10rem]"
+          >
+            <option value="all">Все</option>
+            <option value="enabled">Только вкл</option>
+            <option value="disabled">Только выкл</option>
+            <option value="rotation">В ротации сегодня</option>
+          </select>
+        </label>
+      </div>
 
       {loading ? (
         <p className="text-white/60">Загрузка…</p>
@@ -648,80 +888,80 @@ function PoolSection(): ReactElement {
           {entries.length === 0 ? "Пул пуст" : "Ничего не найдено"}
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[36rem] text-sm text-white">
-            <thead>
-              <tr className="border-b border-zinc-700 text-left text-xs uppercase text-white/50">
-                <th className="py-2 pr-3">Scran</th>
-                <th className="py-2 pr-3">Snap L/D</th>
-                <th className="py-2 pr-3">Live L/D</th>
-                <th className="py-2 pr-3">Last used</th>
-                <th className="py-2 pr-3">Статус</th>
-                <th className="py-2">Действие</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {filtered.map((e) => (
-                <tr key={e.id}>
-                  <td className="py-2 pr-3">
+        <ul className="grid gap-2 sm:grid-cols-1 lg:grid-cols-2">
+          {filtered.map((e) => {
+            const liveVotes = e.numberOfLikes + e.numberOfDislikes;
+            const snapVotes = e.likesSnapshot + e.dislikesSnapshot;
+            return (
+              <li
+                key={e.id}
+                className={`flex gap-3 border-2 bg-zinc-950 p-3 ${
+                  e.enabled ? "border-zinc-700" : "border-zinc-800 opacity-70"
+                }`}
+              >
+                <div className="h-16 w-16 shrink-0 overflow-hidden border-2 border-black bg-zinc-900">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={e.imageUrl || "/competitive/end-portal.png"}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                     <Link
                       href={`/admin/scrans?id=${e.scranId}`}
-                      className="font-bold text-amber-300 underline-offset-2 hover:underline"
+                      className="truncate font-bold text-amber-300 underline-offset-2 hover:underline"
                     >
                       {e.scranName || `Скран #${e.scranId}`}
                     </Link>
-                    <span className="ml-1.5 text-xs text-white/40">
-                      #{e.scranId}
-                    </span>
+                    <span className="text-xs text-white/40">#{e.scranId}</span>
                     {e.inTodaysRotation && (
-                      <span className="ml-2 text-[10px] font-bold uppercase text-sky-300">
+                      <span className="text-[10px] font-bold uppercase text-sky-300">
                         today
                       </span>
                     )}
-                  </td>
-                  <td className="py-2 pr-3 tabular-nums text-white/80">
-                    {e.likesSnapshot}/{e.dislikesSnapshot}
-                  </td>
-                  <td className="py-2 pr-3 tabular-nums text-white/50">
-                    {e.numberOfLikes}/{e.numberOfDislikes}
-                  </td>
-                  <td className="py-2 pr-3 text-xs text-white/60">
-                    {e.lastUsedDate ?? "—"}
-                  </td>
-                  <td className="py-2 pr-3">
+                  </div>
+                  <p className="mt-1 text-xs text-white/55">
+                    snap {e.likesSnapshot}/{e.dislikesSnapshot} (
+                    {snapPct(e.likesSnapshot, e.dislikesSnapshot)}) · live{" "}
+                    {e.numberOfLikes}/{e.numberOfDislikes} ({snapPct(
+                      e.numberOfLikes,
+                      e.numberOfDislikes,
+                    )}
+                    ) · votes {liveVotes}/{snapVotes}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-white/40">
+                    last used: {e.lastUsedDate ?? "—"} ·{" "}
                     {e.enabled ? (
                       <span className="text-emerald-400">вкл</span>
                     ) : (
                       <span className="text-white/40">выкл</span>
                     )}
-                  </td>
-                  <td className="py-2">
-                    <button
-                      type="button"
-                      disabled={busyScranId === e.scranId}
-                      onClick={() => void toggleEnabled(e)}
-                      className={`pixel-btn px-2 py-1 text-xs font-bold ${
-                        e.enabled ? "pixel-btn-warn" : "pixel-btn-ok"
-                      }`}
-                    >
-                      {busyScranId === e.scranId
-                        ? "…"
-                        : e.enabled
-                          ? "Выкл"
-                          : "Вкл"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busyScranId === e.scranId}
+                  onClick={() => void toggleEnabled(e)}
+                  className={`pixel-btn h-fit shrink-0 px-3 py-1.5 text-xs font-bold ${
+                    e.enabled ? "pixel-btn-warn" : "pixel-btn-ok"
+                  }`}
+                >
+                  {busyScranId === e.scranId
+                    ? "…"
+                    : e.enabled
+                      ? "Выкл"
+                      : "Вкл"}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
       {!loading && entries.length > 0 && (
         <p className="text-xs text-white/40">
-          Всего: {entries.length}
-          {q ? ` · показано: ${filtered.length}` : ""} · включено:{" "}
-          {entries.filter((e) => e.enabled).length}
+          Показано: {filtered.length} / {entries.length}
         </p>
       )}
     </section>

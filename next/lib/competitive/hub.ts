@@ -13,7 +13,11 @@ import {
   competitiveResults,
   competitiveStandings,
 } from "@/db/schema";
-import { nextMidnightMsk, todayMskDate } from "@/lib/daily-timezone";
+import {
+  mskDateStartUtc,
+  nextMidnightMsk,
+  todayMskDate,
+} from "@/lib/daily-timezone";
 import { leaderboardLabel } from "./display-name";
 import { isCompetitiveEnabled } from "./feature";
 import { getUserResult } from "./play";
@@ -88,6 +92,25 @@ export function addCalendarDays(dateStr: string, delta: number): string {
   const mm = String(utc.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(utc.getUTCDate()).padStart(2, "0");
   return `${yy}-${mm}-${dd}`;
+}
+
+/**
+ * 1-based day index of the season for a given MSK calendar day.
+ * Day 1 = MSK date of season startsAt.
+ */
+export function seasonDayNumber(
+  seasonStartsAt: Date | string,
+  todayMsk: string = todayMskDate(),
+): number {
+  const start =
+    typeof seasonStartsAt === "string"
+      ? new Date(seasonStartsAt)
+      : seasonStartsAt;
+  const startMsk = todayMskDate(start);
+  const a = mskDateStartUtc(startMsk).getTime();
+  const b = mskDateStartUtc(todayMsk).getTime();
+  const days = Math.floor((b - a) / (24 * 60 * 60 * 1000)) + 1;
+  return Math.max(1, days);
 }
 
 /**
