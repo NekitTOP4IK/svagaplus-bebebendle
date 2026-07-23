@@ -208,8 +208,12 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #fff;
-    font-family: var(--font-pixel), monospace;
-    image-rendering: pixelated;
+    /* Readable mixed-case (NekitTOP4IK); pixel font hides case at small sizes */
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    font-variant: normal;
 }
 
 .user-nick-glow--subscriber {

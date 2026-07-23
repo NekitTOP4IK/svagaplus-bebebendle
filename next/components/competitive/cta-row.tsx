@@ -14,10 +14,21 @@ type Props = Readonly<{
  * Side slots: place + daily countdown (secondary info, not fake CTAs).
  * Swords on play CTA scale with current rank; pearl = already played.
  */
+/** Show next-daily timer only if season is active and ends after next daily. */
+function showDailyCountdown(hub: HubPayload): boolean {
+  if (hub.season?.status !== "active") return false;
+  const endsIso = hub.countdowns.seasonEndsAt;
+  if (!endsIso) return false;
+  const ends = new Date(endsIso).getTime();
+  const next = new Date(hub.countdowns.nextDailyAt).getTime();
+  if (Number.isNaN(ends) || Number.isNaN(next)) return false;
+  return next < ends;
+}
+
 export function CtaRow({ hub }: Props): ReactElement {
   const placeText =
     hub.me.place != null ? `#${hub.me.place}` : "—";
-  const seasonActive = hub.season?.status === "active";
+  const dailyTimer = showDailyCountdown(hub);
 
   return (
     <section className="c-cta-strip c-panel" aria-label="Действия режима">
@@ -48,9 +59,9 @@ export function CtaRow({ hub }: Props): ReactElement {
           height={32}
         />
         <span>
-          <small>{seasonActive ? "До дейлика" : "Дейлик"}</small>
+          <small>{dailyTimer ? "До дейлика" : "Дейлик"}</small>
           <b>
-            {seasonActive ? (
+            {dailyTimer ? (
               <HubCountdown
                 targetIso={hub.countdowns.nextDailyAt}
                 mode="hms"
@@ -60,6 +71,8 @@ export function CtaRow({ hub }: Props): ReactElement {
               "после старта"
             ) : hub.season?.status === "ended" ? (
               "сезон закрыт"
+            ) : hub.season?.status === "active" ? (
+              "сезон скоро закончится"
             ) : (
               "—"
             )}

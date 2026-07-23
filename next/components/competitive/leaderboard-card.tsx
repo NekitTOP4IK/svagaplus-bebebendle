@@ -40,7 +40,9 @@ export function LeaderboardCard({ top, myRow }: Props): ReactElement {
                   id={row.isMe ? "currentPlayer" : undefined}
                 >
                   <td>{row.place}</td>
-                  <td>{row.label}</td>
+                  <td className="c-nick" title={row.label}>
+                    {row.label}
+                  </td>
                   <td>{row.points}</td>
                   <td>{row.daysPlayed}</td>
                 </tr>
@@ -55,7 +57,9 @@ export function LeaderboardCard({ top, myRow }: Props): ReactElement {
                   </tr>
                   <tr className="c-row-me" id="currentPlayer">
                     <td>{myRow.place}</td>
-                    <td>{myRow.label}</td>
+                    <td className="c-nick" title={myRow.label}>
+                      {myRow.label}
+                    </td>
                     <td>{myRow.points}</td>
                     <td>{myRow.daysPlayed}</td>
                   </tr>

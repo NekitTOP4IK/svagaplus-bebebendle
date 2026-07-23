@@ -41,6 +41,7 @@ export function validateCompetitiveDisplayName(
     return { ok: false, error: "name must be a string" };
   }
 
+  // Preserve typed case (NekitTOP4IK) — only trim whitespace, never lower/upper.
   const name = raw.trim();
   if (name.length === 0) {
     return { ok: false, error: "name is empty" };
@@ -70,7 +71,7 @@ export function validateCompetitiveDisplayName(
 
 /**
  * Leaderboard / hub label fallback chain:
- * competitiveDisplayName → @telegramUsername → Игрок #id
+ * competitiveDisplayName → telegramUsername (no @) → Игрок #id
  */
 export function leaderboardLabel(user: {
   id: number;
@@ -80,7 +81,10 @@ export function leaderboardLabel(user: {
   const competitive = user.competitiveDisplayName?.trim();
   if (competitive) return competitive;
   const tg = user.telegramUsername?.trim();
-  if (tg) return tg.startsWith("@") ? tg : `@${tg}`;
+  if (tg) {
+    // Strip leading @ — plain nick looks better in pixel UI
+    return tg.replace(/^@+/, "") || `Игрок #${user.id}`;
+  }
   return `Игрок #${user.id}`;
 }
 

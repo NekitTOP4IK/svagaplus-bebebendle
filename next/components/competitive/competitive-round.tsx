@@ -1,9 +1,11 @@
 "use client";
 
 import type { ReactElement } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { RoundCard } from "@/components/daily/round-card";
 import { TransitionOverlay } from "@/components/daily/transition-overlay";
+import { VsBadge } from "@/components/daily/vs-badge";
 
 export type CompetitiveScran = Readonly<{
   id: number;
@@ -41,14 +43,9 @@ type Props = Readonly<{
   onVote: (scranId: number) => void;
 }>;
 
-function formatPct(value: number): string {
-  return `${Math.round(value)}%`;
-}
-
 /**
- * Competitive round board: A/B cards from daily RoundCard patterns.
- * Pre-answer: centered +N pts (does not reveal winner).
- * Post-answer: percentages + earned points only.
+ * Competitive round board — same layout/animations as daily GameBoard.
+ * +N pts only after answer reveal (correct/wrong).
  */
 export function CompetitiveRound({
   round,
@@ -59,21 +56,24 @@ export function CompetitiveRound({
   isVoting,
   onVote,
 }: Props): ReactElement {
-  const { scranA, scranB, potentialPoints, roundNumber } = round;
+  const { scranA, scranB, roundNumber } = round;
   const resultVisible = showResult && lastResult !== null;
 
   return (
     <div className="retro-bg relative h-dvh w-full overflow-hidden">
       <div className="retro-overlay absolute inset-0" />
 
-      <ResultGlow result={lastResult} isVisible={resultVisible} />
+      <CompetitiveResultOverlay result={lastResult} isVisible={resultVisible} />
       <TransitionOverlay isVisible={isTransitioning} />
 
-      <div className="pixel-text absolute left-4 top-4 z-20 text-sm font-bold text-white sm:text-xl">
-        COMPETITIVE
-      </div>
+      <Link
+        href="/competitive"
+        className="pixel-text absolute left-4 top-4 z-20 text-xl font-bold text-white transition-colors hover:text-yellow-300"
+      >
+        ranked
+      </Link>
 
-      <div className="pixel-text absolute right-4 top-4 z-20 text-sm font-bold text-white sm:text-xl">
+      <div className="pixel-text absolute right-4 top-4 z-20 text-xl font-bold text-white">
         раунд {roundNumber}/{totalRounds}
       </div>
 
@@ -92,78 +92,13 @@ export function CompetitiveRound({
         />
       </div>
 
-      {/* Center stack: potential pts pre-answer; pct + earned post-answer */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3">
-        <AnimatePresence mode="wait">
-          {resultVisible && lastResult ? (
-            <motion.div
-              key="result"
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.25 }}
-              className="flex flex-col items-center gap-4"
-            >
-              <div className="flex items-center justify-center gap-6 sm:gap-12">
-                <p className="pixel-text text-4xl font-black text-white sm:text-6xl">
-                  {formatPct(lastResult.percentageA)}
-                </p>
-                <p className="pixel-text text-2xl font-black text-white sm:text-4xl">
-                  VS
-                </p>
-                <p className="pixel-text text-4xl font-black text-white sm:text-6xl">
-                  {formatPct(lastResult.percentageB)}
-                </p>
-              </div>
-              <div
-                className="pixel-text px-4 py-2 text-lg font-bold sm:text-2xl"
-                style={{
-                  backgroundColor: lastResult.isCorrect ? "#166534" : "#7f1d1d",
-                  border: "4px solid #000",
-                  boxShadow: "4px 4px 0 rgba(0,0,0,0.5)",
-                  color: "#fff",
-                }}
-              >
-                {lastResult.earnedPoints > 0
-                  ? `+${lastResult.earnedPoints} pts`
-                  : "+0 pts"}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="pre"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-              className="flex flex-col items-center gap-3"
-            >
-              <div className="pixel-btn flex h-12 w-12 items-center justify-center bg-white text-lg font-black text-black md:h-16 md:w-16 md:text-xl lg:h-20 lg:w-20 lg:text-2xl">
-                VS
-              </div>
-              <div
-                className="pixel-text px-3 py-1.5 text-sm font-bold sm:text-base md:text-lg"
-                style={{
-                  backgroundColor: "#5b21b6",
-                  border: "3px solid #000",
-                  boxShadow:
-                    "3px 3px 0 rgba(0,0,0,0.55), 0 0 18px rgba(168,85,247,0.55)",
-                  color: "#fde68a",
-                  textShadow: "1px 1px 0 #3b0764",
-                }}
-                aria-label={`За раунд можно получить ${potentialPoints} очков`}
-              >
-                +{potentialPoints} pts
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      <VsBadge hidden={resultVisible} />
     </div>
   );
 }
 
-function ResultGlow({
+/** Daily-style % VS % + earned pts only after reveal. */
+function CompetitiveResultOverlay({
   result,
   isVisible,
 }: Readonly<{
@@ -181,10 +116,44 @@ function ResultGlow({
           className="pointer-events-none fixed inset-0 z-30"
           style={{
             boxShadow: result.isCorrect
-              ? "inset 0 0 150px 80px rgba(34,197,94,0.55), inset 0 0 300px 150px rgba(34,197,94,0.25)"
-              : "inset 0 0 150px 80px rgba(239,68,68,0.55), inset 0 0 300px 150px rgba(239,68,68,0.25)",
+              ? "inset 0 0 150px 80px rgba(34,197,94,0.6), inset 0 0 300px 150px rgba(34,197,94,0.3)"
+              : "inset 0 0 150px 80px rgba(239,68,68,0.6), inset 0 0 300px 150px rgba(239,68,68,0.3)",
           }}
-        />
+        >
+          <div className="flex h-full flex-col items-center justify-center gap-6">
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="flex items-center justify-center gap-8 sm:gap-16"
+            >
+              <p className="pixel-text text-5xl font-black text-white sm:text-7xl">
+                {Math.round(result.percentageA)}%
+              </p>
+              <p className="pixel-text text-4xl font-black text-white sm:text-6xl">
+                VS
+              </p>
+              <p className="pixel-text text-5xl font-black text-white sm:text-7xl">
+                {Math.round(result.percentageB)}%
+              </p>
+            </motion.div>
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ delay: 0.12, duration: 0.28 }}
+              className="pixel-text px-5 py-2 text-xl font-bold sm:text-3xl"
+              style={{
+                backgroundColor: result.isCorrect ? "#166534" : "#7f1d1d",
+                border: "4px solid #000",
+                boxShadow: "4px 4px 0 rgba(0,0,0,0.5)",
+                color: "#fff",
+              }}
+            >
+              {result.earnedPoints > 0
+                ? `+${result.earnedPoints} pts`
+                : "+0 pts"}
+            </motion.div>
+          </div>
+        </motion.div>
       ) : null}
     </AnimatePresence>
   );

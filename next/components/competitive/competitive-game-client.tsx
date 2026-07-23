@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { LoadingState } from "@/components/daily/loading-state";
+import { AnswerIndicators } from "@/components/answer-indicators";
 import {
   CompetitiveRound,
   type CompetitiveRoundData,
@@ -23,23 +24,36 @@ type CompetitiveDailyPayload = Readonly<{
   rounds: CompetitiveRoundData[];
 }>;
 
+type BoardRow = Readonly<{
+  place: number;
+  label: string;
+  points: number;
+  isMe: boolean;
+}>;
+
 type GameState =
   | { type: "loading" }
   | { type: "playing"; data: CompetitiveDailyPayload }
-  | { type: "complete"; points: number; hits: number }
+  | {
+      type: "complete";
+      points: number;
+      hits: number;
+      answers: { isCorrect: boolean }[];
+      board: BoardRow[];
+      seasonPoints: number | null;
+      place: number | null;
+    }
   | { type: "error"; message: string };
 
 /**
- * Client game state machine for competitive daily.
- * Auth-only (cookie session); no fingerprint.
- *
- * Flow: load daily → vote each round → after 10 finalize → day points → hub link.
+ * Competitive daily client — daily-style transitions + points final + mini board.
  */
 export function CompetitiveGameClient(): ReactElement {
   const [gameState, setGameState] = useState<GameState>({ type: "loading" });
   const [currentRound, setCurrentRound] = useState(1);
   const [lastResult, setLastResult] = useState<RoundVoteResult | null>(null);
   const [isVoting, setIsVoting] = useState(false);
+  const [answers, setAnswers] = useState<{ isCorrect: boolean }[]>([]);
   const { showResult, isTransitioning, setShowResult, startTransition } =
     useTransitionState();
 
@@ -58,7 +72,7 @@ export function CompetitiveGameClient(): ReactElement {
         if (res.status === 401) {
           setGameState({
             type: "error",
-            message: "Нужно войти, чтобы играть в competitive.",
+            message: "Нужно войти, чтобы играть в ranked.",
           });
           return;
         }
@@ -99,7 +113,6 @@ export function CompetitiveGameClient(): ReactElement {
           return;
         }
 
-        // Prefetch first round images
         prefetchRoundImages(data, 1);
         if (data.rounds.length > 1) {
           prefetchRoundImages(data, 2);
@@ -123,7 +136,10 @@ export function CompetitiveGameClient(): ReactElement {
   }, []);
 
   const finalizeDay = useCallback(
-    async (date: string): Promise<void> => {
+    async (
+      date: string,
+      dayAnswers: { isCorrect: boolean }[],
+    ): Promise<void> => {
       try {
         const res = await fetch("/api/competitive/finalize", {
           method: "POST",
@@ -137,7 +153,6 @@ export function CompetitiveGameClient(): ReactElement {
             error?: string;
           } | null;
           if (res.status === 409) {
-            // Already finalized (e.g. double-submit / refresh race) → hub
             window.location.href = "/competitive";
             return;
           }
@@ -149,10 +164,85 @@ export function CompetitiveGameClient(): ReactElement {
         }
 
         const body = (await res.json()) as { points: number; hits: number };
+
+        // Mini leaderboard after standings update
+        let board: BoardRow[] = [];
+        let seasonPoints: number | null = null;
+        let place: number | null = null;
+        try {
+          const hubRes = await fetch("/api/competitive/hub", {
+            credentials: "same-origin",
+          });
+          if (hubRes.ok) {
+            const hub = (await hubRes.json()) as {
+              me?: { place: number | null; points: number; label?: string };
+              top?: Array<{
+                place: number;
+                label: string;
+                points: number;
+                isMe: boolean;
+              }>;
+            };
+            seasonPoints = hub.me?.points ?? null;
+            place = hub.me?.place ?? null;
+            const top = hub.top ?? [];
+            const TOP_N = 8;
+            board = top.slice(0, TOP_N).map((r) => ({
+              place: r.place,
+              label: r.label,
+              points: r.points,
+              isMe: r.isMe,
+            }));
+
+            // User outside top: fetch window me + 2 below
+            if (place != null && place > TOP_N) {
+              const offset = Math.max(0, place - 1);
+              const lbRes = await fetch(
+                `/api/competitive/leaderboard?limit=3&offset=${offset}`,
+                { credentials: "same-origin" },
+              );
+              if (lbRes.ok) {
+                const lb = (await lbRes.json()) as {
+                  rows?: Array<{
+                    place: number;
+                    label: string;
+                    points: number;
+                    isMe: boolean;
+                  }>;
+                };
+                for (const r of lb.rows ?? []) {
+                  if (!board.some((b) => b.place === r.place)) {
+                    board.push({
+                      place: r.place,
+                      label: r.label,
+                      points: r.points,
+                      isMe: r.isMe,
+                    });
+                  }
+                }
+                board.sort((a, b) => a.place - b.place);
+              } else if (hub.me) {
+                board.push({
+                  place,
+                  label: hub.me.label ?? "ты",
+                  points: hub.me.points,
+                  isMe: true,
+                });
+              }
+            }
+          }
+        } catch {
+          // board optional
+        }
+
         setGameState({
           type: "complete",
           points: body.points,
           hits: body.hits,
+          answers: dayAnswers,
+          board,
+          seasonPoints,
+          place,
         });
       } catch {
         setGameState({
@@ -210,6 +300,12 @@ export function CompetitiveGameClient(): ReactElement {
         setLastResult(result);
         setShowResult(true);
 
+        const nextAnswers = [
+          ...answers,
+          { isCorrect: result.isCorrect },
+        ];
+        setAnswers(nextAnswers);
+
         if (currentRound < data.totalRounds) {
           prefetchRoundImages(data, currentRound + 1);
         }
@@ -221,7 +317,7 @@ export function CompetitiveGameClient(): ReactElement {
             setCurrentRound((n) => n + 1);
             setIsVoting(false);
           } else {
-            void finalizeDay(data.date);
+            void finalizeDay(data.date, nextAnswers);
           }
         });
       } catch {
@@ -236,6 +332,7 @@ export function CompetitiveGameClient(): ReactElement {
       gameState,
       isVoting,
       currentRound,
+      answers,
       setShowResult,
       startTransition,
       finalizeDay,
@@ -244,13 +341,22 @@ export function CompetitiveGameClient(): ReactElement {
 
   switch (gameState.type) {
     case "loading":
-      return <LoadingState message="Загрузка competitive…" />;
+      return <LoadingState message="Загрузка ranked…" />;
 
     case "error":
       return <ErrorPanel message={gameState.message} />;
 
     case "complete":
-      return <CompletePanel points={gameState.points} />;
+      return (
+        <CompletePanel
+          points={gameState.points}
+          hits={gameState.hits}
+          answers={gameState.answers}
+          board={gameState.board}
+          seasonPoints={gameState.seasonPoints}
+          place={gameState.place}
+        />
+      );
 
     case "playing": {
       const round = gameState.data.rounds.find(
@@ -315,37 +421,134 @@ function ErrorPanel({
 
 function CompletePanel({
   points,
-}: Readonly<{ points: number }>): ReactElement {
+  hits,
+  answers,
+  board,
+  seasonPoints,
+  place,
+}: Readonly<{
+  points: number;
+  hits: number;
+  answers: { isCorrect: boolean }[];
+  board: BoardRow[];
+  seasonPoints: number | null;
+  place: number | null;
+}>): ReactElement {
   return (
-    <div className="retro-bg flex min-h-dvh flex-col items-center justify-center px-4">
+    <div className="retro-bg flex min-h-dvh flex-col items-center justify-center px-4 py-10">
       <div className="retro-overlay absolute inset-0" />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45 }}
-        className="relative z-10 w-full max-w-lg text-center"
+        transition={{ duration: 0.5 }}
+        className="relative z-10 w-full max-w-2xl text-center"
       >
-        <h1 className="pixel-text mb-4 text-3xl font-bold text-white sm:text-5xl">
-          День завершён
+        <h1 className="pixel-text mb-6 text-3xl font-bold text-white sm:text-5xl">
+          Результаты
         </h1>
-        <p className="pixel-text mb-2 text-sm text-zinc-300 sm:text-base">
-          Сегодня набрано
-        </p>
-        <p
-          className="pixel-text mb-6 text-5xl font-black sm:text-7xl"
-          style={{ color: "#ffd22d", textShadow: "3px 3px 0 #3f3f00" }}
-        >
-          {points}
-        </p>
-        <p className="pixel-text mb-10 text-base text-white sm:text-xl">
-          {pointsWord(points)}
-        </p>
+
+        {answers.length > 0 ? (
+          <AnswerIndicators answers={answers} delayIncrement={0.08} />
+        ) : null}
+
+        <div className="mb-6 space-y-3">
+          <div className="pixel-container rounded-none border-4 border-black bg-zinc-900/85 p-5">
+            <p className="pixel-text mb-2 text-sm text-white/70 sm:text-base">
+              Очки за день
+            </p>
+            <p
+              className="pixel-text text-5xl font-black sm:text-6xl"
+              style={{ color: "#ffd22d", textShadow: "3px 3px 0 #3f3f00" }}
+            >
+              {points}
+            </p>
+            <p className="pixel-text mt-2 text-sm text-white/80">
+              {pointsWord(points)} · {hits}/{answers.length || 10} верных
+            </p>
+          </div>
+
+          {(seasonPoints != null || place != null) && (
+            <div className="pixel-container rounded-none border-4 border-black bg-zinc-900/80 px-4 py-3">
+              <p className="pixel-text text-sm text-white/80 sm:text-base">
+                {place != null ? (
+                  <>
+                    Место в сезоне:{" "}
+                    <span className="font-bold text-amber-300">#{place}</span>
+                  </>
+                ) : null}
+                {place != null && seasonPoints != null ? " · " : null}
+                {seasonPoints != null ? (
+                  <>
+                    Всего:{" "}
+                    <span className="font-bold text-white">{seasonPoints}</span>
+                  </>
+                ) : null}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {board.length > 0 ? (
+          <div className="pixel-container mb-8 overflow-hidden rounded-none border-4 border-black bg-zinc-900/90 text-left">
+            <div className="border-b-2 border-black bg-zinc-800 px-3 py-2">
+              <p className="pixel-text text-sm font-bold text-white">
+                Лидерборд
+              </p>
+            </div>
+            <ul className="divide-y divide-zinc-700">
+              {board.flatMap((row, idx) => {
+                const prev = board[idx - 1];
+                const items: ReactElement[] = [];
+                if (prev != null && row.place > prev.place + 1) {
+                  items.push(
+                    <li
+                      key={`gap-${prev.place}-${row.place}`}
+                      className="px-3 py-1 text-center text-xs text-white/40"
+                    >
+                      ···
+                    </li>,
+                  );
+                }
+                items.push(
+                  <li
+                    key={`${row.place}-${row.label}`}
+                    className={`flex items-center justify-between gap-3 px-3 py-2 text-sm ${
+                      row.isMe
+                        ? "bg-violet-900/50 text-violet-100"
+                        : "text-white/90"
+                    }`}
+                  >
+                    <span className="pixel-text c-nick min-w-0 truncate">
+                      <span className="mr-2 text-white/50">#{row.place}</span>
+                      <span style={{ textTransform: "none" }}>{row.label}</span>
+                      {row.isMe ? (
+                        <span className="ml-2 text-[10px] text-amber-300">
+                          ты
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="pixel-text shrink-0 tabular-nums text-amber-200">
+                      {row.points}
+                    </span>
+                  </li>,
+                );
+                return items;
+              })}
+            </ul>
+          </div>
+        ) : null}
+
         <Link
           href="/competitive"
           className="pixel-btn inline-block px-8 py-4 text-lg"
         >
           В хаб
         </Link>
+        <div className="mt-3">
+          <Link href="/" className="pixel-btn inline-block px-6 py-3 text-sm">
+            На главную
+          </Link>
+        </div>
       </motion.div>
     </div>
   );

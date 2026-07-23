@@ -63,11 +63,12 @@ export function CompetitiveShell({
   season,
   children,
 }: Props): ReactElement {
+  const rawTg = user.telegramUsername?.trim().replace(/^@+/, "") || null;
   const nick =
     user.competitiveDisplayName?.trim() ||
-    user.displayName ||
-    user.telegramUsername ||
-    `tg:${user.telegramId}`;
+    user.displayName?.trim() ||
+    rawTg ||
+    `Игрок #${user.id}`;
   const initials = nick.slice(0, 2).toUpperCase();
   const mini = seasonMiniStatus(season);
   const tone = resolveIdentityTone(user.role, user.isSubscriber);

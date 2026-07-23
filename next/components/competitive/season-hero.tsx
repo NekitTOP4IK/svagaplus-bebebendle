@@ -37,6 +37,20 @@ function statusLabel(status: string | undefined): {
   }
 }
 
+/** True if next MSK daily would still fall before season ends. */
+function showDailyCountdown(
+  seasonStatus: string | undefined,
+  seasonEndsAt: string | null,
+  nextDailyAt: string,
+): boolean {
+  if (seasonStatus !== "active" || !seasonEndsAt) return false;
+  const ends = new Date(seasonEndsAt).getTime();
+  const next = new Date(nextDailyAt).getTime();
+  if (Number.isNaN(ends) || Number.isNaN(next)) return false;
+  // Season ends before next daily rolls → no more competitive days
+  return next < ends;
+}
+
 export function SeasonHero({
   season,
   seasonEndsAt,
@@ -44,12 +58,17 @@ export function SeasonHero({
 }: Props): ReactElement {
   const status = statusLabel(season?.status);
   const title = season?.name ?? "Соревновательный режим";
+  const dailyTimer = showDailyCountdown(
+    season?.status,
+    seasonEndsAt,
+    nextDailyAt,
+  );
 
   return (
     <section className="c-season-hero c-panel" aria-labelledby="season-title">
       <div className="c-portal-art">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/competitive/end-portal.webp" alt="" />
+        <img src="/competitive/end_portal.webp" alt="" />
       </div>
       <div className="c-season-main">
         <h2 id="season-title">{title}</h2>
@@ -100,8 +119,8 @@ export function SeasonHero({
             </strong>
           </span>
         </div>
-        {/* Daily timer only while season is live */}
-        {season?.status === "active" ? (
+        {/* Daily timer only if season is active AND ends after next daily */}
+        {dailyTimer ? (
           <div className="c-count-row">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -139,7 +158,9 @@ export function SeasonHero({
                   ? "после старта сезона"
                   : season?.status === "ended"
                     ? "сезон закрыт"
-                    : "нет активного сезона"}
+                    : season?.status === "active"
+                      ? "сезон скоро закончится"
+                      : "нет активного сезона"}
               </strong>
             </span>
           </div>

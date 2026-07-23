@@ -88,24 +88,24 @@ describe("leaderboardLabel", () => {
     ).toBe("Ace");
   });
 
-  it("falls back to @telegramUsername", () => {
+  it("falls back to telegramUsername without @", () => {
     expect(
       leaderboardLabel({
         id: 2,
         competitiveDisplayName: null,
         telegramUsername: "bebeb",
       }),
-    ).toBe("@bebeb");
+    ).toBe("bebeb");
   });
 
-  it("keeps leading @ on telegram username", () => {
+  it("strips leading @ from telegram username", () => {
     expect(
       leaderboardLabel({
         id: 3,
         competitiveDisplayName: null,
         telegramUsername: "@already",
       }),
-    ).toBe("@already");
+    ).toBe("already");
   });
 
   it("falls back to Игрок #id", () => {
@@ -125,7 +125,7 @@ describe("leaderboardLabel", () => {
         competitiveDisplayName: "   ",
         telegramUsername: "x",
       }),
-    ).toBe("@x");
+    ).toBe("x");
   });
 });
 

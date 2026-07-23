@@ -1042,7 +1042,7 @@ function PoolSection(): ReactElement {
               <div className="h-16 w-16 shrink-0 overflow-hidden border-2 border-black bg-zinc-900">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={e.imageUrl || "/competitive/end-portal.webp"}
+                  src={e.imageUrl || "/competitive/end_portal.webp"}
                   alt=""
                   className="h-full w-full object-cover"
                 />
