@@ -10,6 +10,8 @@ export interface CurrentUser {
   telegramUsername: string | null;
   telegramPhotoUrl: string | null;
   displayName: string | null;
+  /** Competitive leaderboard nick (optional). */
+  competitiveDisplayName: string | null;
   role: "player" | "moderator" | "admin";
   isSubscriber: boolean | null;
 }
@@ -40,6 +42,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         telegramUsername: users.telegramUsername,
         telegramPhotoUrl: users.telegramPhotoUrl,
         displayName: users.displayName,
+        competitiveDisplayName: users.competitiveDisplayName,
         role: users.role,
         isSubscriber: users.isSubscriber,
       })
@@ -71,6 +74,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       telegramUsername: u.telegramUsername,
       telegramPhotoUrl: u.telegramPhotoUrl,
       displayName: u.displayName,
+      competitiveDisplayName: u.competitiveDisplayName,
       role: u.role as CurrentUser["role"],
       isSubscriber: u.isSubscriber,
     };

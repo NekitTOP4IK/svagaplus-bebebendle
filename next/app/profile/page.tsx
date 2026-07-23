@@ -18,6 +18,7 @@ interface UserInfo {
   telegramUsername: string | null;
   telegramPhotoUrl?: string | null;
   displayName: string | null;
+  competitiveDisplayName?: string | null;
   role: string;
   isSubscriber?: boolean | null;
 }
@@ -223,6 +224,13 @@ export default function ProfilePage(): ReactElement {
 
         <ProfileSvagaStatus initialStatus={svagaStatus} />
 
+        <CompetitiveNickEditor
+          initialName={user.competitiveDisplayName ?? null}
+          onSaved={(name) =>
+            setUser((u) => (u ? { ...u, competitiveDisplayName: name } : u))
+          }
+        />
+
         <div className="pixel-container mb-6 overflow-hidden rounded-none border-4 border-black bg-zinc-900/90">
           <div className="bg-zinc-800 px-4 py-2">
             <h2 className="pixel-text text-lg font-bold">Мои скраны ({scrans.length})</h2>
@@ -331,6 +339,112 @@ export default function ProfilePage(): ReactElement {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Competitive leaderboard nick (pseudonym) editor. */
+function CompetitiveNickEditor({
+  initialName,
+  onSaved,
+}: Readonly<{
+  initialName: string | null;
+  onSaved: (name: string | null) => void;
+}>): ReactElement {
+  const [value, setValue] = useState(initialName ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+
+  useEffect(() => {
+    setValue(initialName ?? "");
+  }, [initialName]);
+
+  async function save(name: string | null) {
+    setSaving(true);
+    setError(null);
+    setHint(null);
+    try {
+      const res = await apiFetch("/api/competitive/display-name", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        competitiveDisplayName?: string | null;
+        label?: string;
+      };
+      if (!res.ok) {
+        setError(data.error || `Ошибка ${res.status}`);
+        return;
+      }
+      const next = data.competitiveDisplayName ?? null;
+      onSaved(next);
+      setValue(next ?? "");
+      setHint(
+        next
+          ? `В рейтинге: ${data.label || next}`
+          : "Псевдоним сброшен — в рейтинге будет Telegram/ID",
+      );
+    } catch {
+      setError("Ошибка сети");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="pixel-container mb-6 overflow-visible rounded-none border-4 border-black bg-zinc-900/90 p-4">
+      <h2 className="pixel-text mb-1 text-lg font-bold">Псевдоним в рейтинге</h2>
+      <p className="mb-3 text-xs text-white/55">
+        Имя для сезонного лидерборда (не обязан светить Telegram). 2–24 символа,
+        латиница/кириллица, цифры, _ и -. Смена не чаще раза в 24ч. Нужен
+        включённый competitive на сервере.
+      </p>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="block min-w-[12rem] flex-1 text-xs text-white/50">
+          Псевдоним
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            maxLength={24}
+            placeholder="Например Ace_Player"
+            className="pixel-input mt-1 block w-full"
+            disabled={saving}
+          />
+        </label>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void save(value.trim() || null)}
+          className="pixel-btn pixel-btn-ok min-h-11 px-4 py-2 text-sm font-bold"
+        >
+          {saving ? "…" : "Сохранить"}
+        </button>
+        {initialName ? (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void save(null)}
+            className="pixel-btn pixel-btn-warn min-h-11 px-4 py-2 text-sm font-bold"
+          >
+            Сбросить
+          </button>
+        ) : null}
+      </div>
+      {error ? (
+        <p className="mt-2 text-sm text-red-300">{error}</p>
+      ) : null}
+      {hint ? (
+        <p className="mt-2 text-sm text-emerald-300/90">{hint}</p>
+      ) : null}
+      {initialName ? (
+        <p className="mt-2 text-xs text-white/40">
+          Сейчас: <span className="text-white/70">{initialName}</span>
+        </p>
+      ) : null}
     </div>
   );
 }

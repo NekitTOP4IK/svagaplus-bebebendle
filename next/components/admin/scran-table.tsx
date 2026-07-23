@@ -23,6 +23,8 @@ interface ScranTableProps {
   onAuthor?: (telegramId: string | null | undefined) => void;
   onEdit?: (scran: Scran) => void;
   onRestore?: (id: number) => void;
+  onAddToCompetitive?: (id: number) => void;
+  competitiveBusyId?: number | null;
 }
 
 function SortableHeader({
@@ -66,6 +68,8 @@ export function ScranTable({
   onAuthor,
   onEdit,
   onRestore,
+  onAddToCompetitive,
+  competitiveBusyId,
 }: ScranTableProps) {
   const isQueue = view === "queue";
   return (
@@ -154,6 +158,8 @@ export function ScranTable({
               onAuthor={onAuthor}
               onEdit={onEdit}
               onRestore={onRestore}
+              onAddToCompetitive={onAddToCompetitive}
+              competitiveBusy={competitiveBusyId === scran.id}
             />
           ))}
         </tbody>

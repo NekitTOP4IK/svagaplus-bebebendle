@@ -20,6 +20,9 @@ interface ScranRowProps {
   onAuthor?: (telegramId: string | null | undefined) => void;
   onEdit?: (scran: Scran) => void;
   onRestore?: (id: number) => void;
+  /** Admin: push approved scran into competitive pool (if eligible). */
+  onAddToCompetitive?: (id: number) => void;
+  competitiveBusy?: boolean;
 }
 
 export function ScranRow({
@@ -35,6 +38,8 @@ export function ScranRow({
   onAuthor,
   onEdit,
   onRestore,
+  onAddToCompetitive,
+  competitiveBusy,
 }: ScranRowProps): ReactElement {
   const [lightbox, setLightbox] = useState(false);
   const percentage = getLikesPercentage({
@@ -205,6 +210,20 @@ export function ScranRow({
                 Снять
               </button>
             )}
+            {scran.approved &&
+              role === "admin" &&
+              onAddToCompetitive &&
+              scran.numberOfLikes + scran.numberOfDislikes >= 15 && (
+                <button
+                  type="button"
+                  disabled={competitiveBusy}
+                  onClick={() => onAddToCompetitive(scran.id)}
+                  className="pixel-btn pixel-btn-info min-h-10 px-3 py-1.5 text-xs font-bold sm:text-sm"
+                  title="Добавить в competitive pool"
+                >
+                  {competitiveBusy ? "…" : "→ Rating"}
+                </button>
+              )}
             {role === "admin" && onEdit && (
               <button
                 type="button"

@@ -56,7 +56,7 @@ function seasonMiniStatus(season: HubSeasonSummary | null): {
 
 /**
  * Competitive shell: full-page hub chrome.
- * Profile chip matches home (UserIdentity + badge/glow). No logout here.
+ * Profile: plain avatar + nick glow/badge (not a button). No logout here.
  */
 export function CompetitiveShell({
   user,
@@ -64,6 +64,7 @@ export function CompetitiveShell({
   children,
 }: Props): ReactElement {
   const nick =
+    user.competitiveDisplayName?.trim() ||
     user.displayName ||
     user.telegramUsername ||
     `tg:${user.telegramId}`;
@@ -82,7 +83,7 @@ export function CompetitiveShell({
         <header className="c-topbar">
           <Link
             href="/profile"
-            className="pixel-btn c-profile-chip flex min-h-11 items-center gap-3 overflow-visible px-3 py-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+            className="c-profile-plain"
             aria-label="Открыть профиль"
           >
             {user.telegramPhotoUrl ? (
@@ -90,12 +91,12 @@ export function CompetitiveShell({
               <img
                 src={user.telegramPhotoUrl}
                 alt=""
-                className={`h-9 w-9 shrink-0 border-2 border-black object-cover ${avatarClass}`}
+                className={`h-10 w-10 shrink-0 border-2 border-black object-cover ${avatarClass}`}
                 referrerPolicy="no-referrer"
               />
             ) : (
               <span
-                className={`flex h-9 w-9 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold text-white ${avatarClass}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center border-2 border-black bg-zinc-800 text-xs font-bold text-white ${avatarClass}`}
               >
                 {initials}
               </span>
@@ -105,8 +106,8 @@ export function CompetitiveShell({
               role={user.role}
               isSubscriber={user.isSubscriber}
               size="sm"
-              className="min-w-0 flex-1"
-              meta="Профиль / СВАГА+"
+              className="c-profile-identity min-w-0 flex-1"
+              meta="Авторизован"
               showMetaSuffix={false}
               nickGlow
             />

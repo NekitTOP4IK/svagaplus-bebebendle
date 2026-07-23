@@ -14,6 +14,12 @@ export const COMPETITIVE_ICONS = {
   background: "/competitive/competitive_background.webp",
   clock: "/competitive/icons/clock_00.png",
   pearl: "/competitive/icons/ender_pearl.png",
+  books: {
+    /** Competitive mode rules (animated). */
+    enchanted: "/competitive/icons/enchanted_book.gif",
+    /** Season rules. */
+    writable: "/competitive/icons/writable_book.png",
+  },
   swords: {
     copper: "/competitive/icons/copper_sword.png",
     iron: "/competitive/icons/iron_sword.png",

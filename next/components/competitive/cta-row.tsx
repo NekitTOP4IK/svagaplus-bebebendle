@@ -17,17 +17,18 @@ type Props = Readonly<{
 export function CtaRow({ hub }: Props): ReactElement {
   const placeText =
     hub.me.place != null ? `#${hub.me.place}` : "—";
+  const seasonActive = hub.season?.status === "active";
 
   return (
     <section className="c-cta-strip c-panel" aria-label="Действия режима">
       <div className="c-cta-slot c-cta-slot--info">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          className="c-pixel-icon c-pixel-icon--lg"
+          className="c-pixel-icon c-pixel-icon--sword-slot"
           src={swordSrcForPlace(hub.me.place)}
           alt=""
-          width={28}
-          height={28}
+          width={32}
+          height={32}
         />
         <span>
           <small>Твоё место</small>
@@ -43,17 +44,25 @@ export function CtaRow({ hub }: Props): ReactElement {
           className="c-pixel-icon c-pixel-icon--lg"
           src={COMPETITIVE_ICONS.clock}
           alt=""
-          width={28}
-          height={28}
+          width={32}
+          height={32}
         />
         <span>
-          <small>До дейлика</small>
+          <small>{seasonActive ? "До дейлика" : "Дейлик"}</small>
           <b>
-            <HubCountdown
-              targetIso={hub.countdowns.nextDailyAt}
-              mode="hms"
-              fallback="00:00:00"
-            />
+            {seasonActive ? (
+              <HubCountdown
+                targetIso={hub.countdowns.nextDailyAt}
+                mode="hms"
+                fallback="00:00:00"
+              />
+            ) : hub.season?.status === "countdown" ? (
+              "после старта"
+            ) : hub.season?.status === "ended" ? (
+              "сезон закрыт"
+            ) : (
+              "—"
+            )}
           </b>
         </span>
       </div>
@@ -150,6 +159,7 @@ function renderCenter(hub: HubPayload): ReactElement {
         alt=""
         width={32}
         height={32}
+        decoding="async"
       />
       {playLabel}
     </Link>

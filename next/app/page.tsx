@@ -99,14 +99,14 @@ export default async function HomePage() {
             available={dailyStatus.available}
             unavailableReason={dailyStatus.reason}
           />
+          <HomeUserMenu />
           <Link
             href="/competitive"
             className="pixel-btn pixel-btn-info inline-flex w-full items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-bold sm:gap-2 sm:px-4 sm:py-2 sm:text-sm md:text-base 2xl:gap-3 2xl:px-6 2xl:py-3 2xl:text-xl 4xl:gap-4 4xl:px-8 4xl:py-4 4xl:text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
-            aria-label="Competitive — рейтинг и соревновательный дейлик"
+            aria-label="Ranked — соревновательный дейлик"
           >
-            Competitive
+            Ranked
           </Link>
-          <HomeUserMenu />
           <SocialLinks />
         </div>
       </main>

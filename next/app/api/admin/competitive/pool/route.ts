@@ -35,7 +35,9 @@ export async function GET(request: Request) {
   }
 }
 
-/** POST — add scran to competitive pool. Admin only. */
+/** POST — add one or many scrans to competitive pool. Admin only.
+ * Body: `{ scranId: number }` or `{ scranIds: number[] }`
+ */
 export async function POST(request: Request) {
   let user;
   try {
@@ -46,43 +48,79 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => null)) as {
     scranId?: unknown;
+    scranIds?: unknown;
   } | null;
 
   if (!body) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const scranId =
-    typeof body.scranId === "number"
-      ? body.scranId
-      : typeof body.scranId === "string"
-        ? Number(body.scranId)
-        : NaN;
+  const ids: number[] = [];
+  if (Array.isArray(body.scranIds)) {
+    for (const raw of body.scranIds) {
+      const n = typeof raw === "number" ? raw : Number(raw);
+      if (Number.isInteger(n) && n > 0) ids.push(n);
+    }
+  } else {
+    const scranId =
+      typeof body.scranId === "number"
+        ? body.scranId
+        : typeof body.scranId === "string"
+          ? Number(body.scranId)
+          : NaN;
+    if (Number.isInteger(scranId) && scranId > 0) ids.push(scranId);
+  }
 
-  if (!Number.isInteger(scranId) || scranId <= 0) {
-    return NextResponse.json({ error: "scranId is required" }, { status: 400 });
+  if (ids.length === 0) {
+    return NextResponse.json(
+      { error: "scranId or scranIds is required" },
+      { status: 400 },
+    );
   }
 
   try {
-    const result = await addToPool(scranId, user.id);
-    if (!result.ok) {
-      const status =
-        result.error.includes("не найден") || result.error.includes("not found")
-          ? 404
-          : result.error.includes("уже в пуле")
-            ? 409
-            : 400;
-      return NextResponse.json({ error: result.error }, { status });
+    const added: number[] = [];
+    const failed: Array<{ scranId: number; error: string }> = [];
+
+    for (const scranId of ids) {
+      const result = await addToPool(scranId, user.id);
+      if (!result.ok) {
+        failed.push({ scranId, error: result.error });
+        continue;
+      }
+      added.push(scranId);
+      await writeAuditLog({
+        actorUserId: user.id,
+        action: "competitive.pool.add",
+        scranId,
+        details: JSON.stringify({ scranId, entryId: result.entry.id }),
+      });
     }
 
-    await writeAuditLog({
-      actorUserId: user.id,
-      action: "competitive.pool.add",
-      scranId,
-      details: JSON.stringify({ scranId, entryId: result.entry.id }),
-    });
+    if (ids.length === 1) {
+      if (added.length === 1) {
+        return NextResponse.json({ ok: true, scranId: added[0] }, { status: 201 });
+      }
+      const err = failed[0]?.error || "Failed to add";
+      const status =
+        err.includes("не найден") || err.includes("not found")
+          ? 404
+          : err.includes("уже в пуле")
+            ? 409
+            : 400;
+      return NextResponse.json({ error: err }, { status });
+    }
 
-    return NextResponse.json(result.entry, { status: 201 });
+    return NextResponse.json(
+      {
+        ok: true,
+        added,
+        failed,
+        addedCount: added.length,
+        failedCount: failed.length,
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("[admin/competitive/pool] POST", error);
     return NextResponse.json(

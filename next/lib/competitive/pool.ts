@@ -2,7 +2,7 @@
  * Competitive pool: admin allowlist of scrans, vote snapshots, freeze/cooldown.
  */
 
-import { and, asc, eq, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, notExists, or, sql } from "drizzle-orm";
 import {
   db,
   scrans,
@@ -203,6 +203,55 @@ export async function listPool(dateMsk: string = todayMskDate()): Promise<PoolRo
   return rows.map((row) => ({
     ...row,
     inTodaysRotation: rotationIds.has(row.scranId),
+  }));
+}
+
+export type PoolCandidate = {
+  id: number;
+  name: string;
+  imageUrl: string;
+  numberOfLikes: number;
+  numberOfDislikes: number;
+  totalVotes: number;
+};
+
+/**
+ * Approved scrans eligible for the pool but not yet added
+ * (≥ MIN_COMPETITIVE_VOTES, not rejected, not already in pool).
+ */
+export async function listPoolCandidates(limit = 200): Promise<PoolCandidate[]> {
+  const cap = Math.min(Math.max(limit, 1), 500);
+  const rows = await db
+    .select({
+      id: scrans.id,
+      name: scrans.name,
+      imageUrl: scrans.imageUrl,
+      numberOfLikes: scrans.numberOfLikes,
+      numberOfDislikes: scrans.numberOfDislikes,
+    })
+    .from(scrans)
+    .where(
+      and(
+        eq(scrans.approved, true),
+        eq(scrans.rejected, false),
+        gt(
+          sql<number>`${scrans.numberOfLikes} + ${scrans.numberOfDislikes}`,
+          MIN_COMPETITIVE_VOTES - 1,
+        ),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(competitivePoolEntries)
+            .where(eq(competitivePoolEntries.scranId, scrans.id)),
+        ),
+      ),
+    )
+    .orderBy(desc(sql`${scrans.numberOfLikes} + ${scrans.numberOfDislikes}`))
+    .limit(cap);
+
+  return rows.map((r) => ({
+    ...r,
+    totalVotes: r.numberOfLikes + r.numberOfDislikes,
   }));
 }
 

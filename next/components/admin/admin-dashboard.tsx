@@ -24,6 +24,8 @@ import {
 } from "@/components/admin/ops-panels";
 import { getUsers, updateUserRole, type AdminUser } from "@/app/admin/actions";
 import type { BanReasonCode } from "@/lib/ban-reasons";
+import { apiFetch } from "@/lib/api-client";
+import { toast } from "sonner";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
@@ -142,7 +144,31 @@ export function AdminDashboard({
   const [queueMode, setQueueMode] = useState<QueueMode>("cards");
   const [actionBusy, setActionBusy] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [competitiveBusyId, setCompetitiveBusyId] = useState<number | null>(
+    null,
+  );
   const [localSearch, setLocalSearch] = useState(searchQuery);
+
+  const handleAddToCompetitive = useCallback(async (id: number) => {
+    setCompetitiveBusyId(id);
+    try {
+      const res = await apiFetch("/api/admin/competitive/pool", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scranId: id }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        toast.error(json.error || `Ошибка ${res.status}`);
+        return;
+      }
+      toast.success(`#${id} добавлен в competitive pool`);
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setCompetitiveBusyId(null);
+    }
+  }, []);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -597,6 +623,12 @@ export function AdminDashboard({
                   ? (id) => void onRestore(id)
                   : undefined
               }
+              onAddToCompetitive={
+                role === "admin"
+                  ? (id) => void handleAddToCompetitive(id)
+                  : undefined
+              }
+              competitiveBusyId={competitiveBusyId}
             />
             <Pagination
               currentPage={currentPage}
