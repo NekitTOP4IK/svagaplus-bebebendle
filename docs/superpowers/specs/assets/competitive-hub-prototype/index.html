@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12051c">
+  <title>Competitive — Эндовый сезон IV</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Russo+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="world-bg" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="particles" aria-hidden="true"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="profile-chip" href="#profile" aria-label="Открыть профиль">
+        <span class="profile-avatar"><img src="assets/avatar.png" alt=""></span>
+        <span class="profile-copy">
+          <strong>NekitTOP41K <i class="verify">✓</i></strong>
+          <small>Профиль&nbsp; / &nbsp;СВАГА+</small>
+        </span>
+      </a>
+
+      <div class="brand" aria-label="Competitive — Эндовый сезон">
+        <h1 data-text="COMPETITIVE">COMPETITIVE</h1>
+        <p>ЭНДОВЫЙ СЕЗОН</p>
+      </div>
+
+      <nav class="top-actions" aria-label="Навигация">
+        <button class="pixel-button danger" type="button">Выход</button>
+        <button class="pixel-button" type="button">← На главную</button>
+        <div class="season-mini">
+          <span class="end-gem">✦</span>
+          <span><b>Сезон активен</b><small>Эндовый сезон IV</small></span>
+        </div>
+      </nav>
+    </header>
+
+    <section class="season-hero obsidian-panel" aria-labelledby="season-title">
+      <div class="portal-art"><img src="assets/end-portal.png" alt="Портал в Энд"></div>
+      <div class="season-main">
+        <h2 id="season-title">СЕЗОН ЭНДА IV</h2>
+        <span class="status active">ACTIVE</span>
+        <p class="dates"><span>▦</span> 01.08.2026 — 31.08.2026</p>
+      </div>
+      <div class="season-countdowns">
+        <div class="count-row">
+          <span class="count-icon">⌛</span>
+          <span><small>До конца сезона:</small><strong id="seasonCountdown">12д 14ч 22м</strong></span>
+        </div>
+        <div class="count-row">
+          <span class="count-icon purple">◷</span>
+          <span><small>До следующего дейлика:</small><strong id="dailyCountdown">03:16:52</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-strip obsidian-panel" aria-label="Действия режима">
+      <button class="cta-card" type="button" data-action="login"><span class="cta-icon">⇥</span><b>Войти</b></button>
+      <button class="cta-card primary" type="button" data-action="play"><span class="cta-icon sword">⚔</span><b>Играть сегодня</b></button>
+      <div class="cta-card result"><span class="pearl">◉</span><span><small>Уже сыграно:</small><b><em>8</em> hits&nbsp; • &nbsp;<i>126 pts</i></b></span></div>
+      <button class="cta-card disabled" type="button" disabled><span class="cta-icon">🔒</span><b>Сезон не идёт</b></button>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="profile-card obsidian-panel" id="profile">
+        <h3>Твой прогресс</h3>
+        <div class="player-line">
+          <span class="player-avatar"><img src="assets/avatar.png" alt=""></span>
+          <strong>NekitTOP41K <i class="verify">✓</i></strong>
+        </div>
+        <dl class="stats-list">
+          <div><dt>Место:</dt><dd class="gold">#14</dd></div>
+          <div><dt>Season pts:</dt><dd>1260</dd></div>
+          <div><dt>Days played:</dt><dd>18 / 23</dd></div>
+        </dl>
+        <div class="divider"></div>
+        <p class="streak-title">Стрик: 5 дней</p>
+        <div class="streak" aria-label="Стрик пять дней из семи">
+          <i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i class="filled"></i><i></i><i></i>
+        </div>
+      </article>
+
+      <article class="leaderboard-card obsidian-panel">
+        <header class="panel-heading">
+          <h3>Лидерборд</h3>
+          <span>Top 50 live</span>
+          <a href="#">Топ 50–100 live ↗</a>
+        </header>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Ник</th><th>pts</th><th>дней</th><th>Σ hits</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>EnderLegend</td><td>2540</td><td>23</td><td>312</td></tr>
+              <tr><td>2</td><td>xDr4gon_</td><td>2310</td><td>23</td><td>298</td></tr>
+              <tr><td>3</td><td>СахарныйДракон</td><td>2215</td><td>22</td><td>276</td></tr>
+              <tr><td>4</td><td>VoidWalker</td><td>1987</td><td>21</td><td>241</td></tr>
+              <tr><td>5</td><td>КриперГений</td><td>1876</td><td>20</td><td>233</td></tr>
+              <tr><td>6</td><td>__TheEnd__</td><td>1765</td><td>21</td><td>227</td></tr>
+              <tr><td>7</td><td>ObsidianTime</td><td>1644</td><td>19</td><td>210</td></tr>
+              <tr><td>8</td><td>MrShulker</td><td>1533</td><td>18</td><td>201</td></tr>
+              <tr><td>9</td><td>PixelEnder</td><td>1420</td><td>18</td><td>189</td></tr>
+              <tr><td>10</td><td>Кот_В_Энде</td><td>1322</td><td>17</td><td>176</td></tr>
+              <tr class="ellipsis"><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>
+              <tr class="current-player" id="currentPlayer"><td>14</td><td>NekitTOP41K</td><td>1260</td><td>18</td><td>162</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <aside class="right-column">
+        <article class="rules-card obsidian-panel">
+          <h3>Правила — коротко</h3>
+          <ul>
+            <li><span>◉◉</span> close pairs</li>
+            <li><span>✦</span> smart pts</li>
+            <li><span class="red">⊘</span> пропуск = 0</li>
+            <li><span>⌛</span> 24ч без «кто раньше»</li>
+            <li><span class="gold">✦</span> +N на раунде</li>
+          </ul>
+        </article>
+
+        <article class="rewards-card obsidian-panel">
+          <h3>Награды</h3>
+          <div class="reward-content">
+            <div class="reward-frame"><img src="assets/reward-badge.png" alt="Пример бейджа в чате"></div>
+            <p>Бейдж в чате<br><span>(Twitch / СВАГА+) —</span><strong>soon</strong></p>
+          </div>
+        </article>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Scrandle по еде зрителей стримера Olesha, дарованный<br>подписчиками платного тг-канала</p>
+    <p>До следующего дейлика: <strong id="footerCountdown">03:16:52</strong></p>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="script.js"></script>
+</body>
+</html>
