@@ -1,31 +1,48 @@
 import { drizzle } from "drizzle-orm/node-postgres";
-import { Client } from "pg";
+import { Pool, type PoolConfig } from "pg";
 import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex, serial, bigint, index } from "drizzle-orm/pg-core";
 
-// DATABASE_URL is authoritative in CI and on PM2 hosts; POSTGRES_* fallback for local Compose.
-const client = new Client(process.env.DATABASE_URL
-  ? { connectionString: process.env.DATABASE_URL }
-  : {
-      host: process.env.POSTGRES_HOST || "localhost",
-      port: parseInt(process.env.POSTGRES_PORT || "5432", 10),
-      database: process.env.POSTGRES_DB || "bebendle",
-      user: process.env.POSTGRES_USER || "postgres",
-      password: process.env.POSTGRES_PASSWORD || "postgres",
-    });
+/**
+ * Use a Pool (not a single Client). A bare `pg.Client` becomes permanently
+ * "not queryable" after any disconnect (Postgres restart, network blip, idle
+ * kill). Under PM2 that left the whole site on 500 until process restart.
+ * Pool checks out fresh connections and recovers automatically.
+ */
+function createPool(): Pool {
+  // DATABASE_URL is authoritative in CI and on PM2 hosts; POSTGRES_* for local Compose.
+  const base: PoolConfig = process.env.DATABASE_URL
+    ? { connectionString: process.env.DATABASE_URL }
+    : {
+        host: process.env.POSTGRES_HOST || "localhost",
+        port: parseInt(process.env.POSTGRES_PORT || "5432", 10),
+        database: process.env.POSTGRES_DB || "bebendle",
+        user: process.env.POSTGRES_USER || "postgres",
+        password: process.env.POSTGRES_PASSWORD || "postgres",
+      };
 
-// Connect lazily - only when first query is made
-let connected = false;
-const originalQuery = client.query.bind(client);
-// @ts-expect-error - lazy connection wrapper
-client.query = (...args: Parameters<typeof originalQuery>) => {
-  if (!connected) {
-    connected = true;
-    client.connect().catch(console.error);
-  }
-  return originalQuery(...args);
-};
+  const pool = new Pool({
+    ...base,
+    max: Number(process.env.DB_POOL_MAX || 10),
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  });
 
-export const db = drizzle(client);
+  // Idle clients can error without an active query; log and let Pool replace them.
+  pool.on("error", (err) => {
+    console.error("[db] unexpected idle client error", err);
+  });
+
+  return pool;
+}
+
+// Reuse the pool across Next.js HMR reloads in dev (avoid leaking connections).
+const globalForDb = globalThis as typeof globalThis & { __bebebendlePgPool?: Pool };
+const pool = globalForDb.__bebebendlePgPool ?? createPool();
+if (process.env.NODE_ENV !== "production") {
+  globalForDb.__bebebendlePgPool = pool;
+}
+
+export const db = drizzle(pool);
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
