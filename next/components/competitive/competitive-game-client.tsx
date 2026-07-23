@@ -250,9 +250,7 @@ export function CompetitiveGameClient(): ReactElement {
       return <ErrorPanel message={gameState.message} />;
 
     case "complete":
-      return (
-        <CompletePanel points={gameState.points} hits={gameState.hits} />
-      );
+      return <CompletePanel points={gameState.points} />;
 
     case "playing": {
       const round = gameState.data.rounds.find(
@@ -320,8 +318,7 @@ function ErrorPanel({
 
 function CompletePanel({
   points,
-  hits,
-}: Readonly<{ points: number; hits: number }>): ReactElement {
+}: Readonly<{ points: number }>): ReactElement {
   return (
     <div className="retro-bg flex min-h-dvh flex-col items-center justify-center px-4">
       <div className="retro-overlay absolute inset-0" />
@@ -345,9 +342,6 @@ function CompletePanel({
         </p>
         <p className="pixel-text mb-10 text-base text-white sm:text-xl">
           {pointsWord(points)}
-          <span className="mt-2 block text-sm text-zinc-400 sm:text-base">
-            ({hits}/10 верных)
-          </span>
         </p>
         <Link
           href="/competitive"

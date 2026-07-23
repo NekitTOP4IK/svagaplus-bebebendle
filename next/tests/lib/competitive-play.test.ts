@@ -3,6 +3,8 @@ import {
   evaluateFrozenRound,
   computeDayScoreFromFrozen,
   decideVoteReplay,
+  assertPlayDateIsToday,
+  PLAY_TODAY_ONLY_ERROR,
   type FrozenRoundInput,
 } from "@/lib/competitive/play";
 import {
@@ -301,5 +303,29 @@ describe("decideVoteReplay (immutable first choice)", () => {
     const flipped = 200;
     expect(decideVoteReplay(first, flipped).kind).toBe("conflict");
     expect(decideVoteReplay(first, first).kind).toBe("idempotent");
+  });
+});
+
+describe("assertPlayDateIsToday (today-only play)", () => {
+  it("accepts the current MSK date", () => {
+    const result = assertPlayDateIsToday("2024-07-15", "2024-07-15");
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects past MSK dates with 400 and Russian message", () => {
+    const result = assertPlayDateIsToday("2024-07-14", "2024-07-15");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.status).toBe(400);
+    expect(result.error).toBe(PLAY_TODAY_ONLY_ERROR);
+    expect(result.error).toBe("Можно играть только сегодняшний дейлик");
+  });
+
+  it("rejects future MSK dates", () => {
+    const result = assertPlayDateIsToday("2024-07-16", "2024-07-15");
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.status).toBe(400);
+    expect(result.error).toBe(PLAY_TODAY_ONLY_ERROR);
   });
 });

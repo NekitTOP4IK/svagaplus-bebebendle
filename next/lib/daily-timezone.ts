@@ -19,6 +19,22 @@ export function todayMskDate(now: Date = new Date()): string {
 }
 
 /**
+ * Instant of 00:00:00 Europe/Moscow on the given MSK calendar date (YYYY-MM-DD).
+ * Used for half-open season window checks against Date bounds.
+ */
+export function mskDateStartUtc(dateMsk: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateMsk);
+  if (!match) {
+    throw new Error(`Invalid MSK date string: ${dateMsk}`);
+  }
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  // 00:00 MSK on YYYY-MM-DD = that civil date at 00:00 UTC, shifted back by MSK offset.
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - MSK_OFFSET_MS);
+}
+
+/**
  * Instant of the next 00:00:00 in Europe/Moscow after `now`.
  * At exact midnight MSK, returns the following midnight (full day remaining).
  */

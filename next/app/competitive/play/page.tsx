@@ -6,6 +6,7 @@ import { db, competitiveDailies } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
 import { isCompetitiveEnabled } from "@/lib/competitive/feature";
 import { hasPlayed } from "@/lib/competitive/play";
+import { getPlayableSeason } from "@/lib/competitive/seasons";
 import { todayMskDate } from "@/lib/daily-timezone";
 import { CompetitiveGameClient } from "@/components/competitive/competitive-game-client";
 
@@ -22,6 +23,16 @@ export default async function CompetitivePlayPage(): Promise<ReactElement> {
       <UnavailablePanel
         title="Соревновательный режим отключён"
         body="Режим временно недоступен. Загляни позже."
+      />
+    );
+  }
+
+  const playableSeason = await getPlayableSeason();
+  if (!playableSeason) {
+    return (
+      <UnavailablePanel
+        title="Сезон недоступен"
+        body="Сейчас нет активного соревновательного сезона. Вернись в хаб."
       />
     );
   }

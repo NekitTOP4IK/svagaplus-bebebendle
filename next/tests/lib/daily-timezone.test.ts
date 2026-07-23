@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   formatTimeUntilMidnightMsk,
+  mskDateStartUtc,
   nextMidnightMsk,
   todayMskDate,
 } from "@/lib/daily-timezone";
@@ -46,5 +47,13 @@ describe("daily-timezone (Europe/Moscow)", () => {
     const now = new Date("2024-01-15T21:00:05.000Z");
     expect(todayMskDate(now)).toBe("2024-01-16");
     expect(formatTimeUntilMidnightMsk(now)).toBe("23:59:55");
+  });
+
+  it("mskDateStartUtc is 21:00 UTC on the previous civil day", () => {
+    // 00:00 MSK 2024-01-15 = 2024-01-14T21:00:00.000Z
+    expect(mskDateStartUtc("2024-01-15").toISOString()).toBe(
+      "2024-01-14T21:00:00.000Z",
+    );
+    expect(todayMskDate(mskDateStartUtc("2024-01-15"))).toBe("2024-01-15");
   });
 });

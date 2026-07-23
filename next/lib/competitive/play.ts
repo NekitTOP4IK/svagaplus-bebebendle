@@ -15,6 +15,7 @@ import {
   competitiveStandings,
   type CompetitiveResult,
 } from "@/db/schema";
+import { todayMskDate } from "@/lib/daily-timezone";
 import { COMPETITIVE_ROUNDS } from "./constants";
 import { isCompetitiveEnabled } from "./feature";
 import {
@@ -31,6 +32,27 @@ import { getPlayableSeason } from "./seasons";
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-tested; used by DB paths)
 // ---------------------------------------------------------------------------
+
+export const PLAY_TODAY_ONLY_ERROR = "Можно играть только сегодняшний дейлик";
+export const DAILY_SEASON_MISMATCH_ERROR =
+  "Дейлик не относится к текущему сезону";
+
+/**
+ * Pure guard: competitive play is allowed only for the current MSK calendar day.
+ */
+export function assertPlayDateIsToday(
+  date: string,
+  today: string = todayMskDate(),
+): { ok: true } | { ok: false; error: string; status: 400 } {
+  if (date !== today) {
+    return {
+      ok: false,
+      error: PLAY_TODAY_ONLY_ERROR,
+      status: 400,
+    };
+  }
+  return { ok: true };
+}
 
 export type FrozenRoundInput = Readonly<{
   roundNumber: number;
@@ -248,6 +270,11 @@ export async function recordCompetitiveVote(input: {
     };
   }
 
+  const todayGuard = assertPlayDateIsToday(date);
+  if (!todayGuard.ok) {
+    return todayGuard;
+  }
+
   const season = await getPlayableSeason();
   if (!season) {
     return {
@@ -275,6 +302,14 @@ export async function recordCompetitiveVote(input: {
       ok: false,
       error: "No competitive daily for this date",
       status: 404,
+    };
+  }
+
+  if (daily.seasonId !== season.id) {
+    return {
+      ok: false,
+      error: DAILY_SEASON_MISMATCH_ERROR,
+      status: 400,
     };
   }
 
@@ -451,6 +486,11 @@ export async function finalizeCompetitive(input: {
     };
   }
 
+  const todayGuard = assertPlayDateIsToday(date);
+  if (!todayGuard.ok) {
+    return todayGuard;
+  }
+
   const season = await getPlayableSeason();
   if (!season) {
     return {
@@ -466,6 +506,14 @@ export async function finalizeCompetitive(input: {
       ok: false,
       error: "No competitive daily for this date",
       status: 404,
+    };
+  }
+
+  if (daily.seasonId !== season.id) {
+    return {
+      ok: false,
+      error: DAILY_SEASON_MISMATCH_ERROR,
+      status: 400,
     };
   }
 

@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { selectCompetitivePairs } from "@/lib/competitive/generate";
+import {
+  selectCompetitivePairs,
+  isMskDateInSeasonWindow,
+} from "@/lib/competitive/generate";
 import { pairKey, bandForRound } from "@/lib/competitive/pairs";
 import { COMPETITIVE_ROUNDS, MIN_COMPETITIVE_VOTES } from "@/lib/competitive/constants";
+import { mskDateStartUtc } from "@/lib/daily-timezone";
 
 /**
  * Build N candidates with fixed total votes and staggered like-rates so every
@@ -249,5 +253,53 @@ describe("selectCompetitivePairs", () => {
       expect(p.likesB).toBe(b.likes);
       expect(p.dislikesB).toBe(b.dislikes);
     }
+  });
+});
+
+describe("isMskDateInSeasonWindow (half-open [startsAt, endsAt))", () => {
+  // Season: 2024-07-01 00:00 MSK inclusive → 2024-08-01 00:00 MSK exclusive
+  const startsAt = mskDateStartUtc("2024-07-01");
+  const endsAt = mskDateStartUtc("2024-08-01");
+
+  it("includes the first MSK day of the season", () => {
+    expect(isMskDateInSeasonWindow("2024-07-01", startsAt, endsAt)).toBe(true);
+  });
+
+  it("includes a mid-season MSK day", () => {
+    expect(isMskDateInSeasonWindow("2024-07-15", startsAt, endsAt)).toBe(true);
+  });
+
+  it("includes the last full MSK day before endsAt midnight", () => {
+    expect(isMskDateInSeasonWindow("2024-07-31", startsAt, endsAt)).toBe(true);
+  });
+
+  it("excludes the endsAt MSK calendar day (half-open)", () => {
+    expect(isMskDateInSeasonWindow("2024-08-01", startsAt, endsAt)).toBe(false);
+  });
+
+  it("excludes days before startsAt", () => {
+    expect(isMskDateInSeasonWindow("2024-06-30", startsAt, endsAt)).toBe(false);
+  });
+
+  it("includes partial first day when season starts midday MSK", () => {
+    // starts 2024-07-01 12:00 MSK = 09:00 UTC
+    const middayStart = new Date("2024-07-01T09:00:00.000Z");
+    expect(isMskDateInSeasonWindow("2024-07-01", middayStart, endsAt)).toBe(
+      true,
+    );
+    expect(isMskDateInSeasonWindow("2024-06-30", middayStart, endsAt)).toBe(
+      false,
+    );
+  });
+
+  it("includes partial last day when endsAt is evening MSK", () => {
+    // ends 2024-07-31 18:00 MSK = 15:00 UTC → still overlaps 2024-07-31
+    const eveningEnd = new Date("2024-07-31T15:00:00.000Z");
+    expect(isMskDateInSeasonWindow("2024-07-31", startsAt, eveningEnd)).toBe(
+      true,
+    );
+    expect(isMskDateInSeasonWindow("2024-08-01", startsAt, eveningEnd)).toBe(
+      false,
+    );
   });
 });

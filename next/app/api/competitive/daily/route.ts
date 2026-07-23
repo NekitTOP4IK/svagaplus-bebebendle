@@ -27,7 +27,7 @@ function mapPublicScran(s: typeof scrans.$inferSelect) {
   };
 }
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -41,12 +41,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { searchParams } = new URL(request.url);
-    const dateParam = searchParams.get("date");
-    const date =
-      dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)
-        ? dateParam
-        : todayMskDate();
+    // Players may only load today's competitive daily (ignore client ?date=).
+    const date = todayMskDate();
 
     const [daily] = await db
       .select({

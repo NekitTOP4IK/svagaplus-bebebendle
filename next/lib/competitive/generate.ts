@@ -17,12 +17,37 @@ import {
 import { isCompetitiveEnabled } from "./feature";
 import { pairKey, bandForRound, isDeltaInBand, canPair } from "./pairs";
 import { syncCooldownSnapshots } from "./pool";
+import { mskDateStartUtc } from "@/lib/daily-timezone";
 import { deltaPp } from "./scoring";
 import { getPlayableSeason } from "./seasons";
 
 /** Cap for maxDelta when a band is starved (widen upward / easier). */
 const MAX_WIDEN_DELTA = 40;
 const WIDEN_STEP = 2;
+
+export const DATE_OUTSIDE_SEASON_ERROR =
+  "MSK date is outside the playable season window";
+
+/**
+ * Pure: whether an MSK calendar date belongs in season half-open [startsAt, endsAt).
+ *
+ * Uses overlap of the MSK day [00:00, next 00:00) with the season window so
+ * partial first/last days still allow generation when the day intersects play.
+ */
+export function isMskDateInSeasonWindow(
+  dateMsk: string,
+  startsAt: Date,
+  endsAt: Date,
+): boolean {
+  const dayStart = mskDateStartUtc(dateMsk);
+  // Next MSK midnight: add 24h to day start (MSK has no DST).
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  // [dayStart, dayEnd) overlaps [startsAt, endsAt)
+  return (
+    dayStart.getTime() < endsAt.getTime() &&
+    dayEnd.getTime() > startsAt.getTime()
+  );
+}
 
 export type CompetitivePairCandidate = Readonly<{
   scranId: number;
@@ -225,6 +250,14 @@ export async function generateCompetitiveDaily(
     return {
       ok: false,
       error: "No playable competitive season",
+      status: 400,
+    };
+  }
+
+  if (!isMskDateInSeasonWindow(dateMsk, season.startsAt, season.endsAt)) {
+    return {
+      ok: false,
+      error: DATE_OUTSIDE_SEASON_ERROR,
       status: 400,
     };
   }
