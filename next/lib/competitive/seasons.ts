@@ -59,7 +59,7 @@ export function shouldEnd(
 
 /**
  * Display name for final-rank snapshot:
- * competitiveDisplayName → @telegramUsername → player#{id}
+ * competitiveDisplayName → @telegramUsername → Игрок #{id}
  */
 export function snapshotDisplayName(user: {
   id: number;
@@ -70,7 +70,7 @@ export function snapshotDisplayName(user: {
   if (competitive) return competitive;
   const tg = user.telegramUsername?.trim();
   if (tg) return tg.startsWith("@") ? tg : `@${tg}`;
-  return `player#${user.id}`;
+  return `Игрок #${user.id}`;
 }
 
 function assertValidStatus(status: string): asserts status is SeasonStatus {
@@ -289,11 +289,13 @@ export async function getVisibleSeason(
 }
 
 /**
- * Time-driven transitions:
+ * Time-driven transitions (month handoff-safe order):
+ * 1. End actives past endsAt (frees single-active slot)
+ * 2. Activate countdowns past startsAt (assertSingleActive)
+ * 3. End actives again (overdue countdown that became active and is already past endsAt)
+ *
  * - countdown → active when now >= startsAt
  * - active → ended when now >= endsAt (via endSeason)
- *
- * Activate first, then end, so a fully-past countdown activates and ends in one pass.
  */
 export async function transitionSeasonsByTime(
   now: Date = new Date(),
@@ -301,6 +303,19 @@ export async function transitionSeasonsByTime(
   let activated = 0;
   let ended = 0;
 
+  // 1. End overdue actives first so the next season can claim the active slot.
+  const activeRowsFirst = await db
+    .select()
+    .from(competitiveSeasons)
+    .where(eq(competitiveSeasons.status, "active"));
+
+  for (const season of activeRowsFirst) {
+    if (!shouldEnd(season, now)) continue;
+    await endSeason(season.id);
+    ended += 1;
+  }
+
+  // 2. Activate due countdowns (at most one active; assert before write).
   const countdownRows = await db
     .select()
     .from(competitiveSeasons)
@@ -322,12 +337,13 @@ export async function transitionSeasonsByTime(
     if (updated) activated += 1;
   }
 
-  const activeRows = await db
+  // 3. End again: a countdown that was fully past may activate and already be overdue.
+  const activeRowsSecond = await db
     .select()
     .from(competitiveSeasons)
     .where(eq(competitiveSeasons.status, "active"));
 
-  for (const season of activeRows) {
+  for (const season of activeRowsSecond) {
     if (!shouldEnd(season, now)) continue;
     await endSeason(season.id);
     ended += 1;

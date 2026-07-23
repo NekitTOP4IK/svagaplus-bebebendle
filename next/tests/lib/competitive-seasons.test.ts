@@ -73,6 +73,57 @@ describe("shouldEnd", () => {
   });
 });
 
+/**
+ * Documents month-handoff intent for transitionSeasonsByTime (pure predicates only):
+ * end overdue active first, then activate abutting countdown, then end again if needed.
+ * Without ending first, assertSingleActive would block activation at the boundary.
+ */
+describe("month handoff predicates (abutting seasons)", () => {
+  // July ends exactly when August starts (half-open [starts, ends)).
+  const july = {
+    status: "active" as const,
+    startsAt: new Date("2026-07-01T00:00:00.000Z"),
+    endsAt: new Date("2026-08-01T00:00:00.000Z"),
+  };
+  const august = {
+    status: "countdown" as const,
+    startsAt: new Date("2026-08-01T00:00:00.000Z"),
+    endsAt: new Date("2026-09-01T00:00:00.000Z"),
+  };
+  const boundary = new Date("2026-08-01T00:00:00.000Z");
+
+  it("at boundary: July should end and August should activate", () => {
+    expect(shouldEnd(july, boundary)).toBe(true);
+    expect(shouldActivate(august, boundary)).toBe(true);
+    // July is not a countdown; August is not active yet — order must be end then activate.
+    expect(shouldActivate(july, boundary)).toBe(false);
+    expect(shouldEnd(august, boundary)).toBe(false);
+  });
+
+  it("just before boundary: July stays active, August stays countdown", () => {
+    const before = new Date("2026-07-31T23:59:59.999Z");
+    expect(shouldEnd(july, before)).toBe(false);
+    expect(shouldActivate(august, before)).toBe(false);
+  });
+
+  it("after activate, overdue (fully past) season still ends on second pass", () => {
+    // Countdown that was never activated until long after endsAt.
+    const overdueCountdown = {
+      status: "countdown" as const,
+      startsAt: new Date("2026-06-01T00:00:00.000Z"),
+      endsAt: new Date("2026-07-01T00:00:00.000Z"),
+    };
+    const now = new Date("2026-08-01T00:00:00.000Z");
+    expect(shouldActivate(overdueCountdown, now)).toBe(true);
+    // Once activated (status becomes active), shouldEnd applies on the second end pass.
+    const afterActivate = {
+      status: "active" as const,
+      endsAt: overdueCountdown.endsAt,
+    };
+    expect(shouldEnd(afterActivate, now)).toBe(true);
+  });
+});
+
 describe("snapshotDisplayName", () => {
   it("prefers competitiveDisplayName", () => {
     expect(
@@ -104,13 +155,13 @@ describe("snapshotDisplayName", () => {
     ).toBe("@bebeb");
   });
 
-  it("falls back to player#id", () => {
+  it("falls back to Игрок #id", () => {
     expect(
       snapshotDisplayName({
         id: 42,
         competitiveDisplayName: null,
         telegramUsername: null,
       }),
-    ).toBe("player#42");
+    ).toBe("Игрок #42");
   });
 });
