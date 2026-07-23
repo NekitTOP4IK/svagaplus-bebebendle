@@ -60,7 +60,7 @@ export function shouldEnd(
 
 /**
  * Display name for final-rank snapshot:
- * competitiveDisplayName → @telegramUsername → Игрок #{id}
+ * competitiveDisplayName → telegramUsername (no @) → Игрок #{id}
  * (same chain as leaderboardLabel)
  */
 export function snapshotDisplayName(user: {

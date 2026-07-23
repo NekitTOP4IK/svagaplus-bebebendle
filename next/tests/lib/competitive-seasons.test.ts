@@ -135,24 +135,24 @@ describe("snapshotDisplayName", () => {
     ).toBe("Ace");
   });
 
-  it("falls back to @telegramUsername", () => {
+  it("falls back to telegramUsername without @", () => {
     expect(
       snapshotDisplayName({
         id: 2,
         competitiveDisplayName: null,
         telegramUsername: "bebeb",
       }),
-    ).toBe("@bebeb");
+    ).toBe("bebeb");
   });
 
-  it("keeps leading @ on telegram username", () => {
+  it("strips leading @ from telegram username", () => {
     expect(
       snapshotDisplayName({
         id: 2,
         competitiveDisplayName: "  ",
         telegramUsername: "@bebeb",
       }),
-    ).toBe("@bebeb");
+    ).toBe("bebeb");
   });
 
   it("falls back to Игрок #id", () => {
