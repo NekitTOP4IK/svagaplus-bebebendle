@@ -4,6 +4,8 @@ import { appSettings, db } from "@/db/schema";
 export const SETTING_DAILY_ROTATION_NOTIFY = "daily_rotation_notify";
 export const SETTING_DAILY_GENERATION_ENABLED = "daily_generation_enabled";
 export const SETTING_DAILY_DISABLED_REASON = "daily_disabled_reason";
+/** Competitive mode master flag (default false until ops enables). */
+export const SETTING_COMPETITIVE_ENABLED = "competitive_enabled";
 
 export const DEFAULT_DAILY_DISABLED_REASON =
   "Дейлик временно недоступен. Загляни позже.";
