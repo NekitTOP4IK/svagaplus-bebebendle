@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import type { HubSeasonSummary } from "@/lib/competitive/hub";
+import { COMPETITIVE_ICONS } from "@/lib/competitive/icons";
 import { HubCountdown } from "./hub-countdown";
 
 type Props = Readonly<{
@@ -63,9 +64,14 @@ export function SeasonHero({
       </div>
       <div className="c-season-countdowns">
         <div className="c-count-row">
-          <span className="c-count-icon" aria-hidden>
-            ⌛
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="c-pixel-icon c-pixel-icon--lg"
+            src={COMPETITIVE_ICONS.clock}
+            alt=""
+            width={28}
+            height={28}
+          />
           <span>
             <small>
               {season?.status === "countdown"
@@ -86,9 +92,14 @@ export function SeasonHero({
           </span>
         </div>
         <div className="c-count-row">
-          <span className="c-count-icon c-count-icon--purple" aria-hidden>
-            ◷
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="c-pixel-icon c-pixel-icon--lg c-pixel-icon--tint-purple"
+            src={COMPETITIVE_ICONS.clock}
+            alt=""
+            width={28}
+            height={28}
+          />
           <span>
             <small>До следующего дейлика:</small>
             <strong>

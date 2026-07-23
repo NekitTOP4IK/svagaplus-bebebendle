@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
 import type { HubPayload } from "@/lib/competitive/hub";
+import { COMPETITIVE_ICONS, swordSrcForPlace } from "@/lib/competitive/icons";
 import { HubCountdown } from "./hub-countdown";
 
 type Props = Readonly<{
@@ -10,6 +11,7 @@ type Props = Readonly<{
 /**
  * Center: play glow / already played / season status.
  * Side slots: place + daily countdown (secondary info, not fake CTAs).
+ * Swords on play CTA scale with current rank; pearl = already played.
  */
 export function CtaRow({ hub }: Props): ReactElement {
   const placeText =
@@ -18,9 +20,14 @@ export function CtaRow({ hub }: Props): ReactElement {
   return (
     <section className="c-cta-strip c-panel" aria-label="Действия режима">
       <div className="c-cta-slot c-cta-slot--info">
-        <span className="c-end-gem" aria-hidden>
-          ✦
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="c-pixel-icon c-pixel-icon--lg"
+          src={swordSrcForPlace(hub.me.place)}
+          alt=""
+          width={28}
+          height={28}
+        />
         <span>
           <small>Твоё место</small>
           <b className="c-gold">{placeText}</b>
@@ -30,9 +37,14 @@ export function CtaRow({ hub }: Props): ReactElement {
       {renderCenter(hub)}
 
       <div className="c-cta-slot c-cta-slot--info">
-        <span className="c-count-icon c-count-icon--purple" aria-hidden>
-          ◷
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="c-pixel-icon c-pixel-icon--lg"
+          src={COMPETITIVE_ICONS.clock}
+          alt=""
+          width={28}
+          height={28}
+        />
         <span>
           <small>До дейлика</small>
           <b>
@@ -96,9 +108,14 @@ function renderCenter(hub: HubPayload): ReactElement {
     const pts = hub.todayPoints ?? 0;
     return (
       <div className="c-cta-center c-cta-center--played" role="status">
-        <span className="c-pearl" aria-hidden>
-          ◉
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="c-pixel-icon c-pixel-icon--pearl"
+          src={COMPETITIVE_ICONS.pearl}
+          alt=""
+          width={32}
+          height={32}
+        />
         <b>
           Уже сыграно · <em>{pts}</em>{" "}
           {pointsWord(pts)}
@@ -115,15 +132,22 @@ function renderCenter(hub: HubPayload): ReactElement {
     );
   }
 
+  const swordSrc = swordSrcForPlace(hub.me.place);
+
   return (
     <Link
       href="/competitive/play"
       className="c-cta-center c-cta-center--play"
       aria-label="Играть сегодня"
     >
-      <span className="c-cta-icon c-cta-icon--sword" aria-hidden>
-        ⚔
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="c-pixel-icon c-pixel-icon--sword"
+        src={swordSrc}
+        alt=""
+        width={32}
+        height={32}
+      />
       <b>Играть сегодня</b>
     </Link>
   );

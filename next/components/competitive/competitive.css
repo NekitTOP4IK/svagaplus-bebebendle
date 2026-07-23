@@ -183,29 +183,62 @@
   text-align: center;
   position: relative;
   margin-top: -4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-.c-brand h1 {
-  margin: 0;
-  color: #b9b4b7;
-  font: 48px/1 var(--c-display);
-  letter-spacing: -1px;
-  transform: scaleY(1.1);
-  text-shadow:
-    0 4px 0 #5d595e,
-    0 8px 0 #242228,
-    5px 9px 0 #050508,
-    -2px -2px 0 #ece8e8,
-    0 15px 26px rgba(0, 0, 0, 0.8);
+.c-brand-logo {
+  width: min(420px, 100%);
+  height: auto;
+  max-height: 110px;
+  object-fit: contain;
+  image-rendering: auto;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.75))
+    drop-shadow(0 0 18px rgba(180, 60, 255, 0.25));
 }
 
-.c-brand p {
-  margin: 8px 0 0;
-  font: 14px var(--c-pixel);
-  color: #dc5aff;
-  text-shadow:
-    3px 3px 0 #3c064f,
-    0 0 13px #c12aff;
+/* Pixel item icons (swords, clock, pearl) */
+.c-pixel-icon {
+  display: block;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.c-pixel-icon--lg {
+  width: 28px;
+  height: 28px;
+}
+
+.c-pixel-icon--sword {
+  width: 32px;
+  height: 32px;
+  transform: rotate(-18deg);
+  filter: drop-shadow(0 0 6px rgba(209, 76, 255, 0.55));
+}
+
+.c-pixel-icon--pearl {
+  width: 32px;
+  height: 32px;
+  filter: drop-shadow(0 0 8px rgba(2, 169, 150, 0.55));
+}
+
+.c-pixel-icon--tint-purple {
+  filter: hue-rotate(40deg) saturate(1.2) drop-shadow(0 0 6px rgba(169, 58, 220, 0.5));
+}
+
+.c-season-mini-logo {
+  width: 72px;
+  height: auto;
+  max-height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(180, 60, 255, 0.35));
 }
 
 .c-top-actions {
@@ -426,6 +459,10 @@
   text-shadow: 0 0 9px #a93adc;
 }
 
+.c-count-row .c-pixel-icon {
+  justify-self: center;
+}
+
 .c-count-row small {
   display: block;
   margin-bottom: 6px;
@@ -560,21 +597,6 @@
   transform: rotate(-18deg);
   color: #c6c1c8;
   text-shadow: 2px 2px #222;
-}
-
-.c-pearl {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: radial-gradient(circle at 38% 33%, #0fdfc1, #007c6f 48%, #002e2c 70%);
-  color: #72ffe9;
-  font-size: 18px;
-  box-shadow:
-    inset -4px -5px 6px rgba(0, 0, 0, 0.6),
-    0 0 9px #02a996;
-  flex-shrink: 0;
 }
 
 /* ---- Dashboard grid ---- */
@@ -947,8 +969,8 @@
     justify-self: end;
   }
 
-  .c-brand h1 {
-    font-size: 40px;
+  .c-brand-logo {
+    max-height: 88px;
   }
 
   .c-season-hero {
@@ -982,12 +1004,13 @@
     order: -1;
   }
 
-  .c-brand h1 {
-    font-size: clamp(28px, 10vw, 40px);
+  .c-brand-logo {
+    max-height: 72px;
+    width: min(320px, 92%);
   }
 
-  .c-brand p {
-    font-size: 11px;
+  .c-season-mini-logo {
+    width: 56px;
   }
 
   .c-profile-chip {

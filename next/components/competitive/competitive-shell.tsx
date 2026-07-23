@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import type { CurrentUser } from "@/lib/auth-server";
 import type { HubSeasonSummary } from "@/lib/competitive/hub";
+import { COMPETITIVE_ICONS } from "@/lib/competitive/icons";
 import { CompetitiveLogout } from "./competitive-logout";
 import { HubCountdown } from "./hub-countdown";
 import "./competitive.css";
@@ -97,9 +98,15 @@ export function CompetitiveShell({
             </span>
           </Link>
 
-          <div className="c-brand" aria-label="Competitive">
-            <h1>COMPETITIVE</h1>
-            <p>ЭНДОВЫЙ СЕЗОН</p>
+          <div className="c-brand" aria-label="Бебебендл Competitive">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="c-brand-logo"
+              src={COMPETITIVE_ICONS.logos.competitive}
+              alt="Бебебендл Competitive"
+              width={420}
+              height={120}
+            />
           </div>
 
           <nav className="c-top-actions" aria-label="Навигация">
@@ -108,9 +115,14 @@ export function CompetitiveShell({
               ← На главную
             </Link>
             <div className="c-season-mini">
-              <span className="c-end-gem" aria-hidden>
-                ✦
-              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="c-season-mini-logo"
+                src={COMPETITIVE_ICONS.logos.season1}
+                alt=""
+                width={96}
+                height={48}
+              />
               <span>
                 <b className={mini.className || undefined}>{mini.label}</b>
                 <small title={mini.name}>{mini.name}</small>
