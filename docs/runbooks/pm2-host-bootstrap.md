@@ -308,9 +308,12 @@ Host crontab (user `deploy` or root with env readable by script):
 
 ```cron
 0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-daily.sh >> /opt/bebebendle/shared/logs/daily-cron.log 2>&1
+0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-competitive.sh >> /opt/bebebendle/shared/logs/competitive-cron.log 2>&1
 ```
 
 Script: `ops/cron-generate-daily.sh` — sources `shared/.env` (`CRON_SECRET`, `BEBEBENDLE_INTERNAL_URL`) and `GET`s `/api/cron/daily`. Calendar day is **Europe/Moscow**.
+
+Competitive script: `ops/cron-generate-competitive.sh` — same env/`CRON_SECRET`, `GET`s `/api/cron/competitive` (season transitions + competitive daily). Safe no-op when `competitive_enabled` is off or there is no playable season (HTTP 200 + `skipped`).
 
 ### Verify after root bootstrap
 

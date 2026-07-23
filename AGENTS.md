@@ -147,12 +147,13 @@ pytest -k test_name     # Run tests matching pattern
 ```
 next/                   # Next.js frontend
 ├── app/               # App Router pages
-│   ├── admin/        # Admin panel
-│   ├── api/          # API routes (incl. /svaga/* , /internal/svaga/* , /user/* )
-│   ├── components/   # React components
+│   ├── admin/        # Admin panel (incl. /admin/competitive)
+│   ├── api/          # API routes (incl. /svaga/* , /competitive/* , /cron/competitive)
+│   ├── competitive/  # Competitive hub + play (auth-only)
+│   ├── components/   # React components (incl. competitive/)
 │   ├── profile/      # User profile (SVAGA link UI + history)
-│   └── lib/          # Utility functions (svaga.ts, auth-server.ts)
-├── db/               # Drizzle schema & migrations (users + svaga fields)
+│   └── lib/          # Utility functions (svaga.ts, auth-server.ts, competitive/*)
+├── db/               # Drizzle schema & migrations (users + svaga + competitive_*)
 ├── public/           # Static assets
 └── scripts/          # Utility scripts (backfill, refresh-subscribers)
 ├── app/api/middleware/rateLimit.ts  # used for daily + now internal svaga
@@ -199,3 +200,26 @@ bot/                   # Python Telegram bot
 - Schema: `next/db/schema.ts` → `announcements` table; migration `0011_add_announcements.sql`.
 - Editing an announcement is silent: same `id` stays seen; to re-show, admin duplicates it.
 - See design: `docs/superpowers/specs/2026-07-18-announcements-design.md`; plan: `docs/superpowers/plans/2026-07-18-announcements.md`.
+
+## Competitive Daily
+
+Separate season-ranked daily for **authenticated** users only. Does not touch casual daily tables/APIs.
+
+**Routes / domain:**
+- Player: `/competitive` (hub), `/competitive/play` — auth gate → `/profile` if logged out
+- APIs: `/api/competitive/*` (hub, daily, vote, finalize, leaderboard, display-name)
+- Admin: `/admin/competitive` + `/api/admin/competitive/*` (pool, seasons, daily generate, settings flag)
+- Cron: `GET /api/cron/competitive` with `Authorization: Bearer ${CRON_SECRET}` (same secret as casual)
+- Domain: `next/lib/competitive/*`; schema tables `competitive_*` (migration `0012_*`)
+- Feature flag: app_settings `competitive_enabled` (`isCompetitiveEnabled` / admin Competitive panel)
+
+**Home entry:** `next/app/page.tsx` shows **Competitive** link only when user is logged in, flag is on, and `getVisibleSeason()` returns a season.
+
+**Ops:**
+```bash
+# Host crontab (00:00 MSK) — independent of casual
+0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-competitive.sh >> /opt/bebebendle/shared/logs/competitive-cron.log 2>&1
+```
+Script: `ops/cron-generate-competitive.sh` sources `shared/.env` and hits `/api/cron/competitive`. Skipped cleanly if disabled / no playable season.
+
+See design: `docs/superpowers/specs/2026-07-23-competitive-daily-design.md`; plan: `docs/superpowers/plans/2026-07-23-competitive-daily.md`.

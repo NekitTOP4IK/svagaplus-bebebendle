@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { DailyPlayButton } from "@/components/daily-play-button";
 import { SocialLinks } from "@/components/social-links";
 import { CountdownTimer } from "@/components/countdown-timer";
@@ -8,6 +9,9 @@ import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
 import { getDailyPublicStatus } from "@/lib/app-settings";
 import { getActiveAnnouncements } from "@/lib/announcements";
 import { AnnouncementOverlay } from "@/components/announcements/announcement-overlay";
+import { getCurrentUser } from "@/lib/auth-server";
+import { isCompetitiveEnabled } from "@/lib/competitive/feature";
+import { getVisibleSeason } from "@/lib/competitive/seasons";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +68,13 @@ export default async function HomePage() {
   const dailyStatus = await getDailyPublicStatus(hasDaily);
   const announcements = await getActiveAnnouncements();
 
+  // Competitive home entry: logged-in only, flag on, and a season worth showing.
+  const user = await getCurrentUser();
+  let showCompetitive = false;
+  if (user != null && (await isCompetitiveEnabled())) {
+    showCompetitive = (await getVisibleSeason()) != null;
+  }
+
   return (
     <div
       className="relative flex min-h-dvh flex-col items-center justify-between overflow-hidden font-sans"
@@ -99,6 +110,15 @@ export default async function HomePage() {
             available={dailyStatus.available}
             unavailableReason={dailyStatus.reason}
           />
+          {showCompetitive && (
+            <Link
+              href="/competitive"
+              className="pixel-btn pixel-btn-info inline-flex w-full items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-bold sm:gap-2 sm:px-4 sm:py-2 sm:text-sm md:text-base 2xl:gap-3 2xl:px-6 2xl:py-3 2xl:text-xl 4xl:gap-4 4xl:px-8 4xl:py-4 4xl:text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              aria-label="Competitive — рейтинг и соревновательный дейлик"
+            >
+              Competitive
+            </Link>
+          )}
           <HomeUserMenu />
           <SocialLinks />
         </div>

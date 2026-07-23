@@ -16,9 +16,10 @@ CI **never** uploads bot tokens or DB passwords. The deploy script sources `shar
 
 ```cron
 0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-daily.sh >> /opt/bebebendle/shared/logs/daily-cron.log 2>&1
+0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-competitive.sh >> /opt/bebebendle/shared/logs/competitive-cron.log 2>&1
 ```
 
-Requires `CRON_SECRET` in `shared/.env`. Daily date boundary is 00:00 Europe/Moscow.
+Requires `CRON_SECRET` in `shared/.env`. Daily date boundary is 00:00 Europe/Moscow. Competitive cron uses the same secret and endpoint auth (`Bearer ${CRON_SECRET}` → `/api/cron/competitive`); exits 0 when competitive is disabled or no playable season.
 
 ## Branch → environment
 

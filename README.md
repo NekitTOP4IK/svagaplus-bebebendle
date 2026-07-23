@@ -126,6 +126,29 @@ Both scripts run inside the `next` container using the shared DB. They can also 
 4. Если выбрал блюдо с большим процентом — раунд засчитан
 5. После 10 раундов показывается результат и сравнение со средним
 
+### Competitive Daily (сезонный рейтинг)
+
+Отдельный режим для **залогиненных** пользователей: `/competitive` (хаб + play). Casual `/daily` не меняется — оба можно сыграть в один MSK-день.
+
+| | Casual | Competitive |
+|--|--------|-------------|
+| Identity | session + fingerprint | `userId` only |
+| Pool | все approved scrans | admin allowlist (`competitive_pool_entries`) |
+| Score | hits 0–10 | smart points + season standings |
+| Entry | кнопка «Дейлик!» | кнопка **Competitive** на home (только logged-in + flag + visible season) |
+
+**Ops / cron** (тот же `CRON_SECRET`, что и casual):
+
+```cron
+0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-daily.sh >> /opt/bebebendle/shared/logs/daily-cron.log 2>&1
+0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-competitive.sh >> /opt/bebebendle/shared/logs/competitive-cron.log 2>&1
+```
+
+- Script: `ops/cron-generate-competitive.sh` → `GET /api/cron/competitive` with `Authorization: Bearer ${CRON_SECRET}`
+- Cron: season transitions (`countdown→active`, `active→ended`) + generate today’s competitive daily while a season is playable
+- Global flag `competitive_enabled` (admin → Competitive panel): if off, API returns `{ skipped: true }` (cron exits 0)
+- Admin: `/admin/competitive` — pool, seasons, generate, enable flag
+
 ## Структура
 
 - `next/` — Next.js 16 + React 19 фронтенд
