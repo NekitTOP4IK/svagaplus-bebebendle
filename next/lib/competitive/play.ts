@@ -168,6 +168,28 @@ export function computeDayScoreFromFrozen(
   return { ok: true, hits: day.hits, points: day.points };
 }
 
+/**
+ * Pure vote-immutability decision for (userId, roundId).
+ * First choice is final: same id is idempotent; different choice is conflict.
+ */
+export type VoteReplayDecision =
+  | { kind: "idempotent" }
+  | { kind: "conflict"; error: string; status: 409 };
+
+export function decideVoteReplay(
+  existingChosenScranId: number,
+  requestedChosenScranId: number,
+): VoteReplayDecision {
+  if (existingChosenScranId === requestedChosenScranId) {
+    return { kind: "idempotent" };
+  }
+  return {
+    kind: "conflict",
+    error: "Ответ уже записан",
+    status: 409,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // DB-backed play API
 // ---------------------------------------------------------------------------
@@ -206,7 +228,9 @@ async function getDailyByDate(date: string): Promise<{
 
 /**
  * Record a competitive vote for one round.
- * Correctness uses frozen round likes only. Upserts unique (user, round).
+ * Correctness uses frozen round likes only.
+ * Votes are insert-only: first (userId, roundId) choice is immutable.
+ * Same chosenScranId is idempotent; a different choice returns 409.
  */
 export async function recordCompetitiveVote(input: {
   userId: number;
@@ -281,38 +305,109 @@ export async function recordCompetitiveVote(input: {
     };
   }
 
-  const evaluated = evaluateFrozenRound(
-    {
-      roundNumber: round.roundNumber,
-      scranAId: round.scranAId,
-      scranBId: round.scranBId,
-      likesA: round.likesA,
-      dislikesA: round.dislikesA,
-      likesB: round.likesB,
-      dislikesB: round.dislikesB,
-    },
-    chosenScranId,
-  );
+  const frozen: FrozenRoundInput = {
+    roundNumber: round.roundNumber,
+    scranAId: round.scranAId,
+    scranBId: round.scranBId,
+    likesA: round.likesA,
+    dislikesA: round.dislikesA,
+    likesB: round.likesB,
+    dislikesB: round.dislikesB,
+  };
 
+  // Existing vote: immutable — idempotent if same choice, 409 if different.
+  const [existing] = await db
+    .select({ chosenScranId: competitiveVotes.chosenScranId })
+    .from(competitiveVotes)
+    .where(
+      and(
+        eq(competitiveVotes.userId, userId),
+        eq(competitiveVotes.roundId, round.id),
+      ),
+    )
+    .limit(1);
+
+  if (existing) {
+    const decision = decideVoteReplay(existing.chosenScranId, chosenScranId);
+    if (decision.kind === "conflict") {
+      return {
+        ok: false,
+        error: decision.error,
+        status: decision.status,
+      };
+    }
+    // Return evaluation for the stored (immutable) choice.
+    const prevEval = evaluateFrozenRound(frozen, existing.chosenScranId);
+    if (!prevEval.ok) {
+      return { ok: false, error: prevEval.error, status: 500 };
+    }
+    return {
+      ok: true,
+      isCorrect: prevEval.isCorrect,
+      percentageA: prevEval.percentageA,
+      percentageB: prevEval.percentageB,
+      potentialPoints: prevEval.potentialPoints,
+      earnedPoints: prevEval.earnedPoints,
+    };
+  }
+
+  const evaluated = evaluateFrozenRound(frozen, chosenScranId);
   if (!evaluated.ok) {
     return { ok: false, error: evaluated.error, status: 400 };
   }
 
   try {
-    await db
-      .insert(competitiveVotes)
-      .values({
-        roundId: round.id,
-        userId,
-        chosenScranId,
-      })
-      .onConflictDoUpdate({
-        target: [competitiveVotes.userId, competitiveVotes.roundId],
-        set: { chosenScranId },
-      });
+    // Insert-only: never update chosenScranId after first write.
+    await db.insert(competitiveVotes).values({
+      roundId: round.id,
+      userId,
+      chosenScranId,
+    });
   } catch (error) {
+    // Race on unique (userId, roundId): re-read and apply immutability rules.
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code)
+        : "";
+    const message = error instanceof Error ? error.message : String(error);
+    if (code === "23505" || message.includes("unique") || message.includes("duplicate")) {
+      const [again] = await db
+        .select({ chosenScranId: competitiveVotes.chosenScranId })
+        .from(competitiveVotes)
+        .where(
+          and(
+            eq(competitiveVotes.userId, userId),
+            eq(competitiveVotes.roundId, round.id),
+          ),
+        )
+        .limit(1);
+
+      if (again) {
+        const decision = decideVoteReplay(again.chosenScranId, chosenScranId);
+        if (decision.kind === "conflict") {
+          return {
+            ok: false,
+            error: decision.error,
+            status: decision.status,
+          };
+        }
+        const prevEval = evaluateFrozenRound(frozen, again.chosenScranId);
+        if (!prevEval.ok) {
+          return { ok: false, error: prevEval.error, status: 500 };
+        }
+        return {
+          ok: true,
+          isCorrect: prevEval.isCorrect,
+          percentageA: prevEval.percentageA,
+          percentageB: prevEval.percentageB,
+          potentialPoints: prevEval.potentialPoints,
+          earnedPoints: prevEval.earnedPoints,
+        };
+      }
+    }
+
     console.error(
-      "[competitive-play] vote upsert failed",
+      "[competitive-play] vote insert failed",
       { userId, date, roundNumber },
       error,
     );

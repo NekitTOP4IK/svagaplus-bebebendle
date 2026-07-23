@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   evaluateFrozenRound,
   computeDayScoreFromFrozen,
+  decideVoteReplay,
   type FrozenRoundInput,
 } from "@/lib/competitive/play";
 import {
@@ -277,5 +278,28 @@ describe("computeDayScoreFromFrozen (pure finalize math)", () => {
       ),
     );
     expect(day.points).not.toBe(9999);
+  });
+});
+
+describe("decideVoteReplay (immutable first choice)", () => {
+  it("is idempotent when chosenScranId matches existing vote", () => {
+    const decision = decideVoteReplay(10, 10);
+    expect(decision.kind).toBe("idempotent");
+  });
+
+  it("conflicts with 409 when chosenScranId differs", () => {
+    const decision = decideVoteReplay(10, 20);
+    expect(decision.kind).toBe("conflict");
+    if (decision.kind !== "conflict") return;
+    expect(decision.status).toBe(409);
+    expect(decision.error).toBe("Ответ уже записан");
+  });
+
+  it("does not allow flipping after percentages would be revealed", () => {
+    // Integrity: once A was chosen, replaying B is never OK (pure rule used by recordCompetitiveVote).
+    const first = 100;
+    const flipped = 200;
+    expect(decideVoteReplay(first, flipped).kind).toBe("conflict");
+    expect(decideVoteReplay(first, first).kind).toBe("idempotent");
   });
 });
