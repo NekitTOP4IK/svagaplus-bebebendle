@@ -1,7 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, type ReactElement } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  Suspense,
+  type ReactElement,
+} from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
 import { TelegramLogin } from "@/components/telegram-login";
 import {
@@ -11,6 +19,29 @@ import {
 import { UserIdentity } from "@/components/user-identity";
 import { resolveIdentityTone } from "@/lib/user-identity";
 import { LogoutButton } from "@/components/home-user-menu";
+
+function twitchErrorMessage(
+  code: string | null,
+  login: string | null,
+): string | null {
+  if (!code) return null;
+  switch (code) {
+    case "need_telegram_link":
+      return login
+        ? `Twitch-аккаунт «${login}» распознан, но не привязан к Telegram в СВАГА+. Сначала привяжите Twitch через бота/расширение СВАГА+, затем войдите снова.`
+        : "Twitch-аккаунт распознан, но не привязан к Telegram в СВАГА+. Сначала привяжите Twitch через бота/расширение СВАГА+, затем войдите снова.";
+    case "svaga":
+      return "Сервис СВАГА+ временно недоступен. Попробуйте позже или войдите через Telegram.";
+    case "oauth":
+      return "Не удалось завершить вход через Twitch. Попробуйте ещё раз.";
+    case "denied":
+      return "Вход через Twitch отменён.";
+    case "config":
+      return "Вход через Twitch сейчас недоступен (не настроен на сервере).";
+    default:
+      return "Ошибка входа через Twitch.";
+  }
+}
 
 interface UserInfo {
   id: number;
@@ -55,6 +86,33 @@ interface PlayHistoryItem {
 }
 
 export default function ProfilePage(): ReactElement {
+  return (
+    <Suspense
+      fallback={
+        <div className="retro-bg relative flex min-h-dvh flex-col items-center justify-center px-4">
+          <div className="retro-overlay absolute inset-0" />
+          <div className="pixel-container relative z-10 rounded-none border-4 border-black bg-zinc-900 p-8 text-white">
+            <div className="pixel-text text-xl">Загрузка профиля...</div>
+          </div>
+        </div>
+      }
+    >
+      <ProfilePageInner />
+    </Suspense>
+  );
+}
+
+function ProfilePageInner(): ReactElement {
+  const searchParams = useSearchParams();
+  const twitchError = useMemo(
+    () =>
+      twitchErrorMessage(
+        searchParams.get("twitch_error"),
+        searchParams.get("login"),
+      ),
+    [searchParams],
+  );
+
   const [user, setUser] = useState<UserInfo | null>(null);
   const [scrans, setScrans] = useState<Scran[]>([]);
   const [history, setHistory] = useState<PlayHistoryItem[]>([]);
@@ -159,9 +217,29 @@ export default function ProfilePage(): ReactElement {
         <div className="pixel-container relative z-10 w-full max-w-md rounded-none border-4 border-black bg-zinc-900/95 p-8 text-center">
           <h1 className="pixel-text mb-4 text-2xl font-bold">Профиль</h1>
           <p className="mb-4 text-sm text-white/80">
-            Войдите через Telegram, чтобы увидеть профиль и проверить подписку СВАГА+.
+            Войдите через Telegram или Twitch, чтобы увидеть профиль и проверить
+            подписку СВАГА+.
           </p>
+          {twitchError ? (
+            <p
+              className="mb-4 rounded-none border-2 border-red-700 bg-red-950/60 px-3 py-2 text-left text-sm text-red-200"
+              role="alert"
+            >
+              {twitchError}
+            </p>
+          ) : null}
           <TelegramLogin onAuthenticated={handleLogin} context="player" />
+          <div className="mt-5">
+            <a
+              href="/api/auth/twitch/start"
+              className="pixel-btn pixel-btn-twitch inline-flex min-h-11 w-full items-center justify-center px-6 py-2 text-sm font-bold"
+            >
+              Войти через Twitch
+            </a>
+            <p className="mt-2 text-[11px] leading-snug text-white/45">
+              Twitch работает только если аккаунт уже привязан к Telegram в СВАГА+.
+            </p>
+          </div>
           <Link href="/" className="pixel-btn mt-6 inline-block min-h-11 px-6 py-2 text-sm">
             На главную
           </Link>
@@ -218,8 +296,13 @@ export default function ProfilePage(): ReactElement {
               size="lg"
               className="min-w-0 flex-1"
               meta={`ID: ${user.telegramId}`}
+              pixelFont
             />
           </div>
+          <p className="mt-3 text-xs text-white/45">
+            Вход привязан к Telegram. Отдельная привязка Twitch здесь не нужна —
+            она настраивается в СВАГА+.
+          </p>
         </div>
 
         <ProfileSvagaStatus initialStatus={svagaStatus} />
