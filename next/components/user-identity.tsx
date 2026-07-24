@@ -21,6 +21,11 @@ type Props = Readonly<{
   showMetaSuffix?: boolean;
   /** Nick color/glow by role (default true). Set false for plain white nick. */
   nickGlow?: boolean;
+  /**
+   * Pixel font for the nick (profile / competitive self).
+   * Default false keeps home menu readable with sans mixed-case.
+   */
+  pixelFont?: boolean;
 }>;
 
 /**
@@ -36,6 +41,7 @@ export function UserIdentity({
   meta,
   showMetaSuffix = true,
   nickGlow = true,
+  pixelFont = false,
 }: Props): ReactElement {
   const tone = resolveIdentityTone(role, isSubscriber);
   const nickTone = nickGlow ? tone : "default";
@@ -47,12 +53,17 @@ export function UserIdentity({
     size === "lg"
       ? "h-5 w-5 sm:h-6 sm:w-6"
       : "h-4 w-4 sm:h-[1.15rem] sm:w-[1.15rem]";
+  const nickFontClass = pixelFont ? "user-nick-text--pixel" : "";
 
   return (
     <div className={`min-w-0 ${className}`}>
       <div className="flex min-w-0 items-center gap-1.5 overflow-visible py-0.5">
         <span className={`user-nick-glow user-nick-glow--${nickTone} min-w-0`}>
-          <span className={`user-nick-text ${nameClass} font-bold`}>{name}</span>
+          <span
+            className={`user-nick-text ${nickFontClass} ${nameClass} font-bold`}
+          >
+            {name}
+          </span>
         </span>
         {badge ? (
           // eslint-disable-next-line @next/next/no-img-element

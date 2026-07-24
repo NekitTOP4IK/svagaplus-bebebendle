@@ -216,6 +216,11 @@ body {
     font-variant: normal;
 }
 
+/* Profile header + competitive self — intentional pixel nick */
+.user-nick-text--pixel {
+    font-family: var(--font-pixel), monospace;
+}
+
 .user-nick-glow--subscriber {
     filter: drop-shadow(0 0 5px rgba(245, 200, 80, 0.95))
         drop-shadow(0 0 10px rgba(212, 160, 40, 0.55));
