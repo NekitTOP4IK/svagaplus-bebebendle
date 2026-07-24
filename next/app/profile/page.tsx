@@ -20,6 +20,7 @@ import {
 import { UserIdentity } from "@/components/user-identity";
 import { resolveIdentityTone } from "@/lib/user-identity";
 import { LogoutButton } from "@/components/home-user-menu";
+import { validateCompetitiveDisplayName } from "@/lib/competitive/display-name";
 
 function twitchErrorMessage(
   code: string | null,
@@ -488,13 +489,22 @@ function CompetitiveNickEditor({
     }
   }
 
+  const validation = validateCompetitiveDisplayName(value);
+  const canSave =
+    !saving &&
+    validation.ok &&
+    validation.name !== (initialName ?? "");
+
   return (
     <div className="pixel-container mb-6 overflow-visible rounded-none border-4 border-black bg-zinc-900/90 p-4">
       <h2 className="pixel-text mb-1 text-lg font-bold">Псевдоним в рейтинге</h2>
-      <p className="mb-3 text-xs text-white/55">
-        Имя для сезонного лидерборда (не обязан светить Telegram). 2–24 символа,
-        латиница/кириллица, цифры, _ и -. Смена не чаще раза в 24ч. Нужен
-        включённый competitive на сервере.
+      <p className="mb-2 text-xs text-white/55">
+        Если вы хотите, вы можете поставить себе псевдоним, который будет
+        отображаться в вашем аккаунте вместо основного имени Telegram.
+      </p>
+      <p className="mb-3 border border-amber-600/50 bg-amber-950/40 px-3 py-2 text-xs leading-snug text-amber-100">
+        Псевдоним можно менять не чаще раза в 24 часа. Сбросить (удалить) можно
+        в любой момент без ожидания кулдауна.
       </p>
       <div className="flex flex-wrap items-end gap-2">
         <label className="block min-w-[12rem] flex-1 text-xs text-white/50">
@@ -511,9 +521,11 @@ function CompetitiveNickEditor({
         </label>
         <button
           type="button"
-          disabled={saving}
-          onClick={() => void save(value.trim() || null)}
-          className="pixel-btn pixel-btn-ok min-h-11 px-4 py-2 text-sm font-bold"
+          disabled={!canSave}
+          onClick={() => {
+            if (validation.ok) void save(validation.name);
+          }}
+          className="pixel-btn pixel-btn-ok min-h-11 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving ? "…" : "Сохранить"}
         </button>
@@ -528,6 +540,9 @@ function CompetitiveNickEditor({
           </button>
         ) : null}
       </div>
+      {value.trim() && !validation.ok ? (
+        <p className="mt-2 text-sm text-red-300">{validation.error}</p>
+      ) : null}
       {error ? (
         <p className="mt-2 text-sm text-red-300">{error}</p>
       ) : null}

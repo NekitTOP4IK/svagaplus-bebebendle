@@ -5,13 +5,14 @@
  * Ranking order: points DESC, daysPlayed DESC, hits DESC, userId ASC.
  */
 
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import {
   db,
   users,
   competitiveDailies,
   competitiveResults,
   competitiveStandings,
+  competitiveStreakFreezes,
 } from "@/db/schema";
 import {
   mskDateStartUtc,
@@ -69,6 +70,10 @@ export type HubMe = Readonly<{
   daysPlayed: number;
   hits: number;
   streakDays: number;
+  /** Freeze charge still available this season (not yet auto-consumed). */
+  streakFreezeAvailable: boolean;
+  /** Freeze is currently bridging a miss (streak held without playing that day). */
+  streakFreezeHolding: boolean;
   label: string;
   competitiveDisplayName: string | null;
 }>;
@@ -143,33 +148,73 @@ export function seasonDayNumber(
   return Math.max(1, days);
 }
 
+export type StreakComputeResult = Readonly<{
+  days: number;
+  /** True if a freeze charge was needed to bridge a single missed day. */
+  freezeConsumed: boolean;
+}>;
+
+export type ComputeStreakOptions = Readonly<{
+  /** One free single-day gap per season. Gap day does not increment streak. */
+  freezeAvailable?: boolean;
+}>;
+
 /**
- * Consecutive MSK calendar dates with a result, ending on today or yesterday.
- * UI-only streak (no points). Returns 0 if neither today nor yesterday has a result.
+ * Consecutive MSK calendar dates with a result, ending on today or yesterday
+ * (or day-2 if freeze covers yesterday).
+ * UI-only streak (no points). Freeze bridges exactly one empty day and does not
+ * count toward `days`.
  */
 export function computeStreakDays(
   resultDates: readonly string[],
   todayMsk: string,
-): number {
+  options: ComputeStreakOptions = {},
+): StreakComputeResult {
   const set = new Set(resultDates);
-  let cursor: string;
+  let freezesLeft = options.freezeAvailable ? 1 : 0;
+  let freezeConsumed = false;
+
+  let cursor: string | null = null;
   if (set.has(todayMsk)) {
     cursor = todayMsk;
   } else {
     const yesterday = addCalendarDays(todayMsk, -1);
     if (set.has(yesterday)) {
       cursor = yesterday;
-    } else {
-      return 0;
+    } else if (freezesLeft > 0) {
+      const day2 = addCalendarDays(todayMsk, -2);
+      if (set.has(day2)) {
+        // Yesterday is the freezed miss; chain continues from day-2.
+        cursor = day2;
+        freezesLeft = 0;
+        freezeConsumed = true;
+      }
     }
   }
 
-  let streak = 0;
-  while (set.has(cursor)) {
-    streak += 1;
-    cursor = addCalendarDays(cursor, -1);
+  if (!cursor) {
+    return { days: 0, freezeConsumed: false };
   }
-  return streak;
+
+  let streak = 0;
+  while (true) {
+    if (set.has(cursor)) {
+      streak += 1;
+      cursor = addCalendarDays(cursor, -1);
+      continue;
+    }
+    if (freezesLeft > 0) {
+      // Bridge one empty day without incrementing streak.
+      freezesLeft = 0;
+      freezeConsumed = true;
+      cursor = addCalendarDays(cursor, -1);
+      if (!set.has(cursor)) break;
+      continue;
+    }
+    break;
+  }
+
+  return { days: streak, freezeConsumed };
 }
 
 /**
@@ -216,6 +261,8 @@ function emptyMe(label: string, competitiveDisplayName: string | null): HubMe {
     daysPlayed: 0,
     hits: 0,
     streakDays: 0,
+    streakFreezeAvailable: false,
+    streakFreezeHolding: false,
     label,
     competitiveDisplayName,
   };
@@ -301,16 +348,15 @@ export async function getHubPayload(
   const todayPoints = todayResult?.points ?? null;
 
   // Streak: all competitive results for this user (UI continuity, not season-scoped).
+  // Freeze charge is season-scoped (standings.streak_freeze_used).
   const resultDateRows = await db
     .select({ date: competitiveResults.date })
     .from(competitiveResults)
     .where(eq(competitiveResults.userId, userId));
-  const streakDays = computeStreakDays(
-    resultDateRows.map((r) => r.date),
-    today,
-  );
+  const resultDates = resultDateRows.map((r) => r.date);
 
   if (!season) {
+    const { days: streakDays } = computeStreakDays(resultDates, today);
     return {
       enabled: true,
       season: null,
@@ -360,6 +406,47 @@ export async function getHubPayload(
   // Defensive sort in case DB collation differs (matches endSeason order).
   const ranked = [...standingRows].sort(compareStandingsRank);
 
+  const [freezeRow] = await db
+    .select({ userId: competitiveStreakFreezes.userId })
+    .from(competitiveStreakFreezes)
+    .where(
+      and(
+        eq(competitiveStreakFreezes.seasonId, season.id),
+        eq(competitiveStreakFreezes.userId, userId),
+      ),
+    )
+    .limit(1);
+
+  const freezeAlreadyUsed = freezeRow !== undefined;
+
+  // Season always grants one freeze capacity: recompute may keep bridging the
+  // single historical gap after the charge is spent (does not stack).
+  const streakResult = computeStreakDays(resultDates, today, {
+    freezeAvailable: true,
+  });
+
+  // Persist auto-consume the first time a gap is bridged this season.
+  if (streakResult.freezeConsumed && !freezeAlreadyUsed) {
+    await db
+      .insert(competitiveStreakFreezes)
+      .values({
+        seasonId: season.id,
+        userId,
+        usedAt: now,
+      })
+      .onConflictDoNothing({
+        target: [
+          competitiveStreakFreezes.seasonId,
+          competitiveStreakFreezes.userId,
+        ],
+      });
+  }
+
+  const streakDays = streakResult.days;
+  const streakFreezeHolding = streakResult.freezeConsumed;
+  const streakFreezeAvailable =
+    !freezeAlreadyUsed && !streakResult.freezeConsumed;
+
   const top: HubStandingRow[] = ranked.slice(0, TOP_LIMIT).map((row, index) => ({
     place: index + 1,
     userId: row.userId,
@@ -387,6 +474,8 @@ export async function getHubPayload(
       daysPlayed: row.daysPlayed,
       hits: row.hits,
       streakDays,
+      streakFreezeAvailable,
+      streakFreezeHolding,
       label,
       competitiveDisplayName,
     };
@@ -408,6 +497,8 @@ export async function getHubPayload(
       daysPlayed: 0,
       hits: 0,
       streakDays,
+      streakFreezeAvailable,
+      streakFreezeHolding,
       label,
       competitiveDisplayName,
     };

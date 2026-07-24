@@ -11,6 +11,7 @@ import { ProgressCard } from "@/components/competitive/progress-card";
 import { LeaderboardCard } from "@/components/competitive/leaderboard-card";
 import { RulesCard } from "@/components/competitive/rules-card";
 import { RewardsCard } from "@/components/competitive/rewards-card";
+import { CompetitiveNickPrompt } from "@/components/competitive/competitive-nick-prompt";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,9 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
       previousEndedSeason={hub.previousEndedSeason}
       nextDailyAt={hub.countdowns.nextDailyAt}
     >
+      <CompetitiveNickPrompt
+        competitiveDisplayName={user.competitiveDisplayName}
+      />
       <SeasonHero
         season={hub.season}
         seasonEndsAt={hub.countdowns.seasonEndsAt}
@@ -61,7 +65,11 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
       <CtaRow hub={hub} />
 
       <section className="c-dashboard">
-        <ProgressCard me={hub.me} photoUrl={user.telegramPhotoUrl} />
+        <ProgressCard
+          me={hub.me}
+          photoUrl={user.telegramPhotoUrl}
+          showFreeze={hub.season != null}
+        />
         <LeaderboardCard
           top={hub.top}
           myRow={hub.myRow}

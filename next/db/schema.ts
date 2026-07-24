@@ -281,6 +281,18 @@ export const competitiveStandings = pgTable("competitive_standings", {
   pointsIdx: index("competitive_standings_season_points_idx").on(table.seasonId, table.points),
 }));
 
+/**
+ * One streak-freeze charge per user per season (auto-consumed to bridge a single missed day).
+ * Separate from standings so freeze-only rows never pollute the leaderboard.
+ */
+export const competitiveStreakFreezes = pgTable("competitive_streak_freezes", {
+  seasonId: integer("season_id").notNull().references(() => competitiveSeasons.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  usedAt: timestamp("used_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.seasonId, table.userId] }),
+}));
+
 /** Frozen final ranks when a season ends (rewards / history). */
 export const competitiveSeasonFinalRanks = pgTable("competitive_season_final_ranks", {
   seasonId: integer("season_id").notNull().references(() => competitiveSeasons.id, { onDelete: "cascade" }),
@@ -312,4 +324,5 @@ export type CompetitiveRound = typeof competitiveRounds.$inferSelect;
 export type CompetitiveVote = typeof competitiveVotes.$inferSelect;
 export type CompetitiveResult = typeof competitiveResults.$inferSelect;
 export type CompetitiveStanding = typeof competitiveStandings.$inferSelect;
+export type CompetitiveStreakFreeze = typeof competitiveStreakFreezes.$inferSelect;
 export type CompetitiveSeasonFinalRank = typeof competitiveSeasonFinalRanks.$inferSelect;

@@ -1,19 +1,16 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth-server";
 import { setCompetitiveDisplayName } from "@/lib/competitive/display-name";
-import { isCompetitiveEnabled } from "@/lib/competitive/feature";
 
+/**
+ * Set/clear competitive leaderboard nick.
+ * Always available for logged-in users — not gated by competitive_enabled.
+ * (Mode flag only controls play/cron/hub; identity is independent.)
+ */
 export async function PATCH(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!(await isCompetitiveEnabled())) {
-    return NextResponse.json(
-      { error: "Competitive mode is disabled" },
-      { status: 403 },
-    );
   }
 
   let body: { name?: unknown };

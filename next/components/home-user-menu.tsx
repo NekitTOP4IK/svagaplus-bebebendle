@@ -12,12 +12,23 @@ type SessionUser = Readonly<{
   telegramUsername: string | null;
   telegramPhotoUrl: string | null;
   displayName: string | null;
+  competitiveDisplayName?: string | null;
   role: "player" | "moderator" | "admin";
   isSubscriber: boolean | null;
 }>;
 
+function menuDisplayName(user: SessionUser): string {
+  const competitive = user.competitiveDisplayName?.trim();
+  if (competitive) return competitive;
+  return (
+    user.displayName?.trim() ||
+    user.telegramUsername?.trim()?.replace(/^@+/, "") ||
+    `tg:${user.telegramId}`
+  );
+}
+
 function initials(user: SessionUser): string {
-  const base = user.displayName || user.telegramUsername || "?";
+  const base = menuDisplayName(user);
   return base.slice(0, 2).toUpperCase();
 }
 
@@ -79,12 +90,13 @@ export function HomeUserMenu(): ReactElement {
     );
   }
 
-  const name = user.displayName || user.telegramUsername || `tg:${user.telegramId}`;
+  const name = menuDisplayName(user);
   const staff = user.role === "admin" || user.role === "moderator";
   const panel = panelLabel(user.role);
   const tone = resolveIdentityTone(user.role, user.isSubscriber);
   // Avatar ring only — no glowing chip on the whole button
   const avatarClass = tone === "default" ? "" : `user-avatar--${tone}`;
+  const hasCompetitiveNick = Boolean(user.competitiveDisplayName?.trim());
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -113,7 +125,9 @@ export function HomeUserMenu(): ReactElement {
           isSubscriber={user.isSubscriber}
           size="sm"
           className="min-w-0 flex-1"
-          meta="Профиль / СВАГА+"
+          meta={
+            hasCompetitiveNick ? "Профиль · Ranked ник" : "Профиль / СВАГА+"
+          }
           showMetaSuffix={false}
           nickGlow
           pixelFont

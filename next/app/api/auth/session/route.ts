@@ -18,6 +18,7 @@ export async function GET() {
       telegramUsername: user.telegramUsername,
       telegramPhotoUrl: user.telegramPhotoUrl,
       displayName: user.displayName,
+      competitiveDisplayName: user.competitiveDisplayName,
       role: user.role,
       isSubscriber: user.isSubscriber,
     },

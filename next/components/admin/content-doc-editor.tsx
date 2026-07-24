@@ -19,6 +19,8 @@ type Props = Readonly<{
   doc: CompetitiveContentDoc;
   onChange: (doc: CompetitiveContentDoc) => void;
   disabled?: boolean;
+  /** Start collapsed (default true — lists are large). */
+  defaultCollapsed?: boolean;
 }>;
 
 /**
@@ -29,8 +31,10 @@ export function ContentDocEditor({
   doc,
   onChange,
   disabled = false,
+  defaultCollapsed = true,
 }: Props): ReactElement {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   const updateBlock = useCallback(
     (id: string, patch: Partial<CompetitiveContentBlock>) => {
@@ -113,22 +117,44 @@ export function ContentDocEditor({
   };
 
   const sorted = [...doc.blocks].sort((a, b) => a.sort - b.sort);
+  const count = sorted.length;
 
   return (
     <div className="space-y-3 border-2 border-zinc-700 bg-zinc-950/80 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="pixel-text text-sm font-bold text-white">{label}</h4>
         <button
           type="button"
-          disabled={disabled}
-          onClick={addBlock}
-          className="pixel-btn pixel-btn-ok px-3 py-1.5 text-xs font-bold"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-expanded={!collapsed}
         >
-          + Категория
+          <span className="pixel-text text-xs font-bold text-white/70">
+            {collapsed ? "▶" : "▼"}
+          </span>
+          <h4 className="pixel-text text-sm font-bold text-white">{label}</h4>
+          <span className="text-[10px] text-white/40">
+            ({count}{" "}
+            {count === 1 ? "категория" : count > 1 && count < 5 ? "категории" : "категорий"}
+            )
+          </span>
         </button>
+        {!collapsed ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={addBlock}
+            className="pixel-btn pixel-btn-ok px-3 py-1.5 text-xs font-bold"
+          >
+            + Категория
+          </button>
+        ) : null}
       </div>
 
-      {sorted.length === 0 ? (
+      {collapsed ? (
+        <p className="text-[11px] text-white/40">
+          Свернуто. Нажми заголовок, чтобы править категории.
+        </p>
+      ) : sorted.length === 0 ? (
         <p className="text-xs text-white/45">
           Пока пусто. Добавь категории с текстом и опциональной картинкой/гифкой.
         </p>

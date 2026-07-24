@@ -1,13 +1,29 @@
 import type { ReactElement } from "react";
 import type { HubMe } from "@/lib/competitive/hub";
-import { StreakFire } from "./streak-fire";
+import { StreakFire, type FreezeVisual } from "./streak-fire";
 
 type Props = Readonly<{
   me: HubMe;
   photoUrl: string | null;
+  /** Show freeze crystal (only when a season is visible). */
+  showFreeze?: boolean;
 }>;
 
-export function ProgressCard({ me, photoUrl }: Props): ReactElement {
+function freezeVisual(
+  showFreeze: boolean,
+  me: HubMe,
+): FreezeVisual {
+  if (!showFreeze) return "hidden";
+  if (me.streakFreezeHolding) return "holding";
+  if (me.streakFreezeAvailable) return "ready";
+  return "used";
+}
+
+export function ProgressCard({
+  me,
+  photoUrl,
+  showFreeze = false,
+}: Props): ReactElement {
   const placeText = me.place != null ? `#${me.place}` : "—";
   const initials = me.label.slice(0, 2).toUpperCase() || "?";
 
@@ -42,7 +58,10 @@ export function ProgressCard({ me, photoUrl }: Props): ReactElement {
       <div className="c-divider" />
       <div className="c-streak-block">
         <p className="c-streak-title">Стрик</p>
-        <StreakFire days={me.streakDays} />
+        <StreakFire
+          days={me.streakDays}
+          freeze={freezeVisual(showFreeze, me)}
+        />
       </div>
     </article>
   );

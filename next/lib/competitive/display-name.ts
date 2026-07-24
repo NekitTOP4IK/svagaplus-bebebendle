@@ -1,5 +1,6 @@
 /**
  * Competitive display names: validation, leaderboard labels, set/clear with 24h rate limit.
+ * Independent of `competitive_enabled` — nick can be set while the mode is off.
  */
 
 import { eq } from "drizzle-orm";
@@ -9,7 +10,7 @@ import { db, users } from "@/db/schema";
 export const COMPETITIVE_DISPLAY_NAME_MIN = 2;
 export const COMPETITIVE_DISPLAY_NAME_MAX = 24;
 
-/** 24h between renames (including clear). */
+/** 24h between renames. Clearing (null) is always allowed and does not start a new cooldown wait for delete itself. */
 export const COMPETITIVE_DISPLAY_NAME_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -158,26 +159,39 @@ export async function setCompetitiveDisplayName(
     };
   }
 
-  const allowed = canChangeDisplayName(
-    user.competitiveDisplayNameUpdatedAt,
-    now,
-  );
-  if (!allowed.ok) {
-    const hours = Math.ceil(allowed.retryAfterMs / (60 * 60 * 1000));
-    return {
-      ok: false,
-      error: `Можно сменить ник не чаще раза в 24 часа (через ~${hours} ч)`,
-      status: 429,
-    };
+  // Clear (delete nick) is always allowed and outside the 24h rename CD.
+  const isClear = nextName === null;
+  if (!isClear) {
+    const allowed = canChangeDisplayName(
+      user.competitiveDisplayNameUpdatedAt,
+      now,
+    );
+    if (!allowed.ok) {
+      const hours = Math.ceil(allowed.retryAfterMs / (60 * 60 * 1000));
+      return {
+        ok: false,
+        error: `Можно сменить ник не чаще раза в 24 часа (через ~${hours} ч)`,
+        status: 429,
+      };
+    }
   }
 
   try {
+    // On clear: wipe name but keep updatedAt so a re-set still respects CD
+    // if they renamed recently; only first-ever set has null updatedAt.
+    // User asked: delete outside CD — so we do NOT require CD for clear.
+    // After clear, next set uses existing updatedAt (still CD if recent rename).
     const [updated] = await db
       .update(users)
       .set({
         competitiveDisplayName: nextName,
-        competitiveDisplayNameUpdatedAt: now,
-        updatedAt: now,
+        // Only bump cooldown clock on set/rename, not on clear.
+        ...(isClear
+          ? { updatedAt: now }
+          : {
+              competitiveDisplayNameUpdatedAt: now,
+              updatedAt: now,
+            }),
       })
       .where(eq(users.id, userId))
       .returning({

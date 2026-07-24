@@ -148,6 +148,8 @@ describe("canChangeDisplayName (24h rate limit)", () => {
     }
   });
 
+  // Clear (null) bypasses this pure helper — enforced in setCompetitiveDisplayName.
+
   it("allows after 24h", () => {
     const updatedAt = new Date(
       now.getTime() - COMPETITIVE_DISPLAY_NAME_COOLDOWN_MS,
@@ -160,7 +162,10 @@ describe("computeStreakDays", () => {
   const today = "2026-07-23";
 
   it("returns 0 when neither today nor yesterday has a result", () => {
-    expect(computeStreakDays(["2026-07-20", "2026-07-21"], today)).toBe(0);
+    expect(computeStreakDays(["2026-07-20", "2026-07-21"], today)).toEqual({
+      days: 0,
+      freezeConsumed: false,
+    });
   });
 
   it("counts consecutive days ending today", () => {
@@ -169,30 +174,85 @@ describe("computeStreakDays", () => {
         ["2026-07-21", "2026-07-22", "2026-07-23"],
         today,
       ),
-    ).toBe(3);
+    ).toEqual({ days: 3, freezeConsumed: false });
   });
 
   it("counts streak ending yesterday if today missed", () => {
     expect(
       computeStreakDays(["2026-07-21", "2026-07-22"], today),
-    ).toBe(2);
+    ).toEqual({ days: 2, freezeConsumed: false });
   });
 
-  it("stops at first gap", () => {
+  it("stops at first gap without freeze", () => {
     expect(
       computeStreakDays(
         ["2026-07-20", "2026-07-22", "2026-07-23"],
         today,
       ),
-    ).toBe(2);
+    ).toEqual({ days: 2, freezeConsumed: false });
   });
 
   it("single day today is streak 1", () => {
-    expect(computeStreakDays([today], today)).toBe(1);
+    expect(computeStreakDays([today], today)).toEqual({
+      days: 1,
+      freezeConsumed: false,
+    });
   });
 
   it("single day yesterday is streak 1", () => {
-    expect(computeStreakDays(["2026-07-22"], today)).toBe(1);
+    expect(computeStreakDays(["2026-07-22"], today)).toEqual({
+      days: 1,
+      freezeConsumed: false,
+    });
+  });
+
+  it("freeze bridges a mid-chain gap without counting the miss day", () => {
+    // played 20, 21, miss 22, played 23 — freeze covers 22 → days 3
+    expect(
+      computeStreakDays(
+        ["2026-07-20", "2026-07-21", "2026-07-23"],
+        today,
+        { freezeAvailable: true },
+      ),
+    ).toEqual({ days: 3, freezeConsumed: true });
+  });
+
+  it("freeze extends head when yesterday missed and day-2 played", () => {
+    // today empty, yesterday empty, day-2 played → start at day-2 with freeze
+    expect(
+      computeStreakDays(["2026-07-21", "2026-07-20"], today, {
+        freezeAvailable: true,
+      }),
+    ).toEqual({ days: 2, freezeConsumed: true });
+  });
+
+  it("freeze does not inflate streak on the freeze day itself", () => {
+    // 5 days chain with one freeze gap still counts only played days
+    expect(
+      computeStreakDays(
+        ["2026-07-18", "2026-07-19", "2026-07-20", "2026-07-22", "2026-07-23"],
+        today,
+        { freezeAvailable: true },
+      ),
+    ).toEqual({ days: 5, freezeConsumed: true });
+  });
+
+  it("without freeze, day-2 head is not enough", () => {
+    expect(
+      computeStreakDays(["2026-07-21", "2026-07-20"], today),
+    ).toEqual({ days: 0, freezeConsumed: false });
+  });
+
+  it("only one freeze — second gap still breaks chain", () => {
+    // 19 played, miss 20+21, 22+23 played — freeze bridges 21 only, then 20 empty stops
+    // → days 2 (22,23), freeze consumed, 19 not counted
+    expect(
+      computeStreakDays(
+        ["2026-07-19", "2026-07-22", "2026-07-23"],
+        today,
+        { freezeAvailable: true },
+      ),
+    ).toEqual({ days: 2, freezeConsumed: true });
   });
 });
 
