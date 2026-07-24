@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth-server";
-import { setCompetitiveDisplayName } from "@/lib/competitive/display-name";
+import { setCompetitiveDisplayName } from "@/lib/competitive/display-name-server";
 
 /**
  * Set/clear competitive leaderboard nick.
