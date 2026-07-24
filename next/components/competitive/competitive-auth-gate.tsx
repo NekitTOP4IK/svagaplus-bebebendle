@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, type ReactElement } from "react";
+import { useCallback, useMemo, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AuthOrDivider, TwitchAuthButton } from "@/components/auth-providers";
 import { TelegramLogin } from "@/components/telegram-login";
 import { COMPETITIVE_AUTH_NEXT, sanitizeNextPath } from "@/lib/safe-next-path";
 import "./competitive.css";
@@ -43,6 +44,9 @@ export function CompetitiveAuthGate({
 }: Props): ReactElement {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [twitchStarted, setTwitchStarted] = useState(false);
+
   const next = useMemo(
     () =>
       sanitizeNextPath(
@@ -76,6 +80,7 @@ export function CompetitiveAuthGate({
   );
 
   const twitchHref = `/api/auth/twitch/start?next=${encodeURIComponent(next)}`;
+  const anyBusy = telegramLoading || twitchStarted;
 
   return (
     <div className="c-hub min-h-dvh">
@@ -108,30 +113,36 @@ export function CompetitiveAuthGate({
             </p>
           ) : null}
 
-          <TelegramLogin onAuthenticated={handleTelegram} context="player" />
+          <TelegramLogin
+            onAuthenticated={handleTelegram}
+            context="player"
+            disabled={twitchStarted}
+            onLoadingChange={setTelegramLoading}
+          />
 
-          <div className="mt-5">
-            <a
-              href={twitchHref}
-              className="pixel-btn pixel-btn-twitch inline-flex min-h-11 w-full items-center justify-center px-6 py-2 text-sm font-bold"
-            >
-              Войти через Twitch
-            </a>
-            <p className="mt-2 text-[11px] leading-snug text-white/45">
-              Twitch — если аккаунт уже привязан к Telegram в СВАГА+.
-            </p>
-          </div>
+          <AuthOrDivider />
+
+          <TwitchAuthButton
+            href={twitchHref}
+            disabled={telegramLoading}
+            onLoadingChange={setTwitchStarted}
+            hint="Twitch — если аккаунт уже привязан к Telegram в СВАГА+."
+          />
 
           <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <Link
               href="/"
-              className="pixel-btn inline-flex min-h-11 items-center justify-center px-4 py-2 text-sm font-bold"
+              className={`pixel-btn inline-flex min-h-11 items-center justify-center px-4 py-2 text-sm font-bold ${
+                anyBusy ? "pointer-events-none opacity-50" : ""
+              }`}
             >
               ← На главную
             </Link>
             <Link
               href="/profile"
-              className="pixel-btn pixel-btn-info inline-flex min-h-11 items-center justify-center px-4 py-2 text-sm font-bold"
+              className={`pixel-btn pixel-btn-info inline-flex min-h-11 items-center justify-center px-4 py-2 text-sm font-bold ${
+                anyBusy ? "pointer-events-none opacity-50" : ""
+              }`}
             >
               Обычный профиль
             </Link>

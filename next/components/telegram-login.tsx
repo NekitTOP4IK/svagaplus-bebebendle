@@ -15,6 +15,10 @@ export type TelegramLoginUser = Readonly<{
 type Props = Readonly<{
   onAuthenticated: (data: Record<string, string>) => Promise<boolean> | boolean;
   context: "player" | "admin";
+  /** When true (e.g. Twitch auth in progress), block Telegram widget. */
+  disabled?: boolean;
+  /** Notify parent so sibling auth methods can disable. */
+  onLoadingChange?: (loading: boolean) => void;
 }>;
 
 declare global {
@@ -28,14 +32,24 @@ declare global {
  * Colors/shape of the blue TG button itself are controlled by Telegram
  * (data-size / data-radius / data-userpic only). We style the shell around it.
  */
-export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement {
+export function TelegramLogin({
+  onAuthenticated,
+  context,
+  disabled = false,
+  onLoadingChange,
+}: Props): ReactElement {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const containerId = useId().replace(/:/g, "");
   const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME;
+  const blocked = disabled || isLoading;
 
   useEffect(() => {
-    if (!botUsername) return;
+    onLoadingChange?.(isLoading);
+  }, [isLoading, onLoadingChange]);
+
+  useEffect(() => {
+    if (!botUsername || blocked) return;
 
     window.onTelegramAuth = async (user: TelegramLoginUser) => {
       setError("");
@@ -54,10 +68,11 @@ export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement
               ? "Вход выполнен, но для админ-панели нужна роль moderator или admin."
               : "Не удалось войти через Telegram.",
           );
+          setIsLoading(false);
         }
+        // On success keep loading until navigation unmounts the page.
       } catch {
         setError("Ошибка при входе через Telegram.");
-      } finally {
         setIsLoading(false);
       }
     };
@@ -81,7 +96,7 @@ export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement
     return () => {
       delete window.onTelegramAuth;
     };
-  }, [botUsername, containerId, context, onAuthenticated]);
+  }, [botUsername, containerId, context, onAuthenticated, blocked]);
 
   if (!botUsername) {
     return (
@@ -103,11 +118,24 @@ export function TelegramLogin({ onAuthenticated, context }: Props): ReactElement
           {error}
         </p>
       )}
-      {isLoading && <p className="mb-4 text-sm text-white/70">Вход через Telegram…</p>}
-      <div
-        id={`telegram-login-${containerId}`}
-        className="telegram-login-shell mx-auto flex min-h-[60px] justify-center rounded-none border-2 border-black bg-[#1e2732] px-3 py-3 shadow-[inset_2px_2px_0_#3d4f63,inset_-2px_-2px_0_#0d1218]"
-      />
+      {isLoading ? (
+        <button
+          type="button"
+          disabled
+          className="pixel-btn pixel-btn-tg mx-auto inline-flex min-h-11 w-full max-w-xs cursor-wait items-center justify-center px-6 py-2 text-sm font-bold opacity-90"
+          aria-busy="true"
+        >
+          Авторизовываемся…
+        </button>
+      ) : (
+        <div
+          id={`telegram-login-${containerId}`}
+          className={`telegram-login-shell mx-auto flex min-h-[60px] justify-center rounded-none border-2 border-black bg-[#1e2732] px-3 py-3 shadow-[inset_2px_2px_0_#3d4f63,inset_-2px_-2px_0_#0d1218] ${
+            disabled ? "pointer-events-none opacity-50" : ""
+          }`}
+          aria-disabled={disabled || undefined}
+        />
+      )}
     </div>
   );
 }

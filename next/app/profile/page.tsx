@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api-client";
+import { AuthOrDivider, TwitchAuthButton } from "@/components/auth-providers";
 import { TelegramLogin } from "@/components/telegram-login";
 import {
   ProfileSvagaStatus,
@@ -119,6 +120,8 @@ function ProfilePageInner(): ReactElement {
   const [svagaStatus, setSvagaStatus] = useState<LocalSvagaStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [telegramLoading, setTelegramLoading] = useState(false);
+  const [twitchLoading, setTwitchLoading] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -228,19 +231,27 @@ function ProfilePageInner(): ReactElement {
               {twitchError}
             </p>
           ) : null}
-          <TelegramLogin onAuthenticated={handleLogin} context="player" />
-          <div className="mt-5">
-            <a
-              href="/api/auth/twitch/start"
-              className="pixel-btn pixel-btn-twitch inline-flex min-h-11 w-full items-center justify-center px-6 py-2 text-sm font-bold"
-            >
-              Войти через Twitch
-            </a>
-            <p className="mt-2 text-[11px] leading-snug text-white/45">
-              Twitch работает только если аккаунт уже привязан к Telegram в СВАГА+.
-            </p>
-          </div>
-          <Link href="/" className="pixel-btn mt-6 inline-block min-h-11 px-6 py-2 text-sm">
+          <TelegramLogin
+            onAuthenticated={handleLogin}
+            context="player"
+            disabled={twitchLoading}
+            onLoadingChange={setTelegramLoading}
+          />
+          <AuthOrDivider />
+          <TwitchAuthButton
+            href="/api/auth/twitch/start"
+            disabled={telegramLoading}
+            onLoadingChange={setTwitchLoading}
+            hint="Twitch работает только если аккаунт уже привязан к Telegram в СВАГА+."
+          />
+          <Link
+            href="/"
+            className={`pixel-btn mt-6 inline-block min-h-11 px-6 py-2 text-sm ${
+              telegramLoading || twitchLoading
+                ? "pointer-events-none opacity-50"
+                : ""
+            }`}
+          >
             На главную
           </Link>
         </div>
