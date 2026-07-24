@@ -26,20 +26,46 @@ export function calculateScore(answers: { isCorrect: boolean }[]): number {
   return answers.filter((a) => a.isCorrect).length;
 }
 
-/** Public site origin for share links (env or current browser origin). */
-export function getShareSiteUrl(): string {
+/**
+ * Public site origin for server-side redirects (OAuth callbacks, etc.).
+ * Prefer env. Do not use request.url alone — behind nginx Next often sees
+ * http://localhost:3000.
+ */
+export function getPublicSiteOrigin(request?: Request): string {
   const fromEnv = (
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
     ""
   )
     .trim()
     .replace(/\/$/, "");
   if (fromEnv) return fromEnv;
+
+  if (request) {
+    const proto =
+      request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+    const host =
+      request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+      request.headers.get("host")?.trim();
+    if (
+      host &&
+      !host.startsWith("localhost") &&
+      !host.startsWith("127.0.0.1")
+    ) {
+      return `${proto}://${host}`.replace(/\/$/, "");
+    }
+  }
+
+  return "http://localhost:3000";
+}
+
+/** Public site origin for share links (env or current browser origin). */
+export function getShareSiteUrl(): string {
   if (typeof window !== "undefined" && window.location?.origin) {
     return window.location.origin.replace(/\/$/, "");
   }
-  return "http://localhost:3000";
+  return getPublicSiteOrigin();
 }
 
 export function formatShareText(

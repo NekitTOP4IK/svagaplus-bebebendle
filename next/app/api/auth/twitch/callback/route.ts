@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/app/api/middleware/rateLimit";
 import { db, users } from "@/db/schema";
-import { getPublicSiteOrigin } from "@/lib/config";
 import { setSessionCookies } from "@/lib/session-cookies";
 import { createSessionManager } from "@/lib/session-manager";
 import { sessionRepository } from "@/lib/session-repository";
@@ -15,6 +14,7 @@ import {
   readTwitchOAuthConfig,
   twitchOAuthCookieOptions,
 } from "@/lib/twitch-oauth";
+import { getPublicSiteOrigin } from "@/lib/utils";
 
 function profileRedirect(
   request: Request,
