@@ -207,13 +207,20 @@ Separate season-ranked daily for **authenticated** users only. Does not touch ca
 
 **Routes / domain:**
 - Player: `/competitive` (hub), `/competitive/play` — auth gate → `/profile` if logged out
-- APIs: `/api/competitive/*` (hub, daily, vote, finalize, leaderboard, display-name)
+- Archive: `/competitive/seasons`, `/competitive/seasons/[id]` (ended seasons + final standings)
+- APIs: `/api/competitive/*` (hub, daily, vote, finalize, leaderboard, display-name, seasons)
 - Admin: `/admin/competitive` + `/api/admin/competitive/*` (pool, seasons, daily generate, settings flag)
 - Cron: `GET /api/cron/competitive` with `Authorization: Bearer ${CRON_SECRET}` (same secret as casual)
 - Domain: `next/lib/competitive/*`; schema tables `competitive_*` (migration `0012_*`)
 - Feature flag: app_settings `competitive_enabled` (`isCompetitiveEnabled` / admin Competitive panel)
 
 **Home entry:** `next/app/page.tsx` shows **Competitive** link only when user is logged in, flag is on, and `getVisibleSeason()` returns a season.
+
+**Polish wave (UX / anti-copy / Twitch):**
+- Season archive routes `/competitive/seasons` (+ `[id]` for final board)
+- Twitch login bridge via SVAGA `twitch-identity` (Telegram remains primary auth)
+- `COMPETITIVE_PRESENTATION_SECRET` — per-user shuffle + L/R flip of competitive presentation
+- `ensureSeasonTransitions` on hub / play / admin (not only midnight cron)
 
 **Ops:**
 ```bash
@@ -222,4 +229,4 @@ Separate season-ranked daily for **authenticated** users only. Does not touch ca
 ```
 Script: `ops/cron-generate-competitive.sh` sources `shared/.env` and hits `/api/cron/competitive`. Skipped cleanly if disabled / no playable season.
 
-See design: `docs/superpowers/specs/2026-07-23-competitive-daily-design.md`; plan: `docs/superpowers/plans/2026-07-23-competitive-daily.md`.
+See design: `docs/superpowers/specs/2026-07-23-competitive-daily-design.md`; plan: `docs/superpowers/plans/2026-07-23-competitive-daily.md`. Polish: `docs/superpowers/specs/2026-07-24-competitive-polish-twitch-design.md`.
