@@ -4,14 +4,23 @@ import type { HubStandingRow } from "@/lib/competitive/hub";
 type Props = Readonly<{
   top: readonly HubStandingRow[];
   myRow: HubStandingRow | null;
+  seasonStatus: string | null | undefined;
 }>;
 
 /**
  * Live top 50. No hits column (product rule).
  * If current user is outside top, show ellipsis + their row.
  */
-export function LeaderboardCard({ top, myRow }: Props): ReactElement {
+export function LeaderboardCard({
+  top,
+  myRow,
+  seasonStatus,
+}: Props): ReactElement {
   const meInTop = top.some((r) => r.isMe);
+  const emptyText =
+    seasonStatus === "countdown"
+      ? "Ожидаем начало сезона..."
+      : "Пока никого нет — стань первым!";
 
   return (
     <article className="c-leaderboard-card c-panel">
@@ -20,7 +29,7 @@ export function LeaderboardCard({ top, myRow }: Props): ReactElement {
         <span>Топ 50 live</span>
       </header>
       {top.length === 0 ? (
-        <p className="c-empty-board">Пока никого нет — стань первым!</p>
+        <p className="c-empty-board">{emptyText}</p>
       ) : (
         <div className="c-table-wrap">
           <table className="c-table">

@@ -23,7 +23,7 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
 
   if (!hub.enabled) {
     return (
-      <CompetitiveShell user={user} season={null}>
+      <CompetitiveShell user={user} season={null} previousEndedSeason={null}>
         <section className="c-disabled-box c-panel">
           <p>Соревновательный режим временно отключён.</p>
           <Link className="pixel-btn px-4 py-2 text-sm font-bold" href="/">
@@ -39,6 +39,7 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
       user={user}
       season={hub.season}
       nextDailyAt={hub.countdowns.nextDailyAt}
+      previousEndedSeason={hub.previousEndedSeason}
     >
       <SeasonHero
         season={hub.season}
@@ -50,7 +51,11 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
 
       <section className="c-dashboard">
         <ProgressCard me={hub.me} photoUrl={user.telegramPhotoUrl} />
-        <LeaderboardCard top={hub.top} myRow={hub.myRow} />
+        <LeaderboardCard
+          top={hub.top}
+          myRow={hub.myRow}
+          seasonStatus={hub.season?.status}
+        />
         <aside className="c-right-column">
           <RulesCard />
           <RewardsCard />

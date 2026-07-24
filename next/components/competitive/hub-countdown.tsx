@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 
 type Props = Readonly<{
   /** ISO timestamp to count down to. */
@@ -9,6 +9,8 @@ type Props = Readonly<{
   mode?: "hms" | "long";
   fallback?: string;
   className?: string;
+  /** Fires once when `now >= target` (resets when `targetIso` changes). */
+  onExpire?: () => void;
 }>;
 
 function pad2(n: number): string {
@@ -32,13 +34,10 @@ export function formatCountdown(
     return `${pad2(totalHours)}:${pad2(minutes)}:${pad2(seconds)}`;
   }
 
-  if (days > 0) {
-    return `${days}д ${hours}ч ${minutes}м`;
-  }
-  if (hours > 0) {
-    return `${hours}ч ${minutes}м ${seconds}с`;
-  }
-  return `${minutes}м ${seconds}с`;
+  if (days > 0) return `${days}д ${hours}ч ${minutes}м`;
+  if (hours > 0) return `${hours}ч ${minutes}м ${seconds}с`;
+  if (minutes > 0) return `${minutes}м ${seconds}с`;
+  return `${seconds}с`;
 }
 
 function computeText(
@@ -62,12 +61,32 @@ export function HubCountdown({
   mode = "hms",
   fallback = "—",
   className,
+  onExpire,
 }: Props): ReactElement {
   const [text, setText] = useState(fallback);
+  const expiredRef = useRef(false);
+  const onExpireRef = useRef(onExpire);
+
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
+
+  useEffect(() => {
+    expiredRef.current = false;
+  }, [targetIso]);
 
   useEffect(() => {
     const tick = () => {
-      setText(computeText(targetIso, mode, fallback, Date.now()));
+      const nowMs = Date.now();
+      setText(computeText(targetIso, mode, fallback, nowMs));
+
+      if (!targetIso || expiredRef.current) return;
+      const targetMs = new Date(targetIso).getTime();
+      if (Number.isNaN(targetMs)) return;
+      if (nowMs >= targetMs) {
+        expiredRef.current = true;
+        onExpireRef.current?.();
+      }
     };
 
     const initTimeout = setTimeout(tick, 0);

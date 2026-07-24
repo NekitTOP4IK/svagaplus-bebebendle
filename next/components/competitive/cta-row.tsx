@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { HubPayload } from "@/lib/competitive/hub";
 import { seasonDayNumber } from "@/lib/competitive/hub";
 import { COMPETITIVE_ICONS, swordSrcForPlace } from "@/lib/competitive/icons";
-import { HubCountdown } from "./hub-countdown";
+import { HubCountdownRefresh } from "./hub-countdown-refresh";
 
 type Props = Readonly<{
   hub: HubPayload;
@@ -62,7 +62,7 @@ export function CtaRow({ hub }: Props): ReactElement {
           <small>{dailyTimer ? "До дейлика" : "Дейлик"}</small>
           <b>
             {dailyTimer ? (
-              <HubCountdown
+              <HubCountdownRefresh
                 targetIso={hub.countdowns.nextDailyAt}
                 mode="hms"
                 fallback="00:00:00"
@@ -102,7 +102,7 @@ function renderCenter(hub: HubPayload): ReactElement {
             Сезон начнётся
           </small>
           <b>
-            <HubCountdown
+            <HubCountdownRefresh
               targetIso={season.startsAt}
               mode="long"
               fallback="скоро"

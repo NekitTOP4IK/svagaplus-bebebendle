@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import type { HubSeasonSummary } from "@/lib/competitive/hub";
 import { COMPETITIVE_ICONS } from "@/lib/competitive/icons";
 import { CalendarIcon } from "./calendar-icon";
-import { HubCountdown } from "./hub-countdown";
+import { HubCountdownRefresh } from "./hub-countdown-refresh";
 
 type Props = Readonly<{
   season: HubSeasonSummary | null;
@@ -106,7 +106,7 @@ export function SeasonHero({
               {season?.status === "ended" ? (
                 "завершён"
               ) : (
-                <HubCountdown
+                <HubCountdownRefresh
                   targetIso={
                     season?.status === "countdown"
                       ? season.startsAt
@@ -133,7 +133,7 @@ export function SeasonHero({
             <span>
               <small>До следующего дейлика:</small>
               <strong>
-                <HubCountdown
+                <HubCountdownRefresh
                   targetIso={nextDailyAt}
                   mode="hms"
                   fallback="00:00:00"
