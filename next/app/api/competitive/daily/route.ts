@@ -9,23 +9,17 @@ import {
 import { getCurrentUser } from "@/lib/auth-server";
 import { isCompetitiveEnabled } from "@/lib/competitive/feature";
 import {
+  getPresentationPepper,
+  presentationSeed,
+  presentRounds,
+} from "@/lib/competitive/presentation";
+import {
   deltaPp,
   roundPotentialPoints,
 } from "@/lib/competitive/scoring";
+import { ensureSeasonTransitions } from "@/lib/competitive/seasons";
+import { publicScran } from "@/lib/daily-integrity";
 import { todayMskDate } from "@/lib/daily-timezone";
-
-/** Public scran shape for competitive play — never includes likes/dislikes. */
-function mapPublicScran(s: typeof scrans.$inferSelect) {
-  return {
-    id: s.id,
-    imageUrl: s.imageUrl,
-    name: s.name,
-    description: s.description,
-    price: s.price,
-    icon: s.icon ?? "Cooked_Cod.png",
-    isSubscriberAtSubmit: s.isSubscriberAtSubmit ?? null,
-  };
-}
 
 export async function GET(_request: Request) {
   const user = await getCurrentUser();
@@ -41,6 +35,8 @@ export async function GET(_request: Request) {
   }
 
   try {
+    await ensureSeasonTransitions();
+
     // Players may only load today's competitive daily (ignore client ?date=).
     const date = todayMskDate();
 
@@ -73,8 +69,28 @@ export async function GET(_request: Request) {
       );
     }
 
+    const seed = presentationSeed(
+      getPresentationPepper(),
+      user.id,
+      daily.date,
+      daily.id,
+    );
+    const presented = presentRounds(
+      roundsRows.map((r) => ({
+        id: r.id,
+        roundNumber: r.roundNumber,
+        scranAId: r.scranAId,
+        scranBId: r.scranBId,
+        likesA: r.likesA,
+        dislikesA: r.dislikesA,
+        likesB: r.likesB,
+        dislikesB: r.dislikesB,
+      })),
+      seed,
+    );
+
     const scranIds = new Set<number>();
-    for (const round of roundsRows) {
+    for (const round of presented) {
       scranIds.add(round.scranAId);
       scranIds.add(round.scranBId);
     }
@@ -86,31 +102,28 @@ export async function GET(_request: Request) {
 
     const scransMap = new Map(scranList.map((s) => [s.id, s]));
 
-    const rounds = roundsRows.map((round) => {
-      const scranA = scransMap.get(round.scranAId);
-      const scranB = scransMap.get(round.scranBId);
+    const rounds = presented.map((p) => {
+      const scranA = scransMap.get(p.scranAId);
+      const scranB = scransMap.get(p.scranBId);
       if (!scranA || !scranB) {
         throw new Error(
-          `Scran not found for competitive round ${round.roundNumber}`,
+          `Scran not found for competitive round id=${p.roundId}`,
         );
       }
 
+      // Delta is absolute — same whether sides are flipped.
       const potentialPoints = roundPotentialPoints(
-        deltaPp(
-          round.likesA,
-          round.dislikesA,
-          round.likesB,
-          round.dislikesB,
-        ),
+        deltaPp(p.likesA, p.dislikesA, p.likesB, p.dislikesB),
       );
 
       return {
-        roundNumber: round.roundNumber,
-        roundId: round.id,
+        displayRoundNumber: p.displayRoundNumber,
+        roundId: p.roundId,
+        roundNumber: p.roundNumber, // canonical DB (legacy/debug)
         potentialPoints,
-        scranA: mapPublicScran(scranA),
-        scranB: mapPublicScran(scranB),
-        // intentionally no likes/dislikes
+        scranA: publicScran(scranA),
+        scranB: publicScran(scranB),
+        // intentionally no likes/dislikes; potentialPoints is an accepted difficulty signal
       };
     });
 

@@ -259,7 +259,9 @@ export function CompetitiveGameClient(): ReactElement {
       if (gameState.type !== "playing" || isVoting) return;
 
       const { data } = gameState;
-      const round = data.rounds.find((r) => r.roundNumber === currentRound);
+      const round = data.rounds.find(
+        (r) => r.displayRoundNumber === currentRound,
+      );
       if (!round) return;
 
       try {
@@ -270,9 +272,9 @@ export function CompetitiveGameClient(): ReactElement {
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            roundNumber: currentRound,
-            chosenScranId,
             date: data.date,
+            roundId: round.roundId,
+            chosenScranId,
           }),
         });
 
@@ -360,7 +362,7 @@ export function CompetitiveGameClient(): ReactElement {
 
     case "playing": {
       const round = gameState.data.rounds.find(
-        (r) => r.roundNumber === currentRound,
+        (r) => r.displayRoundNumber === currentRound,
       );
       if (!round) {
         return <ErrorPanel message="Раунд не найден" />;
@@ -385,10 +387,12 @@ export function CompetitiveGameClient(): ReactElement {
 
 function prefetchRoundImages(
   data: CompetitiveDailyPayload,
-  roundNumber: number,
+  displayRoundNumber: number,
 ): void {
   if (typeof window === "undefined") return;
-  const round = data.rounds.find((r) => r.roundNumber === roundNumber);
+  const round = data.rounds.find(
+    (r) => r.displayRoundNumber === displayRoundNumber,
+  );
   if (!round) return;
   const imgA = new window.Image();
   const imgB = new window.Image();
@@ -518,7 +522,7 @@ function CompletePanel({
                         : "text-white/90"
                     }`}
                   >
-                    <span className="pixel-text c-nick min-w-0 truncate">
+                    <span className="pixel-text min-w-0 truncate">
                       <span className="mr-2 text-white/50">#{row.place}</span>
                       <span style={{ textTransform: "none" }}>{row.label}</span>
                       {row.isMe ? (

@@ -18,8 +18,11 @@ export type CompetitiveScran = Readonly<{
 }>;
 
 export type CompetitiveRoundData = Readonly<{
-  roundNumber: number;
+  /** Presentation order 1..N for UI label */
+  displayRoundNumber: number;
   roundId: number;
+  /** Canonical DB round number (optional legacy) */
+  roundNumber?: number;
   potentialPoints: number;
   scranA: CompetitiveScran;
   scranB: CompetitiveScran;
@@ -56,7 +59,7 @@ export function CompetitiveRound({
   isVoting,
   onVote,
 }: Props): ReactElement {
-  const { scranA, scranB, roundNumber } = round;
+  const { scranA, scranB, displayRoundNumber } = round;
   const resultVisible = showResult && lastResult !== null;
 
   return (
@@ -74,7 +77,7 @@ export function CompetitiveRound({
       </Link>
 
       <div className="pixel-text absolute right-4 top-4 z-20 text-xl font-bold text-white">
-        раунд {roundNumber}/{totalRounds}
+        раунд {displayRoundNumber}/{totalRounds}
       </div>
 
       <div className="relative z-10 flex h-full w-full flex-col md:flex-row">

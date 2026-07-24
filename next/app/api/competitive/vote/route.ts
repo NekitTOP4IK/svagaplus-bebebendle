@@ -4,6 +4,12 @@ import { getCurrentUser } from "@/lib/auth-server";
 import { recordCompetitiveVote } from "@/lib/competitive/play";
 import { todayMskDate } from "@/lib/daily-timezone";
 
+function parseOptionalInt(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(n) ? n : Number.NaN;
+}
+
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -23,6 +29,7 @@ export async function POST(request: Request) {
   }
 
   let body: {
+    roundId?: unknown;
     roundNumber?: unknown;
     chosenScranId?: unknown;
     date?: unknown;
@@ -33,18 +40,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const roundNumber =
-    typeof body.roundNumber === "number"
-      ? body.roundNumber
-      : Number(body.roundNumber);
-  const chosenScranId =
-    typeof body.chosenScranId === "number"
-      ? body.chosenScranId
-      : Number(body.chosenScranId);
+  const roundId = parseOptionalInt(body.roundId);
+  const roundNumber = parseOptionalInt(body.roundNumber);
+  const chosenScranId = parseOptionalInt(body.chosenScranId);
 
-  if (!Number.isInteger(roundNumber) || !Number.isInteger(chosenScranId)) {
+  if (chosenScranId === undefined || Number.isNaN(chosenScranId)) {
     return NextResponse.json(
-      { error: "roundNumber and chosenScranId must be integers" },
+      { error: "chosenScranId must be an integer" },
+      { status: 400 },
+    );
+  }
+
+  if (
+    (roundId === undefined || Number.isNaN(roundId)) &&
+    (roundNumber === undefined || Number.isNaN(roundNumber))
+  ) {
+    return NextResponse.json(
+      { error: "roundId is required (or legacy roundNumber)" },
+      { status: 400 },
+    );
+  }
+
+  if (roundId !== undefined && Number.isNaN(roundId)) {
+    return NextResponse.json(
+      { error: "roundId must be an integer" },
+      { status: 400 },
+    );
+  }
+
+  if (roundNumber !== undefined && Number.isNaN(roundNumber)) {
+    return NextResponse.json(
+      { error: "roundNumber must be an integer" },
       { status: 400 },
     );
   }
@@ -59,7 +85,11 @@ export async function POST(request: Request) {
     const result = await recordCompetitiveVote({
       userId: user.id,
       date,
-      roundNumber,
+      roundId: roundId !== undefined && !Number.isNaN(roundId) ? roundId : undefined,
+      roundNumber:
+        roundNumber !== undefined && !Number.isNaN(roundNumber)
+          ? roundNumber
+          : undefined,
       chosenScranId,
     });
 
@@ -80,7 +110,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error(
       "[competitive-vote] failed",
-      { userId: user.id, roundNumber },
+      { userId: user.id, roundId, roundNumber },
       error,
     );
     return NextResponse.json(

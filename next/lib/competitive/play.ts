@@ -19,6 +19,12 @@ import { todayMskDate } from "@/lib/daily-timezone";
 import { COMPETITIVE_ROUNDS } from "./constants";
 import { isCompetitiveEnabled } from "./feature";
 import {
+  getPresentationPepper,
+  presentationSeed,
+  presentRounds,
+  type CanonicalRound,
+} from "./presentation";
+import {
   computeDayScore,
   correctScranId,
   deltaPp,
@@ -27,7 +33,7 @@ import {
   roundPotentialPoints,
   type DayScore,
 } from "./scoring";
-import { getPlayableSeason } from "./seasons";
+import { ensureSeasonTransitions, getPlayableSeason } from "./seasons";
 
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-tested; used by DB paths)
@@ -250,17 +256,30 @@ async function getDailyByDate(date: string): Promise<{
 
 /**
  * Record a competitive vote for one round.
- * Correctness uses frozen round likes only.
+ * Prefer `roundId` (competitive_rounds.id). Legacy `roundNumber` still accepted.
+ * Correctness uses frozen round likes only (canonical DB sides).
+ * Vote response percentages match the player's presented A/B order (after flip).
  * Votes are insert-only: first (userId, roundId) choice is immutable.
  * Same chosenScranId is idempotent; a different choice returns 409.
  */
 export async function recordCompetitiveVote(input: {
   userId: number;
   date: string;
-  roundNumber: number;
+  /** Preferred: competitive_rounds.id */
+  roundId?: number;
+  /** Legacy: canonical DB round number 1..N */
+  roundNumber?: number;
   chosenScranId: number;
 }): Promise<RecordCompetitiveVoteResult> {
-  const { userId, date, roundNumber, chosenScranId } = input;
+  const { userId, date, chosenScranId } = input;
+  const roundId =
+    input.roundId !== undefined && Number.isInteger(input.roundId)
+      ? input.roundId
+      : undefined;
+  const roundNumber =
+    input.roundNumber !== undefined && Number.isInteger(input.roundNumber)
+      ? input.roundNumber
+      : undefined;
 
   if (!(await isCompetitiveEnabled())) {
     return {
@@ -275,6 +294,8 @@ export async function recordCompetitiveVote(input: {
     return todayGuard;
   }
 
+  await ensureSeasonTransitions();
+
   const season = await getPlayableSeason();
   if (!season) {
     return {
@@ -284,14 +305,29 @@ export async function recordCompetitiveVote(input: {
     };
   }
 
+  if (roundId === undefined && roundNumber === undefined) {
+    return {
+      ok: false,
+      error: "roundId is required",
+      status: 400,
+    };
+  }
+
   if (
-    !Number.isInteger(roundNumber) ||
-    roundNumber < 1 ||
-    roundNumber > COMPETITIVE_ROUNDS
+    roundNumber !== undefined &&
+    (roundNumber < 1 || roundNumber > COMPETITIVE_ROUNDS)
   ) {
     return {
       ok: false,
       error: `roundNumber must be 1..${COMPETITIVE_ROUNDS}`,
+      status: 400,
+    };
+  }
+
+  if (roundId !== undefined && roundId < 1) {
+    return {
+      ok: false,
+      error: "roundId must be a positive integer",
       status: 400,
     };
   }
@@ -321,16 +357,16 @@ export async function recordCompetitiveVote(input: {
     };
   }
 
-  const [round] = await db
+  // Load all rounds for daily (needed for presentation flip + vote identity).
+  const allRounds = await db
     .select()
     .from(competitiveRounds)
-    .where(
-      and(
-        eq(competitiveRounds.dailyId, daily.id),
-        eq(competitiveRounds.roundNumber, roundNumber),
-      ),
-    )
-    .limit(1);
+    .where(eq(competitiveRounds.dailyId, daily.id));
+
+  const round =
+    roundId !== undefined
+      ? allRounds.find((r) => r.id === roundId)
+      : allRounds.find((r) => r.roundNumber === roundNumber);
 
   if (!round) {
     return {
@@ -340,15 +376,45 @@ export async function recordCompetitiveVote(input: {
     };
   }
 
-  const frozen: FrozenRoundInput = {
-    roundNumber: round.roundNumber,
-    scranAId: round.scranAId,
-    scranBId: round.scranBId,
-    likesA: round.likesA,
-    dislikesA: round.dislikesA,
-    likesB: round.likesB,
-    dislikesB: round.dislikesB,
-  };
+  // Presentation-order frozen sides so percentageA/B match client left/right.
+  // Correctness is still from frozen likes for those scran ids (same multiset).
+  const canonical: CanonicalRound[] = allRounds.map((r) => ({
+    id: r.id,
+    roundNumber: r.roundNumber,
+    scranAId: r.scranAId,
+    scranBId: r.scranBId,
+    likesA: r.likesA,
+    dislikesA: r.dislikesA,
+    likesB: r.likesB,
+    dislikesB: r.dislikesB,
+  }));
+  const seed = presentationSeed(
+    getPresentationPepper(),
+    userId,
+    daily.date,
+    daily.id,
+  );
+  const presented = presentRounds(canonical, seed);
+  const presentedRound = presented.find((p) => p.roundId === round.id);
+  const frozen: FrozenRoundInput = presentedRound
+    ? {
+        roundNumber: presentedRound.roundNumber,
+        scranAId: presentedRound.scranAId,
+        scranBId: presentedRound.scranBId,
+        likesA: presentedRound.likesA,
+        dislikesA: presentedRound.dislikesA,
+        likesB: presentedRound.likesB,
+        dislikesB: presentedRound.dislikesB,
+      }
+    : {
+        roundNumber: round.roundNumber,
+        scranAId: round.scranAId,
+        scranBId: round.scranBId,
+        likesA: round.likesA,
+        dislikesA: round.dislikesA,
+        likesB: round.likesB,
+        dislikesB: round.dislikesB,
+      };
 
   // Existing vote: immutable — idempotent if same choice, 409 if different.
   const [existing] = await db
@@ -443,7 +509,7 @@ export async function recordCompetitiveVote(input: {
 
     console.error(
       "[competitive-play] vote insert failed",
-      { userId, date, roundNumber },
+      { userId, date, roundId: round.id, roundNumber: round.roundNumber },
       error,
     );
     return {
@@ -454,7 +520,7 @@ export async function recordCompetitiveVote(input: {
   }
 
   console.log(
-    `[competitive-play] vote user=${userId} date=${date} round=${roundNumber} correct=${evaluated.isCorrect} earned=${evaluated.earnedPoints}`,
+    `[competitive-play] vote user=${userId} date=${date} roundId=${round.id} round=${round.roundNumber} correct=${evaluated.isCorrect} earned=${evaluated.earnedPoints}`,
   );
 
   return {
@@ -490,6 +556,8 @@ export async function finalizeCompetitive(input: {
   if (!todayGuard.ok) {
     return todayGuard;
   }
+
+  await ensureSeasonTransitions();
 
   const season = await getPlayableSeason();
   if (!season) {
