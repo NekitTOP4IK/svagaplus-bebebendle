@@ -21,7 +21,46 @@ concurrency:
   cancel-in-progress: ${{ github.ref_name == 'dev' }}
 
 jobs:
+  # Path filters only for PR + dev (faster CI). staging/main always run full gate.
+  changes:
+    if: github.event_name == 'pull_request' || github.ref_name == 'dev'
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      bot: ${{ steps.filter.outputs.bot }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+      always: ${{ steps.filter.outputs.always }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'next/**'
+              - '.bun-version'
+              - 'package.json'
+            bot:
+              - 'bot/**'
+            migrations:
+              - 'next/db/**'
+              - 'next/drizzle.config.ts'
+              - 'next/package.json'
+              - 'next/bun.lock'
+            always:
+              - '.github/workflows/**'
+              - 'ops/**'
+              - 'scripts/**'
+              - 'ecosystem.config.cjs'
+
   frontend:
+    needs: [changes]
+    if: |
+      always() &&
+      (needs.changes.result == 'skipped' ||
+       needs.changes.outputs.frontend == 'true' ||
+       needs.changes.outputs.always == 'true' ||
+       needs.changes.outputs.migrations == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,6 +73,14 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            next/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('next/bun.lock', '.bun-version') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run lint
       - run: bun run test:run
@@ -44,6 +91,12 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
 
   bot:
+    needs: [changes]
+    if: |
+      always() &&
+      (needs.changes.result == 'skipped' ||
+       needs.changes.outputs.bot == 'true' ||
+       needs.changes.outputs.always == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -54,12 +107,22 @@ jobs:
         with:
           python-version: "3.11"
       - uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "bot/uv.lock"
       - run: uv sync --extra dev --frozen
       - run: uv run ruff check src tests
       - run: uv run mypy src
       - run: uv run pytest -q
 
   migrations:
+    needs: [changes]
+    if: |
+      always() &&
+      (needs.changes.result == 'skipped' ||
+       needs.changes.outputs.migrations == 'true' ||
+       needs.changes.outputs.frontend == 'true' ||
+       needs.changes.outputs.always == 'true')
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -87,6 +150,14 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            next/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('next/bun.lock', '.bun-version') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
       - run: bun install --frozen-lockfile
       - run: bun run db:migrate
       - run: bun run db:migrate
@@ -144,9 +215,32 @@ jobs:
           ops/tests/deploy-release.sh
           node -e 'const c=require("./ecosystem.config.cjs"); if(c.apps.length!==2) process.exit(1); console.log(c.apps.map(a=>a.name).join(" "))'
 
+  # Gate aggregation: on path-filtered runs, skipped jobs must not block release.
+  # On staging/main, changes is skipped → all three quality jobs always run.
+  quality:
+    if: always()
+    needs: [frontend, bot, migrations, security, deploy-script]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful or skipped path-filtered jobs; fail on failure/cancelled
+        run: |
+          set -euo pipefail
+          check() {
+            local name=$1 status=$2
+            case "$status" in
+              success|skipped) echo "ok $name=$status" ;;
+              *) echo "bad $name=$status" >&2; exit 1 ;;
+            esac
+          }
+          check frontend "${{ needs.frontend.result }}"
+          check bot "${{ needs.bot.result }}"
+          check migrations "${{ needs.migrations.result }}"
+          check security "${{ needs.security.result }}"
+          check deploy-script "${{ needs.deploy-script.result }}"
+
   release:
     if: github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'main')
-    needs: [frontend, bot, migrations, security, deploy-script]
+    needs: [quality]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
