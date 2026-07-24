@@ -43,6 +43,49 @@ type PoolEntry = {
   updatedAt: string;
 };
 
+type SeasonDetailRank = {
+  rank: number;
+  userId: number;
+  displayNameSnapshot: string | null;
+  points: number;
+  daysPlayed: number;
+  hits: number;
+};
+
+type SeasonDetailScran = {
+  id: number;
+  name: string;
+  imageUrl: string;
+};
+
+type SeasonDetailRound = {
+  roundNumber: number;
+  scranA: SeasonDetailScran;
+  scranB: SeasonDetailScran;
+  likesA: number;
+  dislikesA: number;
+  likesB: number;
+  dislikesB: number;
+};
+
+type SeasonDetailDaily = {
+  date: string;
+  rounds: SeasonDetailRound[];
+};
+
+type SeasonDetail = {
+  season: {
+    id: number;
+    name: string;
+    status: SeasonStatus;
+    startsAt: string;
+    endsAt: string;
+    themeKey: string | null;
+  };
+  finalRanks: SeasonDetailRank[];
+  dailies: SeasonDetailDaily[];
+};
+
 type BandPreview = {
   roundStart: number;
   roundEnd: number;
@@ -282,6 +325,11 @@ function SeasonsSection(): ReactElement {
   const [form, setForm] = useState<SeasonFormState>(emptySeasonForm);
   const [saving, setSaving] = useState(false);
 
+  const [viewId, setViewId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<SeasonDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -307,11 +355,51 @@ function SeasonsSection(): ReactElement {
     void load();
   }, [load]);
 
+  async function openView(season: Season) {
+    if (viewId === season.id && detail) {
+      // Toggle closed if already open for this season
+      setViewId(null);
+      setDetail(null);
+      setDetailError("");
+      return;
+    }
+    setViewId(season.id);
+    setDetail(null);
+    setDetailError("");
+    setDetailLoading(true);
+    try {
+      const res = await apiFetch(
+        `/api/admin/competitive/seasons/${season.id}/detail`,
+      );
+      if (res.status === 401) {
+        setDetailError("Нужна авторизация администратора");
+        return;
+      }
+      if (!res.ok) {
+        setDetailError(await readError(res));
+        return;
+      }
+      setDetail((await res.json()) as SeasonDetail);
+    } catch {
+      setDetailError("Ошибка сети");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function closeView() {
+    setViewId(null);
+    setDetail(null);
+    setDetailError("");
+    setDetailLoading(false);
+  }
+
   function openCreate() {
     setMode("create");
     setEditId(null);
     setForm(emptySeasonForm());
     setError("");
+    closeView();
   }
 
   function openEdit(s: Season) {
@@ -319,6 +407,7 @@ function SeasonsSection(): ReactElement {
     setEditId(s.id);
     setForm(seasonToForm(s));
     setError("");
+    closeView();
   }
 
   function cancelForm() {
@@ -598,6 +687,20 @@ function SeasonsSection(): ReactElement {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    onClick={() => void openView(s)}
+                    disabled={detailLoading && viewId === s.id}
+                    className={`pixel-btn px-3 py-1.5 text-xs font-bold ${
+                      viewId === s.id ? "pixel-btn-warn" : ""
+                    }`}
+                  >
+                    {detailLoading && viewId === s.id
+                      ? "…"
+                      : viewId === s.id
+                        ? "Скрыть"
+                        : "Просмотр"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => openEdit(s)}
                     className="pixel-btn pixel-btn-info px-3 py-1.5 text-xs font-bold"
                   >
@@ -635,11 +738,194 @@ function SeasonsSection(): ReactElement {
                   )}
                 </div>
               </div>
+
+              {viewId === s.id && (
+                <SeasonDetailPanel
+                  loading={detailLoading}
+                  error={detailError}
+                  detail={detail}
+                  onClose={closeView}
+                />
+              )}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function SeasonDetailPanel({
+  loading,
+  error,
+  detail,
+  onClose,
+}: {
+  loading: boolean;
+  error: string;
+  detail: SeasonDetail | null;
+  onClose: () => void;
+}): ReactElement {
+  if (loading) {
+    return (
+      <div className="mt-3 border-2 border-zinc-700 bg-zinc-900/80 p-3">
+        <p className="text-sm text-white/60">Загрузка деталей сезона…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mt-3 space-y-2 border-2 border-red-800/60 bg-zinc-900/80 p-3">
+        <ErrorBox message={error} />
+        <button
+          type="button"
+          onClick={onClose}
+          className="pixel-btn px-3 py-1.5 text-xs font-bold"
+        >
+          Закрыть
+        </button>
+      </div>
+    );
+  }
+
+  if (!detail) return <></>;
+
+  const ranksSource =
+    detail.season.status === "ended" ? "Финальные ранги" : "Живые standings";
+
+  return (
+    <div className="mt-3 space-y-4 border-2 border-amber-700/40 bg-zinc-900/80 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-amber-200/80">
+            Просмотр · #{detail.season.id}
+          </p>
+          <p className="text-sm text-white/70">
+            {detail.season.name} ·{" "}
+            <StatusBadge status={detail.season.status} />
+          </p>
+          <p className="mt-0.5 text-xs text-white/45">
+            {formatRu(detail.season.startsAt)} → {formatRu(detail.season.endsAt)}
+            {detail.season.themeKey ? ` · theme: ${detail.season.themeKey}` : ""}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="pixel-btn px-3 py-1.5 text-xs font-bold"
+        >
+          Закрыть
+        </button>
+      </div>
+
+      <div>
+        <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-white/70">
+          {ranksSource} ({detail.finalRanks.length})
+        </h4>
+        {detail.finalRanks.length === 0 ? (
+          <p className="text-sm text-white/45">Рангов пока нет.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[28rem] border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-zinc-700 text-white/50">
+                  <th className="px-2 py-1.5 font-bold">#</th>
+                  <th className="px-2 py-1.5 font-bold">Ник</th>
+                  <th className="px-2 py-1.5 font-bold">userId</th>
+                  <th className="px-2 py-1.5 font-bold">очки</th>
+                  <th className="px-2 py-1.5 font-bold">дней</th>
+                  <th className="px-2 py-1.5 font-bold">хиты</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.finalRanks.map((r) => (
+                  <tr
+                    key={`${r.rank}-${r.userId}`}
+                    className="border-b border-zinc-800 text-white/85"
+                  >
+                    <td className="px-2 py-1.5 font-bold text-amber-200/90">
+                      {r.rank}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {r.displayNameSnapshot?.trim() || `Игрок #${r.userId}`}
+                    </td>
+                    <td className="px-2 py-1.5 text-white/45">{r.userId}</td>
+                    <td className="px-2 py-1.5">{r.points}</td>
+                    <td className="px-2 py-1.5">{r.daysPlayed}</td>
+                    <td className="px-2 py-1.5">{r.hits}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-white/70">
+          Дни и раунды ({detail.dailies.length})
+        </h4>
+        {detail.dailies.length === 0 ? (
+          <p className="text-sm text-white/45">
+            Дней для этого сезона ещё нет.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {detail.dailies.map((day) => (
+              <li
+                key={day.date}
+                className="border border-zinc-700 bg-zinc-950/80 p-2"
+              >
+                <p className="mb-2 text-xs font-bold text-emerald-300/90">
+                  {day.date} · {day.rounds.length} раунд
+                  {day.rounds.length === 1 ? "" : "ов"}
+                </p>
+                {day.rounds.length === 0 ? (
+                  <p className="text-xs text-white/40">Раундов нет</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {day.rounds.map((round) => {
+                      const pctA = snapPct(round.likesA, round.dislikesA);
+                      const pctB = snapPct(round.likesB, round.dislikesB);
+                      return (
+                        <li
+                          key={round.roundNumber}
+                          className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/80"
+                        >
+                          <span className="w-8 shrink-0 font-bold text-white/50">
+                            R{round.roundNumber}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="font-bold text-sky-200/90">
+                              {round.scranA.name}
+                            </span>
+                            <span className="text-white/40">
+                              {" "}
+                              ({pctA}, {round.likesA}/{round.dislikesA})
+                            </span>
+                          </span>
+                          <span className="text-white/35">vs</span>
+                          <span className="min-w-0">
+                            <span className="font-bold text-fuchsia-200/90">
+                              {round.scranB.name}
+                            </span>
+                            <span className="text-white/40">
+                              {" "}
+                              ({pctB}, {round.likesB}/{round.dislikesB})
+                            </span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
