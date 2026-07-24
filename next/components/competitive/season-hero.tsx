@@ -119,13 +119,16 @@ export function SeasonHero({
             </strong>
           </span>
         </div>
-        {/* Daily timer only if season is active AND ends after next daily */}
+        {/*
+          Daily countdown only while the season is active (and still has a next daily).
+          Pre-start / no season: hide the whole daily block (no "после старта" stub).
+        */}
         {dailyTimer ? (
           <div className="c-count-row">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              className="c-pixel-icon c-pixel-icon--lg c-pixel-icon--tint-purple"
-              src={COMPETITIVE_ICONS.clock}
+              className="c-pixel-icon c-pixel-icon--lg"
+              src={COMPETITIVE_ICONS.cake}
               alt=""
               width={32}
               height={32}
@@ -141,12 +144,12 @@ export function SeasonHero({
               </strong>
             </span>
           </div>
-        ) : (
+        ) : season?.status === "active" || season?.status === "ended" ? (
           <div className="c-count-row">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              className="c-pixel-icon c-pixel-icon--lg c-pixel-icon--tint-purple"
-              src={COMPETITIVE_ICONS.clock}
+              className="c-pixel-icon c-pixel-icon--lg"
+              src={COMPETITIVE_ICONS.cake}
               alt=""
               width={32}
               height={32}
@@ -154,17 +157,13 @@ export function SeasonHero({
             <span>
               <small>Дейлик:</small>
               <strong>
-                {season?.status === "countdown"
-                  ? "после старта сезона"
-                  : season?.status === "ended"
-                    ? "сезон закрыт"
-                    : season?.status === "active"
-                      ? "сезон скоро закончится"
-                      : "нет активного сезона"}
+                {season.status === "ended"
+                  ? "сезон закрыт"
+                  : "сезон скоро закончится"}
               </strong>
             </span>
           </div>
-        )}
+        ) : null}
       </div>
     </section>
   );

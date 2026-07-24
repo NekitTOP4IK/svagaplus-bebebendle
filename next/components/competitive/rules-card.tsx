@@ -9,14 +9,55 @@ import {
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { COMPETITIVE_ICONS } from "@/lib/competitive/icons";
+import type { CompetitiveContentDoc } from "@/lib/competitive/content";
 
 type ModalKind = "mode" | "season" | null;
 
+type Props = Readonly<{
+  modeRules: CompetitiveContentDoc;
+  seasonRules: CompetitiveContentDoc;
+}>;
+
+function ContentBody({
+  doc,
+  emptyHint,
+}: {
+  doc: CompetitiveContentDoc;
+  emptyHint: string;
+}): ReactElement {
+  if (!doc.blocks.length) {
+    return <p className="text-white/70">{emptyHint}</p>;
+  }
+  return (
+    <div className="c-content-blocks space-y-5">
+      {doc.blocks.map((block) => (
+        <section key={block.id} className="c-content-block">
+          <h5 className="pixel-text mb-2 text-sm font-bold text-amber-100">
+            {block.title}
+          </h5>
+          {block.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={block.imageUrl}
+              alt=""
+              className="mb-2 max-h-40 w-full object-contain"
+            />
+          ) : null}
+          {block.body ? (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/85">
+              {block.body}
+            </p>
+          ) : null}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 /**
- * «ЧаВо сезона»: two FAQ entry buttons (mode rules + season rules).
- * Modal bodies are placeholders until real copy is ready.
+ * «ЧаВо сезона»: mode rules + season rules from admin content docs.
  */
-export function RulesCard(): ReactElement {
+export function RulesCard({ modeRules, seasonRules }: Props): ReactElement {
   const [open, setOpen] = useState<ModalKind>(null);
   const titleId = useId();
 
@@ -123,15 +164,15 @@ export function RulesCard(): ReactElement {
               </header>
               <div className="c-faq-modal__body">
                 {open === "mode" ? (
-                  <p>
-                    Placeholder: здесь будут полные правила соревновательного
-                    режима (пары, очки, пропуск дня, один заход).
-                  </p>
+                  <ContentBody
+                    doc={modeRules}
+                    emptyHint="Правила режима пока не заполнены. Админ может добавить их в панели Competitive → Настройки."
+                  />
                 ) : (
-                  <p>
-                    Placeholder: здесь будут правила текущего сезона (даты,
-                    награды, условия топа).
-                  </p>
+                  <ContentBody
+                    doc={seasonRules}
+                    emptyHint="Правила сезона пока не заполнены. Админ редактирует их в карточке сезона."
+                  />
                 )}
               </div>
               <footer className="c-faq-modal__foot">

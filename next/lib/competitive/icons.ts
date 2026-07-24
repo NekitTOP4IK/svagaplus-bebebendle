@@ -13,6 +13,8 @@ export const COMPETITIVE_ICONS = {
   /** Full-page hub background (light blur applied in CSS). */
   background: "/competitive/competitive_background.webp",
   clock: "/competitive/icons/clock_00.png",
+  /** Daily rotation timer (cake) — not the inverted clock. */
+  cake: "/competitive/icons/cake.webp",
   pearl: "/competitive/icons/ender_pearl.png",
   books: {
     /** Competitive mode rules (animated). */

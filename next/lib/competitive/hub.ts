@@ -18,6 +18,14 @@ import {
   nextMidnightMsk,
   todayMskDate,
 } from "@/lib/daily-timezone";
+import { getSetting } from "@/lib/app-settings";
+import {
+  SETTING_COMPETITIVE_MODE_RULES,
+  emptyContentDoc,
+  parseContentDocFromJsonString,
+  parseSeasonThemeConfig,
+  type CompetitiveContentDoc,
+} from "./content";
 import { leaderboardLabel } from "./display-name";
 import { isCompetitiveEnabled } from "./feature";
 import { getUserResult } from "./play";
@@ -89,6 +97,12 @@ export type HubPayload = Readonly<{
    * the latest ended season for topbar «Итоги» CTA.
    */
   previousEndedSeason: HubPreviousEndedSeason | null;
+  /** Global mode rules (admin-edited). */
+  modeRules: CompetitiveContentDoc;
+  /** Season rules from themeConfig.rules */
+  seasonRules: CompetitiveContentDoc;
+  /** Season rewards from themeConfig.rewards */
+  seasonRewards: CompetitiveContentDoc;
 }>;
 
 // ---------------------------------------------------------------------------
@@ -240,6 +254,10 @@ export async function getHubPayload(
     : `Игрок #${userId}`;
   const competitiveDisplayName = user?.competitiveDisplayName ?? null;
 
+  const modeRulesRaw = await getSetting(SETTING_COMPETITIVE_MODE_RULES, "");
+  const modeRules = parseContentDocFromJsonString(modeRulesRaw || null);
+  const emptyContent = emptyContentDoc();
+
   if (!enabled) {
     return {
       enabled: false,
@@ -255,6 +273,9 @@ export async function getHubPayload(
         nextDailyAt,
       },
       previousEndedSeason: null,
+      modeRules: emptyContent,
+      seasonRules: emptyContent,
+      seasonRewards: emptyContent,
     };
   }
 
@@ -307,8 +328,15 @@ export async function getHubPayload(
         nextDailyAt,
       },
       previousEndedSeason: null,
+      modeRules,
+      seasonRules: emptyContent,
+      seasonRewards: emptyContent,
     };
   }
+
+  const theme = parseSeasonThemeConfig(season.themeConfig);
+  const seasonRules = theme.rules ?? emptyContent;
+  const seasonRewards = theme.rewards ?? emptyContent;
 
   const standingRows = await db
     .select({
@@ -399,5 +427,8 @@ export async function getHubPayload(
       nextDailyAt,
     },
     previousEndedSeason,
+    modeRules,
+    seasonRules,
+    seasonRewards,
   };
 }

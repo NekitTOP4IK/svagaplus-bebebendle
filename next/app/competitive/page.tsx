@@ -68,8 +68,11 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
           seasonStatus={hub.season?.status}
         />
         <aside className="c-right-column">
-          <RulesCard />
-          <RewardsCard />
+          <RulesCard
+            modeRules={hub.modeRules}
+            seasonRules={hub.seasonRules}
+          />
+          <RewardsCard rewards={hub.seasonRewards} />
         </aside>
       </section>
     </CompetitiveShell>

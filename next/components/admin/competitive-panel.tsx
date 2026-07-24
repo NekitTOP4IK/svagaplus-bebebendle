@@ -10,6 +10,13 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api-client";
+import { ContentDocEditor } from "@/components/admin/content-doc-editor";
+import {
+  emptyContentDoc,
+  parseContentDoc,
+  parseSeasonThemeConfig,
+  type CompetitiveContentDoc,
+} from "@/lib/competitive/content";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -22,6 +29,7 @@ type Season = {
   endsAt: string;
   status: SeasonStatus;
   themeKey: string | null;
+  themeConfig?: unknown;
   createdAt: string;
   updatedAt: string;
 };
@@ -197,22 +205,33 @@ function SettingsSection(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [modeRules, setModeRules] = useState<CompetitiveContentDoc>(
+    emptyContentDoc(),
+  );
+  const [rulesSaving, setRulesSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch("/api/admin/competitive/settings");
-      if (res.status === 401) {
+      const [resSettings, resRules] = await Promise.all([
+        apiFetch("/api/admin/competitive/settings"),
+        apiFetch("/api/admin/competitive/content/mode-rules"),
+      ]);
+      if (resSettings.status === 401) {
         setError("Нужна авторизация администратора");
         return;
       }
-      if (!res.ok) {
-        setError(await readError(res));
+      if (!resSettings.ok) {
+        setError(await readError(resSettings));
         return;
       }
-      const json = (await res.json()) as { competitiveEnabled: boolean };
+      const json = (await resSettings.json()) as { competitiveEnabled: boolean };
       setEnabled(json.competitiveEnabled);
+      if (resRules.ok) {
+        const r = (await resRules.json()) as { doc: CompetitiveContentDoc };
+        setModeRules(parseContentDoc(r.doc));
+      }
     } catch {
       setError("Ошибка сети");
     } finally {
@@ -255,12 +274,35 @@ function SettingsSection(): ReactElement {
     }
   }
 
+  async function saveModeRules() {
+    if (rulesSaving) return;
+    setRulesSaving(true);
+    try {
+      const res = await apiFetch("/api/admin/competitive/content/mode-rules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doc: modeRules }),
+      });
+      if (!res.ok) {
+        toast.error(await readError(res));
+        return;
+      }
+      const json = (await res.json()) as { doc: CompetitiveContentDoc };
+      setModeRules(parseContentDoc(json.doc));
+      toast.success("Правила режима сохранены");
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setRulesSaving(false);
+    }
+  }
+
   return (
     <section className="pixel-container space-y-3 border-4 border-black bg-zinc-900/80 p-4">
       <div>
         <h2 className="pixel-text text-xl font-bold text-white">Настройки</h2>
         <p className="text-sm text-white/60">
-          Глобальный флаг competitive daily (cron, hub, play)
+          Глобальный флаг competitive daily (cron, hub, play) и правила режима
         </p>
       </div>
 
@@ -285,6 +327,21 @@ function SettingsSection(): ReactElement {
           {loading ? "…" : enabled ? "Вкл" : "Выкл"}
         </button>
       </div>
+
+      <ContentDocEditor
+        label="Правила режима (глобально)"
+        doc={modeRules}
+        onChange={setModeRules}
+        disabled={loading || rulesSaving}
+      />
+      <button
+        type="button"
+        disabled={loading || rulesSaving}
+        onClick={() => void saveModeRules()}
+        className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
+      >
+        {rulesSaving ? "Сохранение…" : "Сохранить правила режима"}
+      </button>
     </section>
   );
 }
@@ -296,6 +353,8 @@ type SeasonFormState = {
   startsAt: string;
   endsAt: string;
   status: SeasonStatus;
+  rules: CompetitiveContentDoc;
+  rewards: CompetitiveContentDoc;
 };
 
 const emptySeasonForm = (): SeasonFormState => ({
@@ -303,14 +362,19 @@ const emptySeasonForm = (): SeasonFormState => ({
   startsAt: "",
   endsAt: "",
   status: "draft",
+  rules: emptyContentDoc(),
+  rewards: emptyContentDoc(),
 });
 
 function seasonToForm(s: Season): SeasonFormState {
+  const theme = parseSeasonThemeConfig(s.themeConfig);
   return {
     name: s.name,
     startsAt: toDatetimeLocal(s.startsAt),
     endsAt: toDatetimeLocal(s.endsAt),
     status: s.status,
+    rules: theme.rules ?? emptyContentDoc(),
+    rewards: theme.rewards ?? emptyContentDoc(),
   };
 }
 
@@ -426,6 +490,10 @@ function SeasonsSection(): ReactElement {
       startsAt: fromDatetimeLocal(form.startsAt),
       endsAt: fromDatetimeLocal(form.endsAt),
       status: form.status,
+      themeConfig: {
+        rules: form.rules,
+        rewards: form.rewards,
+      },
     };
     try {
       const res =
@@ -618,6 +686,20 @@ function SeasonsSection(): ReactElement {
               </span>
             </label>
           </div>
+
+          <ContentDocEditor
+            label="Правила сезона (категории + ассеты)"
+            doc={form.rules}
+            onChange={(rules) => setForm((f) => ({ ...f, rules }))}
+            disabled={saving}
+          />
+          <ContentDocEditor
+            label="Награды сезона (категории + ассеты)"
+            doc={form.rewards}
+            onChange={(rewards) => setForm((f) => ({ ...f, rewards }))}
+            disabled={saving}
+          />
+
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"

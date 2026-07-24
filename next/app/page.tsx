@@ -102,7 +102,7 @@ export default async function HomePage() {
           <HomeUserMenu />
           <Link
             href="/competitive"
-            className="relative flex h-11 w-full items-center justify-center overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 transition-transform hover:scale-[1.02] active:scale-[0.98] sm:h-12 2xl:h-16 4xl:h-20"
+            className="relative block w-full overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 transition-transform hover:scale-[1.02] active:scale-[0.98]"
             aria-label="Ranked — соревновательный дейлик"
           >
             <Image
@@ -110,7 +110,7 @@ export default async function HomePage() {
               alt="Ranked"
               width={2000}
               height={448}
-              className="h-full w-full object-contain"
+              className="h-auto w-full"
               priority={false}
             />
           </Link>

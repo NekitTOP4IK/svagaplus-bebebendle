@@ -29,9 +29,15 @@ export function CtaRow({ hub }: Props): ReactElement {
   const placeText =
     hub.me.place != null ? `#${hub.me.place}` : "—";
   const dailyTimer = showDailyCountdown(hub);
+  // Hide daily slot entirely before season start (and when there is no season).
+  const showDailySlot =
+    hub.season?.status === "active" || hub.season?.status === "ended";
 
   return (
-    <section className="c-cta-strip c-panel" aria-label="Действия режима">
+    <section
+      className={`c-cta-strip c-panel${showDailySlot ? "" : " c-cta-strip--no-daily"}`}
+      aria-label="Действия режима"
+    >
       <div className="c-cta-slot c-cta-slot--info">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -49,36 +55,36 @@ export function CtaRow({ hub }: Props): ReactElement {
 
       {renderCenter(hub)}
 
-      <div className="c-cta-slot c-cta-slot--info">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          className="c-pixel-icon c-pixel-icon--lg"
-          src={COMPETITIVE_ICONS.clock}
-          alt=""
-          width={32}
-          height={32}
-        />
-        <span>
-          <small>{dailyTimer ? "До дейлика" : "Дейлик"}</small>
-          <b>
-            {dailyTimer ? (
-              <HubCountdownRefresh
-                targetIso={hub.countdowns.nextDailyAt}
-                mode="hms"
-                fallback="00:00:00"
-              />
-            ) : hub.season?.status === "countdown" ? (
-              "после старта"
-            ) : hub.season?.status === "ended" ? (
-              "сезон закрыт"
-            ) : hub.season?.status === "active" ? (
-              "сезон скоро закончится"
-            ) : (
-              "—"
-            )}
-          </b>
-        </span>
-      </div>
+      {showDailySlot ? (
+        <div className="c-cta-slot c-cta-slot--info">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="c-pixel-icon c-pixel-icon--lg"
+            src={COMPETITIVE_ICONS.cake}
+            alt=""
+            width={32}
+            height={32}
+          />
+          <span>
+            <small>{dailyTimer ? "До дейлика" : "Дейлик"}</small>
+            <b>
+              {dailyTimer ? (
+                <HubCountdownRefresh
+                  targetIso={hub.countdowns.nextDailyAt}
+                  mode="hms"
+                  fallback="00:00:00"
+                />
+              ) : hub.season?.status === "ended" ? (
+                "сезон закрыт"
+              ) : hub.season?.status === "active" ? (
+                "сезон скоро закончится"
+              ) : (
+                "—"
+              )}
+            </b>
+          </span>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -98,7 +104,13 @@ function renderCenter(hub: HubPayload): ReactElement {
     return (
       <div className="c-cta-center c-cta-center--neutral" role="status">
         <span>
-          <small style={{ display: "block", marginBottom: 6, font: "9px var(--c-pixel)" }}>
+          <small
+            style={{
+              display: "block",
+              marginBottom: 6,
+              font: "11px var(--c-pixel)",
+            }}
+          >
             Сезон начнётся
           </small>
           <b>

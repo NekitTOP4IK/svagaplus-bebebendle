@@ -452,12 +452,13 @@
 .c-count-row small {
   display: block;
   margin-bottom: 6px;
-  font: 9px var(--c-pixel);
+  /* Slightly larger labels (was 9px) — keep pixel, don't dominate timers */
+  font: 11px/1.25 var(--c-pixel);
   color: #eeeaf0;
 }
 
 .c-count-row strong {
-  font: 13px var(--c-pixel);
+  font: 14px var(--c-pixel);
   color: var(--c-gold);
   text-shadow: 2px 2px #5a4100;
 }
@@ -497,13 +498,18 @@
 .c-cta-slot--info small {
   display: block;
   margin-bottom: 6px;
-  font: 9px var(--c-pixel);
+  font: 11px/1.25 var(--c-pixel);
   color: #d6d1dc;
 }
 
 .c-cta-slot--info b {
-  font: 12px var(--c-pixel);
+  font: 13px var(--c-pixel);
   color: var(--c-white);
+}
+
+/* Two-column CTA when daily timer slot is hidden (pre-season). */
+.c-cta-strip.c-cta-strip--no-daily {
+  grid-template-columns: 1fr 1.6fr;
 }
 
 .c-cta-slot--info b.c-gold {

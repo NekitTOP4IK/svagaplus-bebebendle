@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactElement } from "react";
+import Image from "next/image";
 
 /** Pixel-style horizontal rule with «ИЛИ» between Telegram and Twitch. */
 export function AuthOrDivider(): ReactElement {
@@ -49,7 +50,7 @@ export function TwitchAuthButton({
         disabled={busy}
         className={
           className ||
-          "pixel-btn pixel-btn-twitch inline-flex min-h-11 w-full items-center justify-center px-6 py-2 text-sm font-bold disabled:cursor-wait"
+          "pixel-btn pixel-btn-twitch inline-flex min-h-11 w-full items-center justify-center gap-2 px-6 py-2 text-sm font-bold disabled:cursor-wait"
         }
         onClick={() => {
           if (busy) return;
@@ -58,6 +59,15 @@ export function TwitchAuthButton({
           window.location.assign(href);
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element -- tiny static public asset */}
+        <Image
+          src="/twitch-icon.webp"
+          alt=""
+          width={20}
+          height={20}
+          className={`h-5 w-5 shrink-0 ${busy ? "opacity-70" : ""}`}
+          aria-hidden
+        />
         {busy ? "Авторизовываемся…" : "Войти через Twitch"}
       </button>
       {hint ? (
