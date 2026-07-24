@@ -1,6 +1,7 @@
 import { db, scrans, dailyScrandles } from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { publicScran } from "@/lib/daily-integrity";
 import { todayMskDate } from "@/lib/daily-timezone";
 
 export async function GET(request: Request) {
@@ -45,21 +46,11 @@ export async function GET(request: Request) {
       }
 
       // Do not expose vote counts in public daily — spoils correct answer
-      const mapScran = (s: typeof scranA) => ({
-        id: s.id,
-        imageUrl: s.imageUrl,
-        name: s.name,
-        description: s.description,
-        price: s.price,
-        icon: s.icon ?? "Cooked_Cod.png",
-        isSubscriberAtSubmit: s.isSubscriberAtSubmit ?? null,
-      });
-
       return {
         roundNumber: round.roundNumber,
         scrandleId: round.id,
-        scranA: mapScran(scranA),
-        scranB: mapScran(scranB),
+        scranA: publicScran(scranA),
+        scranB: publicScran(scranB),
       };
     });
 
