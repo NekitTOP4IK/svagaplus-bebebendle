@@ -22,8 +22,8 @@ type Props = Readonly<{
   /** Nick color/glow by role (default true). Set false for plain white nick. */
   nickGlow?: boolean;
   /**
-   * Pixel font for the nick (profile / competitive self).
-   * Default false keeps home menu readable with sans mixed-case.
+   * Pixel font for the nick. Default true (home / profile / competitive self).
+   * Pass false only if a surface needs system sans for dense mixed-case lists.
    */
   pixelFont?: boolean;
 }>;
@@ -41,7 +41,7 @@ export function UserIdentity({
   meta,
   showMetaSuffix = true,
   nickGlow = true,
-  pixelFont = false,
+  pixelFont = true,
 }: Props): ReactElement {
   const tone = resolveIdentityTone(role, isSubscriber);
   const nickTone = nickGlow ? tone : "default";
@@ -53,7 +53,9 @@ export function UserIdentity({
     size === "lg"
       ? "h-5 w-5 sm:h-6 sm:w-6"
       : "h-4 w-4 sm:h-[1.15rem] sm:w-[1.15rem]";
-  const nickFontClass = pixelFont ? "user-nick-text--pixel" : "";
+  const nickFontClass = pixelFont
+    ? "user-nick-text--pixel"
+    : "user-nick-text--sans";
 
   return (
     <div className={`min-w-0 ${className}`}>

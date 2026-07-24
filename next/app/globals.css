@@ -208,17 +208,23 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
     color: #fff;
-    /* Readable mixed-case (NekitTOP4IK); pixel font hides case at small sizes */
-    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Default nick surface: pixel (matches site chrome). Opt out via sans class. */
+    font-family: var(--font-pixel), monospace;
     font-weight: 700;
     letter-spacing: 0.01em;
     text-transform: none;
     font-variant: normal;
 }
 
-/* Profile header + competitive self — intentional pixel nick */
-.user-nick-text--pixel {
-    font-family: var(--font-pixel), monospace;
+/* Explicit pixel (also used when pixelFont prop is true) */
+.user-nick-text--pixel,
+.user-nick-glow .user-nick-text--pixel {
+    font-family: var(--font-pixel), monospace !important;
+}
+
+/* Opt-out for dense lists if ever needed */
+.user-nick-text--sans {
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .user-nick-glow--subscriber {

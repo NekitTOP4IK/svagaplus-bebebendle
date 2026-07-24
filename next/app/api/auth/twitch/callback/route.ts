@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/app/api/middleware/rateLimit";
 import { db, users } from "@/db/schema";
+import { getPublicSiteOrigin } from "@/lib/config";
 import { setSessionCookies } from "@/lib/session-cookies";
 import { createSessionManager } from "@/lib/session-manager";
 import { sessionRepository } from "@/lib/session-repository";
@@ -19,7 +20,9 @@ function profileRedirect(
   request: Request,
   params?: Record<string, string>,
 ): NextResponse {
-  const url = new URL("/profile", request.url);
+  // Use public origin (APP_URL / NEXT_PUBLIC_*), not request.url — behind nginx
+  // Next often sees http://localhost:3000 and would bounce users there.
+  const url = new URL("/profile", `${getPublicSiteOrigin(request)}/`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value) url.searchParams.set(key, value);
