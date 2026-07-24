@@ -25,8 +25,7 @@ export function LeaderboardCard({
   return (
     <article className="c-leaderboard-card c-panel">
       <header className="c-panel-heading">
-        <h3>Лидерборд</h3>
-        <span>Топ 50 live</span>
+        <h3>Таблица лидеров</h3>
       </header>
       {top.length === 0 ? (
         <p className="c-empty-board">{emptyText}</p>

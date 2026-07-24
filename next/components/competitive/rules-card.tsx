@@ -29,24 +29,25 @@ function ContentBody({
     return <p className="text-white/70">{emptyHint}</p>;
   }
   return (
-    <div className="c-content-blocks space-y-5">
+    <div className="c-content-blocks">
       {doc.blocks.map((block) => (
-        <section key={block.id} className="c-content-block">
-          <h5 className="pixel-text mb-2 text-sm font-bold text-amber-100">
-            {block.title}
-          </h5>
-          {block.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={block.imageUrl}
-              alt=""
-              className="mb-2 max-h-40 w-full object-contain"
-            />
-          ) : null}
+        <section
+          key={block.id}
+          className={`c-content-block${block.imageUrl ? " c-content-block--with-media" : ""}`}
+        >
+          <div className="c-content-block__head">
+            <h5 className="c-content-block__title">{block.title}</h5>
+            {block.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={block.imageUrl}
+                alt=""
+                className="c-content-block__media"
+              />
+            ) : null}
+          </div>
           {block.body ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/85">
-              {block.body}
-            </p>
+            <p className="c-content-block__body">{block.body}</p>
           ) : null}
         </section>
       ))}
@@ -60,6 +61,10 @@ function ContentBody({
 export function RulesCard({ modeRules, seasonRules }: Props): ReactElement {
   const [open, setOpen] = useState<ModalKind>(null);
   const titleId = useId();
+  const activeDoc = open === "mode" ? modeRules : open === "season" ? seasonRules : null;
+  const modalHasMedia = Boolean(
+    activeDoc?.blocks.some((b) => Boolean(b.imageUrl)),
+  );
 
   const close = useCallback(() => setOpen(null), []);
 
@@ -166,12 +171,12 @@ export function RulesCard({ modeRules, seasonRules }: Props): ReactElement {
                 {open === "mode" ? (
                   <ContentBody
                     doc={modeRules}
-                    emptyHint="Правила режима пока не заполнены. Админ может добавить их в панели Competitive → Настройки."
+                    emptyHint="Ждём, пока администратор огласит правила режима"
                   />
                 ) : (
                   <ContentBody
                     doc={seasonRules}
-                    emptyHint="Правила сезона пока не заполнены. Админ редактирует их в карточке сезона."
+                    emptyHint="Ждём, пока администратор огласит правила сезона"
                   />
                 )}
               </div>

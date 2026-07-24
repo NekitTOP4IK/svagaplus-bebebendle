@@ -28,24 +28,25 @@ export function RewardsCard({ rewards }: Props): ReactElement {
           </p>
         </div>
       ) : (
-        <div className="c-content-blocks space-y-4 px-1 py-1">
+        <div className="c-content-blocks px-1 py-1">
           {blocks.map((block) => (
-            <section key={block.id} className="c-content-block text-left">
-              <h4 className="pixel-text mb-1 text-xs font-bold text-amber-100">
-                {block.title}
-              </h4>
-              {block.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={block.imageUrl}
-                  alt=""
-                  className="mb-2 max-h-28 w-full object-contain"
-                />
-              ) : null}
+            <section
+              key={block.id}
+              className={`c-content-block text-left${block.imageUrl ? " c-content-block--with-media" : ""}`}
+            >
+              <div className="c-content-block__head">
+                <h4 className="c-content-block__title">{block.title}</h4>
+                {block.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={block.imageUrl}
+                    alt=""
+                    className="c-content-block__media"
+                  />
+                ) : null}
+              </div>
               {block.body ? (
-                <p className="whitespace-pre-wrap text-xs leading-relaxed text-white/80">
-                  {block.body}
-                </p>
+                <p className="c-content-block__body">{block.body}</p>
               ) : null}
             </section>
           ))}

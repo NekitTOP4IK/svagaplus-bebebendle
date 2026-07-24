@@ -914,13 +914,76 @@
 }
 
 .c-faq-modal {
-  width: min(420px, 100%);
+  /* Grow with content, cap height; body scrolls beyond max */
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 100%);
+  max-height: min(85vh, 640px);
   border: 3px solid #050507;
   outline: 2px solid #6b4a8a;
   background: linear-gradient(160deg, #1e1628, #0c0a12);
   box-shadow: 6px 6px 0 #000, 0 0 24px rgba(160, 60, 220, 0.25);
   color: var(--c-white);
   will-change: transform, opacity;
+  overflow: hidden;
+}
+
+/* Wider sheet when rule categories include images beside titles */
+.c-faq-modal--wide {
+  width: min(640px, 100%);
+  max-height: min(88vh, 720px);
+}
+
+.c-content-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.c-content-block__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.c-content-block__title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 12px/1.35 var(--font-pixel), monospace;
+  font-weight: 700;
+  color: #f5e6a8;
+  text-shadow: 1px 1px 0 #3d2a08;
+}
+
+.c-content-block__media {
+  flex: 0 0 auto;
+  width: 72px;
+  height: 72px;
+  max-width: 28%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  border: 2px solid #3a3048;
+  background: #0c0910;
+}
+
+.c-content-block--with-media .c-content-block__media {
+  width: 88px;
+  height: 88px;
+}
+
+.c-content-block__body {
+  margin: 0.55rem 0 0;
+  white-space: pre-wrap;
+  font: 11px/1.55 var(--font-pixel), monospace;
+  color: #d5cce0;
+}
+
+.c-faq-modal--wide .c-content-block__media {
+  width: 104px;
+  height: 104px;
+  max-width: 34%;
 }
 
 .c-faq-modal__head {
@@ -928,6 +991,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-shrink: 0;
   padding: 12px 14px;
   border-bottom: 2px solid #3a3048;
 }
@@ -940,9 +1004,15 @@
 }
 
 .c-faq-modal__body {
+  flex: 1 1 auto;
+  min-height: 0; /* allow flex child to scroll */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 14px 16px;
   font: 11px/1.55 var(--font-pixel), monospace;
   color: #d5cce0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .c-faq-modal__body p {
@@ -952,7 +1022,9 @@
 .c-faq-modal__foot {
   display: flex;
   justify-content: flex-end;
+  flex-shrink: 0;
   padding: 10px 14px 14px;
+  border-top: 1px solid #3a3048;
 }
 
 .c-rewards-card h3 {
