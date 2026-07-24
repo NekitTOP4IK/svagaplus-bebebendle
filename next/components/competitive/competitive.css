@@ -116,6 +116,7 @@
 }
 
 .c-profile-identity .user-nick-text {
+  font-family: var(--font-pixel), monospace;
   max-width: min(260px, 40vw);
   text-transform: none;
   font-variant: normal;
@@ -287,6 +288,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 160px;
+}
+
+/* Topbar «Итоги: {name}» under home when countdown + previous ended */
+.c-results-cta {
+  justify-self: end;
+  max-width: 225px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .c-end-gem {
@@ -744,7 +754,7 @@
 
 /*
  * Nicks: preserve typed case (NekitTOP4IK, Warfloer).
- * Pixel font at small sizes looks almost all-caps — use readable sans for labels.
+ * Others: readable sans. Current user row (c-row-me): pixel to match self chrome.
  */
 .c-table td:nth-child(2),
 .c-nick {
@@ -754,6 +764,12 @@
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.01em;
+}
+
+.c-row-me .c-nick,
+.c-table tbody tr.c-row-me td:nth-child(2) {
+  font-family: var(--font-pixel), monospace;
+  font-weight: 400;
 }
 
 .c-table th:first-child,
@@ -979,6 +995,145 @@
   font-weight: 400;
 }
 
+/* ---- Season archive (player) ---- */
+
+.c-archive {
+  margin-top: 18px;
+  padding: 18px 16px 22px;
+}
+
+.c-archive-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.c-archive-heading h2 {
+  margin: 0;
+  font: 22px/1.15 var(--c-display);
+  color: var(--c-white);
+  letter-spacing: 0.02em;
+}
+
+.c-archive-sub {
+  margin: 8px 0 0;
+  font: 10px/1.5 var(--c-pixel);
+  color: var(--c-muted);
+}
+
+.c-archive-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.c-archive-me {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 2px solid #050507;
+  outline: 1px solid #45404b;
+  background: rgba(7, 7, 11, 0.72);
+  font: 11px var(--c-pixel);
+  color: var(--c-white);
+}
+
+.c-archive-me .c-gold {
+  color: var(--c-gold);
+}
+
+.c-archive-me-empty {
+  margin-bottom: 12px;
+}
+
+.c-season-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.c-season-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 2px solid #050507;
+  outline: 1px solid #45404b;
+  background:
+    linear-gradient(135deg, rgba(28, 18, 42, 0.92), rgba(8, 6, 14, 0.94));
+  box-shadow:
+    inset 0 0 18px rgba(117, 25, 171, 0.12),
+    3px 3px 0 rgba(0, 0, 0, 0.75);
+  transition:
+    outline-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.c-season-card:hover {
+  outline-color: #7d5a9a;
+  box-shadow:
+    inset 0 0 22px rgba(117, 25, 171, 0.2),
+    3px 3px 0 rgba(0, 0, 0, 0.75),
+    0 0 14px rgba(209, 76, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+/* Optional theme accents — safe fallback if themeKey unknown */
+.c-season-card--void {
+  box-shadow:
+    inset 0 0 22px rgba(80, 40, 160, 0.28),
+    3px 3px 0 rgba(0, 0, 0, 0.75);
+}
+
+.c-season-card--gold {
+  outline-color: rgba(255, 210, 45, 0.35);
+  box-shadow:
+    inset 0 0 18px rgba(255, 210, 45, 0.1),
+    3px 3px 0 rgba(0, 0, 0, 0.75);
+}
+
+.c-season-card--ember {
+  outline-color: rgba(255, 90, 60, 0.35);
+  box-shadow:
+    inset 0 0 18px rgba(255, 80, 40, 0.12),
+    3px 3px 0 rgba(0, 0, 0, 0.75);
+}
+
+.c-season-card__name {
+  font: 16px/1.2 var(--c-display);
+  color: var(--c-white);
+  letter-spacing: 0.02em;
+}
+
+.c-season-card__dates {
+  font: 10px var(--c-pixel);
+  color: var(--c-muted);
+}
+
+.c-season-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.c-season-card__place {
+  font: 10px var(--c-pixel);
+  color: var(--c-gold);
+}
+
+.c-season-card__place--muted {
+  color: var(--c-muted);
+}
+
 /* ---- Disabled / empty states ---- */
 
 .c-disabled-box {
@@ -1119,6 +1274,26 @@
     grid-column: 1 / -1;
     width: 100%;
     justify-self: stretch;
+  }
+
+  .c-results-cta {
+    max-width: none;
+    justify-self: stretch;
+    text-align: center;
+  }
+
+  .c-archive-heading {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .c-archive-nav {
+    justify-content: stretch;
+  }
+
+  .c-archive-nav a {
+    flex: 1;
+    text-align: center;
   }
 
   .c-season-hero {

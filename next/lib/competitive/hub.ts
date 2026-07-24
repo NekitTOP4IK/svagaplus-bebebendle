@@ -21,7 +21,13 @@ import {
 import { leaderboardLabel } from "./display-name";
 import { isCompetitiveEnabled } from "./feature";
 import { getUserResult } from "./play";
-import { getVisibleSeason, type Season, type SeasonStatus } from "./seasons";
+import {
+  ensureSeasonTransitions,
+  getLatestEndedSeason,
+  getVisibleSeason,
+  type Season,
+  type SeasonStatus,
+} from "./seasons";
 
 const TOP_LIMIT = 50;
 
@@ -59,6 +65,11 @@ export type HubMe = Readonly<{
   competitiveDisplayName: string | null;
 }>;
 
+export type HubPreviousEndedSeason = Readonly<{
+  id: number;
+  name: string;
+}>;
+
 export type HubPayload = Readonly<{
   enabled: boolean;
   season: HubSeasonSummary | null;
@@ -73,6 +84,11 @@ export type HubPayload = Readonly<{
     seasonEndsAt: string | null;
     nextDailyAt: string;
   }>;
+  /**
+   * When visible season is countdown and an ended season exists,
+   * the latest ended season for topbar «Итоги» CTA.
+   */
+  previousEndedSeason: HubPreviousEndedSeason | null;
 }>;
 
 // ---------------------------------------------------------------------------
@@ -203,6 +219,8 @@ export async function getHubPayload(
   userId: number,
   now: Date = new Date(),
 ): Promise<HubPayload> {
+  await ensureSeasonTransitions(now);
+
   const enabled = await isCompetitiveEnabled();
   const today = todayMskDate(now);
   const nextDailyAt = nextMidnightMsk(now).toISOString();
@@ -236,10 +254,19 @@ export async function getHubPayload(
         seasonEndsAt: null,
         nextDailyAt,
       },
+      previousEndedSeason: null,
     };
   }
 
   const season = await getVisibleSeason(now);
+
+  let previousEndedSeason: HubPreviousEndedSeason | null = null;
+  if (season?.status === "countdown") {
+    const ended = await getLatestEndedSeason();
+    if (ended) {
+      previousEndedSeason = { id: ended.id, name: ended.name };
+    }
+  }
 
   const [dailyRow] = await db
     .select({ id: competitiveDailies.id })
@@ -279,6 +306,7 @@ export async function getHubPayload(
         seasonEndsAt: null,
         nextDailyAt,
       },
+      previousEndedSeason: null,
     };
   }
 
@@ -370,5 +398,6 @@ export async function getHubPayload(
       seasonEndsAt: season.endsAt.toISOString(),
       nextDailyAt,
     },
+    previousEndedSeason,
   };
 }

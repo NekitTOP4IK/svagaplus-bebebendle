@@ -1,7 +1,10 @@
 import type { ReactElement, ReactNode } from "react";
 import Link from "next/link";
 import type { CurrentUser } from "@/lib/auth-server";
-import type { HubSeasonSummary } from "@/lib/competitive/hub";
+import type {
+  HubPreviousEndedSeason,
+  HubSeasonSummary,
+} from "@/lib/competitive/hub";
 import { COMPETITIVE_ICONS } from "@/lib/competitive/icons";
 import { UserIdentity } from "@/components/user-identity";
 import { resolveIdentityTone } from "@/lib/user-identity";
@@ -11,6 +14,8 @@ type Props = Readonly<{
   user: CurrentUser;
   season: HubSeasonSummary | null;
   nextDailyAt?: string | null;
+  /** When countdown + prior ended season: show «Итоги» CTA, hide mini. */
+  previousEndedSeason?: HubPreviousEndedSeason | null;
   children: ReactNode;
 }>;
 
@@ -61,6 +66,7 @@ function seasonMiniStatus(season: HubSeasonSummary | null): {
 export function CompetitiveShell({
   user,
   season,
+  previousEndedSeason = null,
   children,
 }: Props): ReactElement {
   const rawTg = user.telegramUsername?.trim().replace(/^@+/, "") || null;
@@ -73,6 +79,8 @@ export function CompetitiveShell({
   const mini = seasonMiniStatus(season);
   const tone = resolveIdentityTone(user.role, user.isSubscriber);
   const avatarClass = tone === "default" ? "" : `user-avatar--${tone}`;
+  const showResultsCta =
+    season?.status === "countdown" && previousEndedSeason != null;
 
   return (
     <div className="c-hub">
@@ -111,6 +119,7 @@ export function CompetitiveShell({
               meta="Авторизован"
               showMetaSuffix={false}
               nickGlow
+              pixelFont
             />
           </Link>
 
@@ -132,20 +141,30 @@ export function CompetitiveShell({
             >
               ← На главную
             </Link>
-            <div className="c-season-mini">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="c-season-mini-pearl"
-                src={COMPETITIVE_ICONS.pearl}
-                alt=""
-                width={36}
-                height={36}
-              />
-              <span>
-                <b className={mini.className || undefined}>{mini.label}</b>
-                <small title={mini.name}>{mini.name}</small>
-              </span>
-            </div>
+            {showResultsCta && previousEndedSeason ? (
+              <Link
+                href={`/competitive/seasons/${previousEndedSeason.id}`}
+                className="pixel-btn pixel-btn-warn c-results-cta px-3 py-1.5 text-xs font-bold sm:text-sm"
+                title={`Итоги: ${previousEndedSeason.name}`}
+              >
+                Итоги: {previousEndedSeason.name}
+              </Link>
+            ) : (
+              <div className="c-season-mini">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="c-season-mini-pearl"
+                  src={COMPETITIVE_ICONS.pearl}
+                  alt=""
+                  width={36}
+                  height={36}
+                />
+                <span>
+                  <b className={mini.className || undefined}>{mini.label}</b>
+                  <small title={mini.name}>{mini.name}</small>
+                </span>
+              </div>
+            )}
           </nav>
         </header>
 
