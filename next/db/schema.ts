@@ -293,6 +293,20 @@ export const competitiveStreakFreezes = pgTable("competitive_streak_freezes", {
   pk: primaryKey({ columns: [table.seasonId, table.userId] }),
 }));
 
+/**
+ * Per-user competitive UX flags (onboarding modals). Server-side so admin can reset.
+ */
+export const competitiveUserPrefs = pgTable("competitive_user_prefs", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Ranked welcome / intro modal dismissed. */
+  introDismissed: boolean("intro_dismissed").notNull().default(false),
+  /** First-visit nick prompt dismissed (or completed). */
+  nickPromptDismissed: boolean("nick_prompt_dismissed").notNull().default(false),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 /** Frozen final ranks when a season ends (rewards / history). */
 export const competitiveSeasonFinalRanks = pgTable("competitive_season_final_ranks", {
   seasonId: integer("season_id").notNull().references(() => competitiveSeasons.id, { onDelete: "cascade" }),
@@ -325,4 +339,5 @@ export type CompetitiveVote = typeof competitiveVotes.$inferSelect;
 export type CompetitiveResult = typeof competitiveResults.$inferSelect;
 export type CompetitiveStanding = typeof competitiveStandings.$inferSelect;
 export type CompetitiveStreakFreeze = typeof competitiveStreakFreezes.$inferSelect;
+export type CompetitiveUserPrefs = typeof competitiveUserPrefs.$inferSelect;
 export type CompetitiveSeasonFinalRank = typeof competitiveSeasonFinalRanks.$inferSelect;

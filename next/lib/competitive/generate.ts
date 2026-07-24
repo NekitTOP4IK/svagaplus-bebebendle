@@ -230,9 +230,13 @@ export function selectCompetitivePairs(input: {
 /**
  * Generate a competitive daily for an MSK calendar date.
  *
- * Steps: feature flag → playable season → uniqueness → sync cooldown snapshots →
- * load enabled pool (original votes ≥ 15) → select pairs → insert daily+rounds
- * with frozen snapshot likes/dislikes → update last_used_date.
+ * Steps: feature flag → **playable (active) season only** → uniqueness →
+ * sync cooldown snapshots → load enabled pool → select pairs → insert.
+ *
+ * Does **not** generate while the season is `countdown` / `draft` / `ended`:
+ * `getPlayableSeason` requires status=`active` and now ∈ [startsAt, endsAt).
+ * Cron runs transitions first, then generate — so day-0 of a season works
+ * only after countdown → active.
  */
 export async function generateCompetitiveDaily(
   dateMsk: string,
@@ -245,11 +249,21 @@ export async function generateCompetitiveDaily(
     };
   }
 
+  // Active + in-window only — never countdown (or draft/ended).
   const season = await getPlayableSeason();
   if (!season) {
     return {
       ok: false,
       error: "No playable competitive season",
+      status: 400,
+    };
+  }
+
+  // Defense in depth: playable query already filters status, but fail loud if mismatched.
+  if (season.status !== "active") {
+    return {
+      ok: false,
+      error: "Season is not active (no daily during countdown/draft/ended)",
       status: 400,
     };
   }

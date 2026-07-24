@@ -191,6 +191,8 @@ export function CompetitivePanel(): ReactElement {
   return (
     <div className="space-y-6">
       <SettingsSection />
+      <IntroSection />
+      <DebugSection />
       <SeasonsSection />
       <PoolSection />
       <DailySection />
@@ -342,6 +344,343 @@ function SettingsSection(): ReactElement {
       >
         {rulesSaving ? "Сохранение…" : "Сохранить правила режима"}
       </button>
+    </section>
+  );
+}
+
+// ── Intro modal ────────────────────────────────────────────────────────────
+
+function IntroSection(): ReactElement {
+  const [enabled, setEnabled] = useState(false);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await apiFetch("/api/admin/competitive/intro");
+      if (res.status === 401) {
+        setError("Нужна авторизация администратора");
+        return;
+      }
+      if (!res.ok) {
+        setError(await readError(res));
+        return;
+      }
+      const json = (await res.json()) as {
+        intro: { enabled: boolean; title: string; body: string };
+      };
+      setEnabled(json.intro.enabled);
+      setTitle(json.intro.title);
+      setBody(json.intro.body);
+    } catch {
+      setError("Ошибка сети");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function save() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await apiFetch("/api/admin/competitive/intro", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          intro: { enabled, title, body },
+        }),
+      });
+      if (!res.ok) {
+        toast.error(await readError(res));
+        return;
+      }
+      const json = (await res.json()) as {
+        intro: { enabled: boolean; title: string; body: string };
+      };
+      setEnabled(json.intro.enabled);
+      setTitle(json.intro.title);
+      setBody(json.intro.body);
+      toast.success("Intro-модалка сохранена");
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="pixel-container space-y-3 border-4 border-black bg-zinc-900/80 p-4">
+      <div>
+        <h2 className="pixel-text text-xl font-bold text-white">
+          Intro-модалка Ranked
+        </h2>
+        <p className="text-sm text-white/60">
+          Показывается один раз при первом заходе (после псевдонима, если он
+          спрашивался). Markdown. Сброс — в «Отладка аккаунта».
+        </p>
+      </div>
+      {error && <ErrorBox message={error} />}
+      {loading ? (
+        <p className="text-white/50">Загрузка…</p>
+      ) : (
+        <>
+          <label className="flex items-center gap-3 border-2 border-zinc-700 bg-zinc-950 p-3">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <span className="text-sm font-bold text-white">
+              Показывать intro-модалку
+            </span>
+          </label>
+          <label className="block text-xs text-white/50">
+            Заголовок
+            <input
+              type="text"
+              value={title}
+              maxLength={120}
+              onChange={(e) => setTitle(e.target.value)}
+              className="pixel-input mt-1 block w-full"
+              disabled={saving}
+            />
+          </label>
+          <label className="block text-xs text-white/50">
+            Текст (Markdown)
+            <textarea
+              value={body}
+              maxLength={4000}
+              rows={8}
+              onChange={(e) => setBody(e.target.value)}
+              className="pixel-input mt-1 block w-full font-mono text-sm"
+              disabled={saving}
+              placeholder="Текст приветствия…"
+            />
+          </label>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void save()}
+            className="pixel-btn pixel-btn-ok px-4 py-2 text-sm font-bold"
+          >
+            {saving ? "Сохранение…" : "Сохранить intro"}
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
+// ── Account debug ──────────────────────────────────────────────────────────
+
+function DebugSection(): ReactElement {
+  const [query, setQuery] = useState("");
+  const [mode, setMode] = useState<"userId" | "telegramId">("telegramId");
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [snapshot, setSnapshot] = useState<{
+    user: {
+      id: number;
+      telegramId: number;
+      telegramUsername: string | null;
+      competitiveDisplayName: string | null;
+    };
+    prefs: { introDismissed: boolean; nickPromptDismissed: boolean };
+    freezesUsed: number;
+    resultsCount: number;
+    standingsCount: number;
+  } | null>(null);
+  const [flags, setFlags] = useState({
+    resetModals: true,
+    resetFreeze: true,
+    resetNick: false,
+    resetStandings: false,
+    resetResults: false,
+  });
+
+  async function lookup() {
+    const q = query.trim();
+    if (!q) {
+      toast.error("Введи ID");
+      return;
+    }
+    setLoading(true);
+    setSnapshot(null);
+    try {
+      const param = mode === "userId" ? "userId" : "telegramId";
+      const res = await apiFetch(
+        `/api/admin/competitive/debug?${param}=${encodeURIComponent(q)}`,
+      );
+      if (!res.ok) {
+        toast.error(await readError(res));
+        return;
+      }
+      setSnapshot(await res.json());
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function reset() {
+    if (!snapshot || busy) return;
+    if (!Object.values(flags).some(Boolean)) {
+      toast.error("Выбери хотя бы один пункт");
+      return;
+    }
+    if (
+      flags.resetResults &&
+      !window.confirm(
+        "Удалить ВСЕ competitive results? Стрик и дневные очки обнулятся.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await apiFetch("/api/admin/competitive/debug", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: snapshot.user.id,
+          ...flags,
+        }),
+      });
+      if (!res.ok) {
+        toast.error(await readError(res));
+        return;
+      }
+      const json = (await res.json()) as { done: string[] };
+      toast.success(`Сброшено: ${json.done.join(", ")}`);
+      await lookup();
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="pixel-container space-y-3 border-4 border-black bg-zinc-900/80 p-4">
+      <div>
+        <h2 className="pixel-text text-xl font-bold text-white">
+          Отладка аккаунта
+        </h2>
+        <p className="text-sm text-white/60">
+          Сброс модалок, заморозки, псевдонима, standings / results.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="block text-xs text-white/50">
+          Искать по
+          <select
+            value={mode}
+            onChange={(e) =>
+              setMode(e.target.value as "userId" | "telegramId")
+            }
+            className="pixel-input mt-1 block min-w-[10rem]"
+          >
+            <option value="telegramId">Telegram ID</option>
+            <option value="userId">User ID</option>
+          </select>
+        </label>
+        <label className="block min-w-[12rem] flex-1 text-xs text-white/50">
+          ID
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="pixel-input mt-1 block w-full"
+            placeholder={mode === "telegramId" ? "123456789" : "42"}
+          />
+        </label>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => void lookup()}
+          className="pixel-btn px-4 py-2 text-sm font-bold"
+        >
+          {loading ? "…" : "Найти"}
+        </button>
+      </div>
+
+      {snapshot ? (
+        <div className="space-y-3 border-2 border-zinc-700 bg-zinc-950 p-3 text-sm text-white/80">
+          <p>
+            <span className="text-white/50">user </span>#{snapshot.user.id}
+            {" · "}
+            <span className="text-white/50">tg </span>
+            {snapshot.user.telegramId}
+            {snapshot.user.telegramUsername
+              ? ` (@${snapshot.user.telegramUsername})`
+              : ""}
+          </p>
+          <p>
+            nick:{" "}
+            <span className="text-amber-200">
+              {snapshot.user.competitiveDisplayName || "—"}
+            </span>
+            {" · "}
+            intro dismissed: {String(snapshot.prefs.introDismissed)}
+            {" · "}
+            nick prompt dismissed: {String(snapshot.prefs.nickPromptDismissed)}
+          </p>
+          <p>
+            freezes used: {snapshot.freezesUsed}
+            {" · "}
+            results: {snapshot.resultsCount}
+            {" · "}
+            standings: {snapshot.standingsCount}
+          </p>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ["resetModals", "Модалки (intro + nick prompt)"],
+                ["resetFreeze", "Заморозка (все сезоны)"],
+                ["resetNick", "Псевдоним Ranked"],
+                ["resetStandings", "Standings (очки сезонов)"],
+                ["resetResults", "Results (стрик + дни) ⚠"],
+              ] as const
+            ).map(([key, label]) => (
+              <label
+                key={key}
+                className="flex items-center gap-2 text-xs text-white/75"
+              >
+                <input
+                  type="checkbox"
+                  checked={flags[key]}
+                  onChange={(e) =>
+                    setFlags((f) => ({ ...f, [key]: e.target.checked }))
+                  }
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void reset()}
+            className="pixel-btn pixel-btn-danger px-4 py-2 text-sm font-bold"
+          >
+            {busy ? "…" : "Сбросить выбранное"}
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }

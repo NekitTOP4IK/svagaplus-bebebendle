@@ -29,6 +29,12 @@ import {
 } from "./content";
 import { leaderboardLabel } from "./display-name";
 import { isCompetitiveEnabled } from "./feature";
+import {
+  introShouldShow,
+  parseCompetitiveIntroFromJsonString,
+  SETTING_COMPETITIVE_INTRO,
+  type CompetitiveIntroConfig,
+} from "./intro";
 import { getUserResult } from "./play";
 import {
   ensureSeasonTransitions,
@@ -37,6 +43,7 @@ import {
   type Season,
   type SeasonStatus,
 } from "./seasons";
+import { getCompetitiveUserPrefs } from "./user-prefs";
 
 const TOP_LIMIT = 50;
 
@@ -83,6 +90,19 @@ export type HubPreviousEndedSeason = Readonly<{
   name: string;
 }>;
 
+/** Onboarding modals payload (nick first, intro last). */
+export type HubOnboarding = Readonly<{
+  nickPromptDismissed: boolean;
+  intro: Readonly<{
+    enabled: boolean;
+    title: string;
+    body: string;
+    dismissed: boolean;
+    /** True when the intro should open after nick (if any). */
+    shouldShow: boolean;
+  }>;
+}>;
+
 export type HubPayload = Readonly<{
   enabled: boolean;
   season: HubSeasonSummary | null;
@@ -108,7 +128,30 @@ export type HubPayload = Readonly<{
   seasonRules: CompetitiveContentDoc;
   /** Season rewards from themeConfig.rewards */
   seasonRewards: CompetitiveContentDoc;
+  onboarding: HubOnboarding;
 }>;
+
+function buildOnboarding(
+  prefs: { introDismissed: boolean; nickPromptDismissed: boolean },
+  introConfig: CompetitiveIntroConfig,
+): HubOnboarding {
+  return {
+    nickPromptDismissed: prefs.nickPromptDismissed,
+    intro: {
+      enabled: introConfig.enabled,
+      title: introConfig.title,
+      body: introConfig.body,
+      dismissed: prefs.introDismissed,
+      shouldShow: introShouldShow(introConfig, prefs.introDismissed),
+    },
+  };
+}
+
+const emptyOnboarding = (): HubOnboarding =>
+  buildOnboarding(
+    { introDismissed: true, nickPromptDismissed: true },
+    parseCompetitiveIntroFromJsonString(null),
+  );
 
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-tested via display-name / hub consumers)
@@ -304,6 +347,10 @@ export async function getHubPayload(
   const modeRulesRaw = await getSetting(SETTING_COMPETITIVE_MODE_RULES, "");
   const modeRules = parseContentDocFromJsonString(modeRulesRaw || null);
   const emptyContent = emptyContentDoc();
+  const introRaw = await getSetting(SETTING_COMPETITIVE_INTRO, "");
+  const introConfig = parseCompetitiveIntroFromJsonString(introRaw || null);
+  const prefs = await getCompetitiveUserPrefs(userId);
+  const onboarding = buildOnboarding(prefs, introConfig);
 
   if (!enabled) {
     return {
@@ -323,6 +370,7 @@ export async function getHubPayload(
       modeRules: emptyContent,
       seasonRules: emptyContent,
       seasonRewards: emptyContent,
+      onboarding: emptyOnboarding(),
     };
   }
 
@@ -377,6 +425,7 @@ export async function getHubPayload(
       modeRules,
       seasonRules: emptyContent,
       seasonRewards: emptyContent,
+      onboarding,
     };
   }
 
@@ -521,5 +570,6 @@ export async function getHubPayload(
     modeRules,
     seasonRules,
     seasonRewards,
+    onboarding,
   };
 }

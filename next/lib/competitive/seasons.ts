@@ -256,6 +256,7 @@ export async function getLatestEndedSeason(): Promise<Season | null> {
 
 /**
  * Season currently open for play: status `active` and now in [startsAt, endsAt).
+ * Countdown / draft / ended → null (no play, no daily generation).
  */
 export async function getPlayableSeason(
   now: Date = new Date(),
@@ -272,6 +273,14 @@ export async function getPlayableSeason(
     )
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Pure: whether a season status allows competitive daily generation / play.
+ * Only `active` — never during countdown.
+ */
+export function isSeasonStatusPlayable(status: string): boolean {
+  return status === "active";
 }
 
 /**
@@ -388,6 +397,9 @@ export async function ensureSeasonTransitions(
 /**
  * Mark season ended and snapshot standings into competitive_season_final_ranks.
  * Ordering: points DESC, daysPlayed DESC, hits DESC, userId ASC.
+ * After snapshot, **clears live standings** for this season so the live table
+ * only holds the current (or next) season — everyone starts the next season at 0.
+ * Archive/history remains in competitive_season_final_ranks.
  * Idempotent if already ended.
  */
 export async function endSeason(seasonId: number): Promise<void> {
@@ -398,6 +410,8 @@ export async function endSeason(seasonId: number): Promise<void> {
   if (season.status === "ended") {
     return;
   }
+
+  let rankCount = 0;
 
   await db.transaction(async (tx) => {
     const standings = await tx
@@ -418,6 +432,8 @@ export async function endSeason(seasonId: number): Promise<void> {
         desc(competitiveStandings.hits),
         asc(competitiveStandings.userId),
       );
+
+    rankCount = standings.length;
 
     // Clear any partial snapshot (should not exist) then write ranks.
     await tx
@@ -442,9 +458,19 @@ export async function endSeason(seasonId: number): Promise<void> {
       );
     }
 
+    // Live board wipe for this season — next season uses a new seasonId and
+    // inserts fresh standings on finalize (starts from zero).
+    await tx
+      .delete(competitiveStandings)
+      .where(eq(competitiveStandings.seasonId, seasonId));
+
     await tx
       .update(competitiveSeasons)
       .set({ status: "ended", updatedAt: new Date() })
       .where(eq(competitiveSeasons.id, seasonId));
   });
+
+  console.log(
+    `[competitive-seasons] ended season=${seasonId} ranks=${rankCount} live standings cleared`,
+  );
 }

@@ -2,7 +2,9 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactElement,
@@ -15,64 +17,72 @@ import {
   validateCompetitiveDisplayName,
 } from "@/lib/competitive/display-name";
 
-const STORAGE_KEY = "competitiveNickPromptDismissed";
+/** Legacy localStorage key — migrated to server prefs when present. */
+const LEGACY_STORAGE_KEY = "competitiveNickPromptDismissed";
 
 type Props = Readonly<{
-  /** Current competitive nick; prompt only if null/empty. */
   competitiveDisplayName: string | null;
+  /** From server competitive_user_prefs. */
+  serverDismissed?: boolean;
+  onFinished?: () => void;
 }>;
 
-function subscribeDismissed(onStoreChange: () => void): () => void {
+function subscribeLegacy(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => undefined;
-  window.addEventListener("storage", onStoreChange);
-  return () => window.removeEventListener("storage", onStoreChange);
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
 }
 
-function getDismissedSnapshot(): boolean {
+function getLegacySnapshot(): boolean {
   try {
-    return Boolean(localStorage.getItem(STORAGE_KEY));
+    return Boolean(localStorage.getItem(LEGACY_STORAGE_KEY));
   } catch {
     return false;
   }
 }
 
-/** SSR: hide prompt (no flash). */
-function getDismissedServerSnapshot(): boolean {
-  return true;
-}
-
-function markDismissedInStorage(): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, "1");
-    // same-tab listeners of useSyncExternalStore only get storage events
-    // from other documents — force a synthetic notify via custom event.
-    window.dispatchEvent(new Event("storage"));
-  } catch {
-    // ignore
-  }
+function getLegacyServerSnapshot(): boolean {
+  return false;
 }
 
 /**
  * First-visit Ranked prompt: optional pseudonym for the leaderboard.
- * Shows once per browser until Save or «Нет, спасибо» (localStorage).
+ * Dismiss state is server-side (admin-resettable).
  */
 export function CompetitiveNickPrompt({
   competitiveDisplayName,
+  serverDismissed = false,
+  onFinished,
 }: Props): ReactElement | null {
   const router = useRouter();
-  const storageDismissed = useSyncExternalStore(
-    subscribeDismissed,
-    getDismissedSnapshot,
-    getDismissedServerSnapshot,
+  const legacyDismissed = useSyncExternalStore(
+    subscribeLegacy,
+    getLegacySnapshot,
+    getLegacyServerSnapshot,
   );
-  /** Same-tab dismiss before storage re-read. */
   const [sessionDismissed, setSessionDismissed] = useState(false);
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const legacySyncedRef = useRef(false);
+
+  // One-shot migrate legacy localStorage → server prefs.
+  useEffect(() => {
+    if (!legacyDismissed || serverDismissed || legacySyncedRef.current) return;
+    legacySyncedRef.current = true;
+    void apiFetch("/api/competitive/prefs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nickPromptDismissed: true }),
+    }).catch(() => undefined);
+  }, [legacyDismissed, serverDismissed]);
 
   const hasNick = Boolean(competitiveDisplayName?.trim());
-  const open = !storageDismissed && !sessionDismissed && !hasNick;
+  const open =
+    !hasNick &&
+    !serverDismissed &&
+    !sessionDismissed &&
+    !legacyDismissed;
 
   const validation = useMemo(
     () => validateCompetitiveDisplayName(value),
@@ -80,10 +90,35 @@ export function CompetitiveNickPrompt({
   );
   const canSave = validation.ok && !saving;
 
-  const dismiss = useCallback(() => {
-    markDismissedInStorage();
+  const finish = useCallback(() => {
     setSessionDismissed(true);
+    onFinished?.();
+  }, [onFinished]);
+
+  const dismissOnServer = useCallback(async () => {
+    try {
+      await apiFetch("/api/competitive/prefs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickPromptDismissed: true }),
+      });
+    } catch {
+      // still finish locally
+    }
+    try {
+      localStorage.setItem(LEGACY_STORAGE_KEY, "1");
+      window.dispatchEvent(new Event("storage"));
+    } catch {
+      // ignore
+    }
   }, []);
+
+  const dismiss = useCallback(async () => {
+    if (saving) return;
+    setSaving(true);
+    await dismissOnServer();
+    finish();
+  }, [saving, dismissOnServer, finish]);
 
   const save = useCallback(async () => {
     if (!validation.ok || saving) return;
@@ -101,23 +136,19 @@ export function CompetitiveNickPrompt({
         setSaving(false);
         return;
       }
-      markDismissedInStorage();
-      setSessionDismissed(true);
+      await dismissOnServer();
+      finish();
       router.refresh();
     } catch {
       setError("Ошибка сети");
       setSaving(false);
     }
-  }, [validation, saving, router]);
+  }, [validation, saving, dismissOnServer, finish, router]);
 
   if (!open) return null;
 
   return (
-    <div
-      className="c-faq-modal-root"
-      role="presentation"
-      // no click-outside dismiss — must choose Save or No thanks
-    >
+    <div className="c-faq-modal-root" role="presentation">
       <div
         className="c-faq-modal c-faq-modal--wide"
         role="dialog"
@@ -164,7 +195,7 @@ export function CompetitiveNickPrompt({
             type="button"
             className="pixel-btn px-4 py-2 text-sm font-bold"
             disabled={saving}
-            onClick={dismiss}
+            onClick={() => void dismiss()}
           >
             Нет, спасибо
           </button>

@@ -1,9 +1,19 @@
 import { describe, it, expect } from "vitest";
 import {
+  isSeasonStatusPlayable,
   shouldActivate,
   shouldEnd,
   snapshotDisplayName,
 } from "@/lib/competitive/seasons";
+
+describe("isSeasonStatusPlayable (daily generation gate)", () => {
+  it("only active is playable — never countdown", () => {
+    expect(isSeasonStatusPlayable("active")).toBe(true);
+    expect(isSeasonStatusPlayable("countdown")).toBe(false);
+    expect(isSeasonStatusPlayable("draft")).toBe(false);
+    expect(isSeasonStatusPlayable("ended")).toBe(false);
+  });
+});
 
 describe("shouldActivate", () => {
   const startsAt = new Date("2026-07-01T00:00:00.000Z");

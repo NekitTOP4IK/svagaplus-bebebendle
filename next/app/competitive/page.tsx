@@ -11,7 +11,7 @@ import { ProgressCard } from "@/components/competitive/progress-card";
 import { LeaderboardCard } from "@/components/competitive/leaderboard-card";
 import { RulesCard } from "@/components/competitive/rules-card";
 import { RewardsCard } from "@/components/competitive/rewards-card";
-import { CompetitiveNickPrompt } from "@/components/competitive/competitive-nick-prompt";
+import { CompetitiveOnboarding } from "@/components/competitive/competitive-onboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -53,8 +53,9 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
       previousEndedSeason={hub.previousEndedSeason}
       nextDailyAt={hub.countdowns.nextDailyAt}
     >
-      <CompetitiveNickPrompt
+      <CompetitiveOnboarding
         competitiveDisplayName={user.competitiveDisplayName}
+        onboarding={hub.onboarding}
       />
       <SeasonHero
         season={hub.season}

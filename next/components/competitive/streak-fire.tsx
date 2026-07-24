@@ -10,53 +10,54 @@ export type StreakTier =
 
 export type FreezeVisual = "hidden" | "ready" | "holding" | "used";
 
-type Props = Readonly<{
+type StreakProps = Readonly<{
   days: number;
-  /**
-   * Freeze crystal next to the fire.
-   * - hidden: no season / N/A
-   * - ready: 1 charge left this season
-   * - holding: currently bridging a miss
-   * - used: already spent this season
-   */
-  freeze?: FreezeVisual;
 }>;
 
 /**
- * Streak display: tiered fire (color/glow) + optional freeze crystal.
+ * Streak display: tiered fire (color/glow). Freeze is a separate row (IceCubeRow).
  * UI-only (no points). Zero streak is dimmed ash.
  */
-export function StreakFire({
-  days,
-  freeze = "hidden",
-}: Props): ReactElement {
+export function StreakFire({ days }: StreakProps): ReactElement {
   const tier = streakTier(days);
   const zero = days <= 0;
-  const holding = freeze === "holding";
 
   return (
     <div
-      className={`c-streak-fire c-streak-fire--${tier}${
-        holding ? " c-streak-fire--holding" : ""
-      }`}
+      className={`c-streak-fire c-streak-fire--${tier}`}
       aria-label={
-        zero
-          ? "Стрик: 0 дней"
-          : `Стрик: ${days} ${daysLabel(days)}${
-              holding ? ", заморозка" : ""
-            }`
+        zero ? "Стрик: 0 дней" : `Стрик: ${days} ${daysLabel(days)}`
       }
     >
       <span className="c-streak-fire__count">{days}</span>
-      <span className="c-streak-fire__icons">
-        <FireIcon className="c-streak-fire__icon" tier={tier} />
-        {freeze !== "hidden" ? (
-          <FreezeIcon
-            className={`c-streak-freeze c-streak-freeze--${freeze}`}
-            used={freeze === "used"}
-          />
-        ) : null}
-      </span>
+      <FireIcon className="c-streak-fire__icon" tier={tier} />
+    </div>
+  );
+}
+
+type IceProps = Readonly<{
+  state: Exclude<FreezeVisual, "hidden">;
+}>;
+
+/**
+ * Ice cube charge for the season — lives under the streak, not glued to the fire.
+ */
+export function IceCubeRow({ state }: IceProps): ReactElement {
+  const label =
+    state === "ready"
+      ? "Заморозка доступна"
+      : state === "holding"
+        ? "Стрик на заморозке"
+        : "Заморозка использована";
+
+  return (
+    <div
+      className={`c-ice-row c-ice-row--${state}`}
+      aria-label={label}
+      title={label}
+    >
+      <IceCubeIcon className="c-ice-cube" used={state === "used"} />
+      <span className="c-ice-row__label">{label}</span>
     </div>
   );
 }
@@ -86,7 +87,6 @@ function FireIcon({
   className?: string;
   tier: StreakTier;
 }): ReactElement {
-  // Unique gradient ids per mount-ish via tier suffix (static OK for SSR).
   const id = `c-fire-${tier}`;
   return (
     <svg
@@ -108,20 +108,17 @@ function FireIcon({
           <stop offset="100%" className="c-fire-stop c-fire-stop--inner-tip" />
         </linearGradient>
       </defs>
-      {/* Outer tongue */}
       <path
         className="c-fire-path c-fire-path--outer"
         fill={`url(#${id}-core)`}
         d="M32 6c1.2 7.5 4.5 12 8.5 16.5 4.2 4.7 7.5 9.8 7.5 17.5 0 10.5-7.2 20-16 24.5C23.2 60 16 50.5 16 40c0-7.2 3-12.2 7-17C27.2 18 30.5 13.5 32 6z"
       />
-      {/* Left lick */}
       <path
         className="c-fire-path c-fire-path--side"
         fill={`url(#${id}-core)`}
         opacity="0.92"
         d="M22 24c-1.5 5-4 10-4 17 0 8 4.5 14.5 9 19 0.5-6 2.5-11.5 5-15.5-5.5-1.5-9-9-10-20.5z"
       />
-      {/* Hot core */}
       <path
         className="c-fire-path c-fire-path--inner"
         fill={`url(#${id}-inner)`}
@@ -131,7 +128,7 @@ function FireIcon({
   );
 }
 
-function FreezeIcon({
+function IceCubeIcon({
   className,
   used,
 }: {
@@ -142,23 +139,41 @@ function FreezeIcon({
     <svg
       className={className}
       viewBox="0 0 32 32"
-      width={22}
-      height={22}
+      width={28}
+      height={28}
       aria-hidden
       focusable="false"
     >
-      {/* Snowflake / crystal */}
-      <g
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        opacity={used ? 0.35 : 1}
-      >
-        <path d="M16 4v24M6.5 9.5l19 13M6.5 22.5l19-13" />
-        <path d="M16 8l2.5 2.5M16 8l-2.5 2.5M16 24l2.5-2.5M16 24l-2.5-2.5" />
-        <path d="M9.2 11.2l3.2.2M9.2 11.2l1.2 3M22.8 20.8l-3.2-.2M22.8 20.8l-1.2-3" />
-        <path d="M9.2 20.8l3.2-.2M9.2 20.8l1.2-3M22.8 11.2l-3.2.2M22.8 11.2l-1.2 3" />
+      <defs>
+        <linearGradient id="c-ice-face" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#e8f7ff" />
+          <stop offset="55%" stopColor="#8fd4ff" />
+          <stop offset="100%" stopColor="#3a9fd9" />
+        </linearGradient>
+        <linearGradient id="c-ice-side" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6bb8e8" />
+          <stop offset="100%" stopColor="#2a6f9a" />
+        </linearGradient>
+        <linearGradient id="c-ice-top" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stopColor="#bfe9ff" />
+          <stop offset="100%" stopColor="#ffffff" />
+        </linearGradient>
+      </defs>
+      <g opacity={used ? 0.4 : 1}>
+        {/* isometric cube */}
+        <path fill="url(#c-ice-top)" d="M16 4 L28 10 L16 16 L4 10 Z" />
+        <path fill="url(#c-ice-face)" d="M4 10 L16 16 L16 28 L4 22 Z" />
+        <path fill="url(#c-ice-side)" d="M16 16 L28 10 L28 22 L16 28 Z" />
+        {/* frost edge */}
+        <path
+          fill="none"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth="0.8"
+          d="M16 4 L28 10 L16 16 L4 10 Z M4 10 L16 16 L16 28 M16 16 L28 10"
+        />
+        {/* sparkle */}
+        <circle cx="12" cy="12" r="1.1" fill="#fff" opacity="0.85" />
+        <circle cx="20" cy="14" r="0.7" fill="#fff" opacity="0.7" />
       </g>
     </svg>
   );

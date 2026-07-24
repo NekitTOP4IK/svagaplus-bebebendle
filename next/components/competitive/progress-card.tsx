@@ -1,11 +1,11 @@
 import type { ReactElement } from "react";
 import type { HubMe } from "@/lib/competitive/hub";
-import { StreakFire, type FreezeVisual } from "./streak-fire";
+import { IceCubeRow, StreakFire, type FreezeVisual } from "./streak-fire";
 
 type Props = Readonly<{
   me: HubMe;
   photoUrl: string | null;
-  /** Show freeze crystal (only when a season is visible). */
+  /** Show freeze charge row (only when a season is visible). */
   showFreeze?: boolean;
 }>;
 
@@ -26,6 +26,7 @@ export function ProgressCard({
 }: Props): ReactElement {
   const placeText = me.place != null ? `#${me.place}` : "—";
   const initials = me.label.slice(0, 2).toUpperCase() || "?";
+  const freeze = freezeVisual(showFreeze, me);
 
   return (
     <article className="c-progress-card c-panel" id="profile">
@@ -58,11 +59,14 @@ export function ProgressCard({
       <div className="c-divider" />
       <div className="c-streak-block">
         <p className="c-streak-title">Стрик</p>
-        <StreakFire
-          days={me.streakDays}
-          freeze={freezeVisual(showFreeze, me)}
-        />
+        <StreakFire days={me.streakDays} />
       </div>
+      {freeze !== "hidden" ? (
+        <>
+          <div className="c-divider" />
+          <IceCubeRow state={freeze} />
+        </>
+      ) : null}
     </article>
   );
 }
