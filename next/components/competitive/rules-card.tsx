@@ -36,7 +36,6 @@ function ContentBody({
           className={`c-content-block${block.imageUrl ? " c-content-block--with-media" : ""}`}
         >
           <div className="c-content-block__head">
-            <h5 className="c-content-block__title">{block.title}</h5>
             {block.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -45,6 +44,7 @@ function ContentBody({
                 className="c-content-block__media"
               />
             ) : null}
+            <h5 className="c-content-block__title">{block.title}</h5>
           </div>
           {block.body ? (
             <p className="c-content-block__body">{block.body}</p>
@@ -139,7 +139,7 @@ export function RulesCard({ modeRules, seasonRules }: Props): ReactElement {
           >
             <motion.div
               key={`faq-${open}`}
-              className="c-faq-modal"
+              className={`c-faq-modal${modalHasMedia ? " c-faq-modal--wide" : ""}`}
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}

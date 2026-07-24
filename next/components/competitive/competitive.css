@@ -942,48 +942,71 @@
 
 .c-content-block__head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 16px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px 14px;
+}
+
+/* Image on the left of the title */
+.c-content-block--with-media .c-content-block__head {
+  flex-direction: row;
 }
 
 .c-content-block__title {
   margin: 0;
   flex: 1 1 auto;
   min-width: 0;
-  font: 12px/1.35 var(--font-pixel), monospace;
+  font: 13px/1.35 var(--font-pixel), monospace;
   font-weight: 700;
   color: #f5e6a8;
   text-shadow: 1px 1px 0 #3d2a08;
 }
 
+/* Title centered in the remaining space when media is present */
+.c-content-block--with-media .c-content-block__title {
+  text-align: center;
+  font: 14px/1.35 var(--font-pixel), monospace;
+  font-weight: 700;
+}
+
 .c-content-block__media {
   flex: 0 0 auto;
-  width: 72px;
-  height: 72px;
-  max-width: 28%;
+  /* ~1.5–2× smaller than previous 88–104px tiles */
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   image-rendering: pixelated;
-  border: 2px solid #3a3048;
-  background: #0c0910;
+  border: none;
+  background: transparent;
+  order: -1; /* left of title regardless of DOM order */
 }
 
 .c-content-block--with-media .c-content-block__media {
-  width: 88px;
-  height: 88px;
+  width: 52px;
+  height: 52px;
 }
 
 .c-content-block__body {
   margin: 0.55rem 0 0;
   white-space: pre-wrap;
-  font: 11px/1.55 var(--font-pixel), monospace;
+  /* Slightly larger body text */
+  font: 12px/1.55 var(--font-pixel), monospace;
   color: #d5cce0;
 }
 
 .c-faq-modal--wide .c-content-block__media {
-  width: 104px;
-  height: 104px;
-  max-width: 34%;
+  width: 56px;
+  height: 56px;
+  max-width: none;
+}
+
+.c-faq-modal--wide .c-content-block--with-media .c-content-block__title {
+  font-size: 15px;
+}
+
+.c-faq-modal--wide .c-content-block__body {
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .c-faq-modal__head {
@@ -1013,6 +1036,41 @@
   font: 11px/1.55 var(--font-pixel), monospace;
   color: #d5cce0;
   -webkit-overflow-scrolling: touch;
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #9b5ed4 #1a1224;
+}
+
+/* Chromium / Safari — purple-theme scrollbar for FAQ modal body */
+.c-faq-modal__body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.c-faq-modal__body::-webkit-scrollbar-track {
+  background: linear-gradient(180deg, #140e1c, #0a0810);
+  border-left: 1px solid #3a3048;
+  box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.45);
+}
+
+.c-faq-modal__body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #b57aef 0%, #7b3fc0 45%, #4a1f78 100%);
+  border: 2px solid #1a1224;
+  border-radius: 0; /* pixel / hard edge */
+  box-shadow:
+    inset 1px 1px 0 rgba(230, 200, 255, 0.35),
+    inset -1px -1px 0 rgba(40, 10, 70, 0.85);
+}
+
+.c-faq-modal__body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #c994ff 0%, #9148d8 45%, #5c2890 100%);
+}
+
+.c-faq-modal__body::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, #8a42c8 0%, #5a2488 100%);
+}
+
+.c-faq-modal__body::-webkit-scrollbar-corner {
+  background: #0a0810;
 }
 
 .c-faq-modal__body p {

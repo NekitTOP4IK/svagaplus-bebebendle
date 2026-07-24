@@ -35,7 +35,6 @@ export function RewardsCard({ rewards }: Props): ReactElement {
               className={`c-content-block text-left${block.imageUrl ? " c-content-block--with-media" : ""}`}
             >
               <div className="c-content-block__head">
-                <h4 className="c-content-block__title">{block.title}</h4>
                 {block.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -44,6 +43,7 @@ export function RewardsCard({ rewards }: Props): ReactElement {
                     className="c-content-block__media"
                   />
                 ) : null}
+                <h4 className="c-content-block__title">{block.title}</h4>
               </div>
               {block.body ? (
                 <p className="c-content-block__body">{block.body}</p>
