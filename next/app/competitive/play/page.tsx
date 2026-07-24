@@ -6,7 +6,10 @@ import { db, competitiveDailies } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
 import { isCompetitiveEnabled } from "@/lib/competitive/feature";
 import { hasPlayed } from "@/lib/competitive/play";
-import { getPlayableSeason } from "@/lib/competitive/seasons";
+import {
+  ensureSeasonTransitions,
+  getPlayableSeason,
+} from "@/lib/competitive/seasons";
 import { todayMskDate } from "@/lib/daily-timezone";
 import { CompetitiveGameClient } from "@/components/competitive/competitive-game-client";
 
@@ -26,6 +29,8 @@ export default async function CompetitivePlayPage(): Promise<ReactElement> {
       />
     );
   }
+
+  await ensureSeasonTransitions();
 
   const playableSeason = await getPlayableSeason();
   if (!playableSeason) {

@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth-server";
 import { writeAuditLog } from "@/lib/moderation-audit";
 import {
   endSeason,
+  ensureSeasonTransitions,
   getSeason,
   updateSeason,
   type SeasonStatus,
@@ -107,10 +108,14 @@ export async function PATCH(
   }
 
   try {
-    const season = await updateSeason(id, patch);
-    if (!season) {
+    const updated = await updateSeason(id, patch);
+    if (!updated) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    // Hot-edited endsAt in the past (or startsAt now due) should apply immediately.
+    await ensureSeasonTransitions();
+    const season = (await getSeason(id)) ?? updated;
 
     await writeAuditLog({
       actorUserId: user.id,

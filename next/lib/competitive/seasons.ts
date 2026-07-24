@@ -231,6 +231,30 @@ export async function getSeason(id: number): Promise<Season | null> {
 }
 
 /**
+ * All ended seasons for player archive, newest first.
+ */
+export async function listEndedSeasons(): Promise<Season[]> {
+  return db
+    .select()
+    .from(competitiveSeasons)
+    .where(eq(competitiveSeasons.status, "ended"))
+    .orderBy(desc(competitiveSeasons.endsAt), desc(competitiveSeasons.id));
+}
+
+/**
+ * Most recently ended season (by endsAt, then id), or null.
+ */
+export async function getLatestEndedSeason(): Promise<Season | null> {
+  const [row] = await db
+    .select()
+    .from(competitiveSeasons)
+    .where(eq(competitiveSeasons.status, "ended"))
+    .orderBy(desc(competitiveSeasons.endsAt), desc(competitiveSeasons.id))
+    .limit(1);
+  return row ?? null;
+}
+
+/**
  * Season currently open for play: status `active` and now in [startsAt, endsAt).
  */
 export async function getPlayableSeason(
@@ -348,6 +372,17 @@ export async function transitionSeasonsByTime(
   }
 
   return { activated, ended };
+}
+
+/**
+ * Entry-point alias for time-driven season handoff.
+ * Call before reading playable/visible season on player and admin paths
+ * so overdue actives end and due countdowns activate without waiting for cron.
+ */
+export async function ensureSeasonTransitions(
+  now: Date = new Date(),
+): Promise<{ activated: number; ended: number }> {
+  return transitionSeasonsByTime(now);
 }
 
 /**
