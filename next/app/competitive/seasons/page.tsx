@@ -1,12 +1,13 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth-server";
 import {
   listEndedSeasonSummaries,
   safeThemeCardClass,
 } from "@/lib/competitive/archive";
 import { isCompetitiveEnabled } from "@/lib/competitive/feature";
+import { CompetitiveAuthGate } from "@/components/competitive/competitive-auth-gate";
 import { CompetitiveShell } from "@/components/competitive/competitive-shell";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,11 @@ function formatDateRu(iso: string): string {
 export default async function CompetitiveSeasonsArchivePage(): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/profile");
+    return (
+      <Suspense fallback={null}>
+        <CompetitiveAuthGate nextPath="/competitive/seasons" />
+      </Suspense>
+    );
   }
 
   const enabled = await isCompetitiveEnabled();

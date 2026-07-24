@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 
 export const TWITCH_OAUTH_STATE_COOKIE = "twitch_oauth_state";
+/** Safe relative path for post-login redirect (e.g. /competitive). */
+export const TWITCH_OAUTH_NEXT_COOKIE = "twitch_oauth_next";
 export const TWITCH_OAUTH_STATE_MAX_AGE_SEC = 10 * 60;
 
 export type TwitchOAuthConfig = Readonly<{

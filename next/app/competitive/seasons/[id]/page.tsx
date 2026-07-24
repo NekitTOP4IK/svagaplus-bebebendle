@@ -1,9 +1,11 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth-server";
 import { getEndedSeasonDetail } from "@/lib/competitive/archive";
 import { isCompetitiveEnabled } from "@/lib/competitive/feature";
+import { CompetitiveAuthGate } from "@/components/competitive/competitive-auth-gate";
 import { CompetitiveShell } from "@/components/competitive/competitive-shell";
 
 export const dynamic = "force-dynamic";
@@ -26,9 +28,20 @@ function formatDateRu(iso: string): string {
 export default async function CompetitiveSeasonDetailPage({
   params,
 }: PageProps): Promise<ReactElement> {
+  const { id: idRaw } = await params;
+  const id = Number(idRaw);
+
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/profile");
+    const next =
+      Number.isInteger(id) && id > 0
+        ? `/competitive/seasons/${id}`
+        : "/competitive/seasons";
+    return (
+      <Suspense fallback={null}>
+        <CompetitiveAuthGate nextPath={next} />
+      </Suspense>
+    );
   }
 
   const enabled = await isCompetitiveEnabled();
@@ -45,8 +58,6 @@ export default async function CompetitiveSeasonDetailPage({
     );
   }
 
-  const { id: idRaw } = await params;
-  const id = Number(idRaw);
   if (!Number.isInteger(id) || id < 1) {
     notFound();
   }

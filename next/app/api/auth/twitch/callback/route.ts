@@ -7,7 +7,9 @@ import { setSessionCookies } from "@/lib/session-cookies";
 import { createSessionManager } from "@/lib/session-manager";
 import { sessionRepository } from "@/lib/session-repository";
 import { getTwitchIdentity } from "@/lib/svaga-twitch";
+import { sanitizeNextPath } from "@/lib/safe-next-path";
 import {
+  TWITCH_OAUTH_NEXT_COOKIE,
   TWITCH_OAUTH_STATE_COOKIE,
   exchangeTwitchCode,
   fetchTwitchHelixUser,
@@ -16,24 +18,42 @@ import {
 } from "@/lib/twitch-oauth";
 import { getPublicSiteOrigin } from "@/lib/utils";
 
-function profileRedirect(
+function clearOAuthCookies(response: NextResponse): void {
+  const clear = { ...twitchOAuthCookieOptions(0), maxAge: 0 };
+  response.cookies.set(TWITCH_OAUTH_STATE_COOKIE, "", clear);
+  response.cookies.set(TWITCH_OAUTH_NEXT_COOKIE, "", clear);
+}
+
+/**
+ * Post-auth redirect. Default /profile; competitive gate sets next=/competitive.
+ * Errors with next under /competitive stay on competitive auth UI.
+ */
+function postAuthRedirect(
   request: Request,
+  nextPath: string,
   params?: Record<string, string>,
 ): NextResponse {
-  // Use public origin (APP_URL / NEXT_PUBLIC_*), not request.url — behind nginx
-  // Next often sees http://localhost:3000 and would bounce users there.
-  const url = new URL("/profile", `${getPublicSiteOrigin(request)}/`);
+  const origin = getPublicSiteOrigin(request);
+  const safeNext = sanitizeNextPath(nextPath, "/profile");
+  const hasError = Boolean(params && Object.keys(params).length > 0);
+  // On OAuth errors, if next was competitive, bounce back to competitive gate with query.
+  const path =
+    hasError && safeNext.startsWith("/competitive")
+      ? "/competitive"
+      : hasError
+        ? "/profile"
+        : safeNext;
+  const url = new URL(path, `${origin}/`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
       if (value) url.searchParams.set(key, value);
     }
   }
+  if (hasError && safeNext.startsWith("/competitive") && safeNext !== "/competitive") {
+    url.searchParams.set("next", safeNext);
+  }
   const response = NextResponse.redirect(url);
-  // Always clear CSRF state cookie on callback completion.
-  response.cookies.set(TWITCH_OAUTH_STATE_COOKIE, "", {
-    ...twitchOAuthCookieOptions(0),
-    maxAge: 0,
-  });
+  clearOAuthCookies(response);
   return response;
 }
 
@@ -42,18 +62,20 @@ function clearStateResponse(
   status: number,
 ): NextResponse {
   const response = NextResponse.json(body, { status });
-  response.cookies.set(TWITCH_OAUTH_STATE_COOKIE, "", {
-    ...twitchOAuthCookieOptions(0),
-    maxAge: 0,
-  });
+  clearOAuthCookies(response);
   return response;
 }
 
 export async function GET(request: Request) {
+  const cookieStore = await cookies();
+  const nextFromCookie =
+    cookieStore.get(TWITCH_OAUTH_NEXT_COOKIE)?.value ?? "/profile";
+  const nextPath = sanitizeNextPath(nextFromCookie, "/profile");
+
   const config = readTwitchOAuthConfig();
   if (!config) {
     console.warn("[twitch-auth] callback: Twitch OAuth not configured");
-    return profileRedirect(request, { twitch_error: "config" });
+    return postAuthRedirect(request, nextPath, { twitch_error: "config" });
   }
 
   const rateLimitResult = await checkRateLimit(
@@ -78,12 +100,11 @@ export async function GET(request: Request) {
   const state = requestUrl.searchParams.get("state");
   const oauthError = requestUrl.searchParams.get("error");
 
-  const cookieStore = await cookies();
   const stateCookie = cookieStore.get(TWITCH_OAUTH_STATE_COOKIE)?.value ?? null;
 
   if (oauthError) {
     console.warn(`[twitch-auth] oauth provider error=${oauthError}`);
-    return profileRedirect(request, { twitch_error: "denied" });
+    return postAuthRedirect(request, nextPath, { twitch_error: "denied" });
   }
 
   if (!state || !stateCookie || state !== stateCookie) {
@@ -93,19 +114,19 @@ export async function GET(request: Request) {
 
   if (!code) {
     console.warn("[twitch-auth] missing code");
-    return profileRedirect(request, { twitch_error: "oauth" });
+    return postAuthRedirect(request, nextPath, { twitch_error: "oauth" });
   }
 
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) {
     console.error("[twitch-auth] SESSION_SECRET not configured");
-    return profileRedirect(request, { twitch_error: "config" });
+    return postAuthRedirect(request, nextPath, { twitch_error: "config" });
   }
 
   try {
     const tokenResult = await exchangeTwitchCode(config, code);
     if ("error" in tokenResult) {
-      return profileRedirect(request, { twitch_error: "oauth" });
+      return postAuthRedirect(request, nextPath, { twitch_error: "oauth" });
     }
 
     const helixUser = await fetchTwitchHelixUser(
@@ -113,17 +134,17 @@ export async function GET(request: Request) {
       tokenResult.accessToken,
     );
     if ("error" in helixUser) {
-      return profileRedirect(request, { twitch_error: "oauth" });
+      return postAuthRedirect(request, nextPath, { twitch_error: "oauth" });
     }
 
     const identity = await getTwitchIdentity(helixUser.id);
     if (identity.status === "unavailable") {
-      return profileRedirect(request, { twitch_error: "svaga" });
+      return postAuthRedirect(request, nextPath, { twitch_error: "svaga" });
     }
 
     if (!identity.linked) {
       const login = identity.twitchUsername || helixUser.login;
-      return profileRedirect(request, {
+      return postAuthRedirect(request, nextPath, {
         twitch_error: "need_telegram_link",
         login,
       });
@@ -187,7 +208,7 @@ export async function GET(request: Request) {
       const created = inserted[0];
       if (!created) {
         console.error("[twitch-auth] insert returned no row");
-        return profileRedirect(request, { twitch_error: "oauth" });
+        return postAuthRedirect(request, nextPath, { twitch_error: "oauth" });
       }
       userId = created.id;
       userTelegramId = created.telegramId;
@@ -203,14 +224,14 @@ export async function GET(request: Request) {
       request.headers.get("user-agent"),
     );
 
-    const response = profileRedirect(request);
+    const response = postAuthRedirect(request, nextPath);
     setSessionCookies(response, issued);
     console.log(
-      `[twitch-auth] session issued userId=${userId} telegramId=${userTelegramId} role=${userRole}`,
+      `[twitch-auth] session issued userId=${userId} telegramId=${userTelegramId} role=${userRole} next=${nextPath}`,
     );
     return response;
   } catch (error) {
     console.error("[twitch-auth] callback error:", error);
-    return profileRedirect(request, { twitch_error: "oauth" });
+    return postAuthRedirect(request, nextPath, { twitch_error: "oauth" });
   }
 }

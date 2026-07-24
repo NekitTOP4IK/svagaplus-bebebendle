@@ -18,7 +18,8 @@ export const dynamic = "force-dynamic";
 export default async function CompetitivePlayPage(): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/profile");
+    // Auth gate on hub; after login go straight to play.
+    redirect("/competitive?next=%2Fcompetitive%2Fplay");
   }
 
   if (!(await isCompetitiveEnabled())) {

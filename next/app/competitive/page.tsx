@@ -1,9 +1,10 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth-server";
 import { getHubPayload } from "@/lib/competitive/hub";
 import { CompetitiveShell } from "@/components/competitive/competitive-shell";
+import { CompetitiveAuthGate } from "@/components/competitive/competitive-auth-gate";
 import { SeasonHero } from "@/components/competitive/season-hero";
 import { CtaRow } from "@/components/competitive/cta-row";
 import { ProgressCard } from "@/components/competitive/progress-card";
@@ -16,7 +17,17 @@ export const dynamic = "force-dynamic";
 export default async function CompetitiveHubPage(): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/profile");
+    return (
+      <Suspense
+        fallback={
+          <div className="c-hub min-h-dvh flex items-center justify-center text-white">
+            Загрузка…
+          </div>
+        }
+      >
+        <CompetitiveAuthGate nextPath="/competitive" />
+      </Suspense>
+    );
   }
 
   const hub = await getHubPayload(user.id);
@@ -38,8 +49,8 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
     <CompetitiveShell
       user={user}
       season={hub.season}
-      nextDailyAt={hub.countdowns.nextDailyAt}
       previousEndedSeason={hub.previousEndedSeason}
+      nextDailyAt={hub.countdowns.nextDailyAt}
     >
       <SeasonHero
         season={hub.season}

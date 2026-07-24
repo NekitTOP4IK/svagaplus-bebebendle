@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit, getClientIp } from "@/app/api/middleware/rateLimit";
+import { sanitizeNextPath } from "@/lib/safe-next-path";
 import {
+  TWITCH_OAUTH_NEXT_COOKIE,
   TWITCH_OAUTH_STATE_COOKIE,
   TWITCH_OAUTH_STATE_MAX_AGE_SEC,
   buildTwitchAuthorizeUrl,
@@ -38,14 +40,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const requestUrl = new URL(request.url);
+  const nextPath = sanitizeNextPath(requestUrl.searchParams.get("next"), "/profile");
+
   const state = generateOAuthState();
   const authorizeUrl = buildTwitchAuthorizeUrl(config, state);
+  const cookieOpts = twitchOAuthCookieOptions(TWITCH_OAUTH_STATE_MAX_AGE_SEC);
 
   const response = NextResponse.redirect(authorizeUrl);
-  response.cookies.set(
-    TWITCH_OAUTH_STATE_COOKIE,
-    state,
-    twitchOAuthCookieOptions(TWITCH_OAUTH_STATE_MAX_AGE_SEC),
-  );
+  response.cookies.set(TWITCH_OAUTH_STATE_COOKIE, state, cookieOpts);
+  response.cookies.set(TWITCH_OAUTH_NEXT_COOKIE, nextPath, cookieOpts);
   return response;
 }
