@@ -37,7 +37,7 @@ export default async function CompetitiveSeasonsArchivePage(): Promise<ReactElem
 
   if (!enabled) {
     return (
-      <CompetitiveShell user={user} season={null} previousEndedSeason={null}>
+      <CompetitiveShell user={user} season={null}>
         <section className="c-disabled-box c-panel">
           <p>Соревновательный режим временно отключён.</p>
           <Link className="pixel-btn px-4 py-2 text-sm font-bold" href="/">
@@ -51,7 +51,7 @@ export default async function CompetitiveSeasonsArchivePage(): Promise<ReactElem
   const seasons = await listEndedSeasonSummaries(user.id);
 
   return (
-    <CompetitiveShell user={user} season={null} previousEndedSeason={null}>
+    <CompetitiveShell user={user} season={null}>
       <section className="c-archive c-panel" aria-labelledby="archive-title">
         <header className="c-panel-heading c-archive-heading">
           <div>

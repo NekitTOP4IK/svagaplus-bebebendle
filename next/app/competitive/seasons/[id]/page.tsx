@@ -47,7 +47,7 @@ export default async function CompetitiveSeasonDetailPage({
   const enabled = await isCompetitiveEnabled();
   if (!enabled) {
     return (
-      <CompetitiveShell user={user} season={null} previousEndedSeason={null}>
+      <CompetitiveShell user={user} season={null}>
         <section className="c-disabled-box c-panel">
           <p>Соревновательный режим временно отключён.</p>
           <Link className="pixel-btn px-4 py-2 text-sm font-bold" href="/">
@@ -70,7 +70,7 @@ export default async function CompetitiveSeasonDetailPage({
   const { season, ranks, me } = detail;
 
   return (
-    <CompetitiveShell user={user} season={null} previousEndedSeason={null}>
+    <CompetitiveShell user={user} season={null}>
       <section className="c-archive c-panel" aria-labelledby="season-detail-title">
         <header className="c-panel-heading c-archive-heading">
           <div>

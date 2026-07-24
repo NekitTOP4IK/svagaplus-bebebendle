@@ -228,16 +228,6 @@
   filter: hue-rotate(40deg) saturate(1.15);
 }
 
-.c-season-mini-pearl {
-  width: 36px;
-  height: 36px;
-  object-fit: contain;
-  flex-shrink: 0;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  filter: drop-shadow(0 0 10px rgba(2, 169, 150, 0.55));
-}
-
 .c-top-actions {
   display: grid;
   grid-template-columns: auto;
@@ -245,58 +235,10 @@
   gap: 8px;
 }
 
-.c-season-mini {
-  grid-column: 1 / -1;
+/* Seasons archive hub — under «На главную» */
+.c-seasons-hub-btn {
   justify-self: end;
-  width: 225px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 13px;
-  border: 2px solid #050507;
-  outline: 1px solid #45404b;
-  background: rgba(7, 7, 11, 0.86);
-  box-shadow:
-    inset 0 0 15px rgba(117, 25, 171, 0.13),
-    3px 3px 0 rgba(0, 0, 0, 0.75);
-}
-
-.c-season-mini b {
-  display: block;
-  color: var(--c-green);
-  font: 10px var(--c-pixel);
-  margin-bottom: 5px;
-}
-
-.c-season-mini b.c-muted-status {
-  color: var(--c-muted);
-}
-
-.c-season-mini b.c-countdown-status {
-  color: var(--c-gold);
-}
-
-.c-season-mini b.c-ended-status {
-  color: var(--c-red);
-}
-
-.c-season-mini small {
-  display: block;
-  font: 9px var(--c-pixel);
-  color: var(--c-white);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 160px;
-}
-
-/* Topbar «Итоги: {name}» under home when countdown + previous ended */
-.c-results-cta {
-  justify-self: end;
-  max-width: 225px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: center;
 }
 
 .c-end-gem {
@@ -1561,11 +1503,6 @@
     justify-content: stretch;
   }
 
-  .c-season-mini {
-    grid-column: auto;
-    justify-self: end;
-  }
-
   .c-brand-logo {
     max-height: 64px;
     width: min(280px, 90%);
@@ -1607,11 +1544,6 @@
     width: min(260px, 90%);
   }
 
-  .c-season-mini-pearl {
-    width: 32px;
-    height: 32px;
-  }
-
   .c-profile-chip {
     align-self: center;
   }
@@ -1622,16 +1554,8 @@
     justify-items: stretch;
   }
 
-  .c-season-mini {
-    grid-column: 1 / -1;
-    width: 100%;
+  .c-seasons-hub-btn {
     justify-self: stretch;
-  }
-
-  .c-results-cta {
-    max-width: none;
-    justify-self: stretch;
-    text-align: center;
   }
 
   .c-archive-heading {
