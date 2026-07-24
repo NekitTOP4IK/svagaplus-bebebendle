@@ -116,6 +116,7 @@ export function HomeUserMenu(): ReactElement {
           meta="Профиль / СВАГА+"
           showMetaSuffix={false}
           nickGlow
+          pixelFont
         />
       </Link>
 
