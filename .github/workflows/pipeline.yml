@@ -238,9 +238,16 @@ jobs:
           check security "${{ needs.security.result }}"
           check deploy-script "${{ needs.deploy-script.result }}"
 
+  # IMPORTANT: when `changes` is skipped (staging/main), GitHub still treats the
+  # needs-graph as "dirty". Without always() + explicit result checks, release
+  # and deploy are auto-skipped even if quality succeeded.
   release:
-    if: github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'main')
     needs: [quality]
+    if: |
+      always() &&
+      needs.quality.result == 'success' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref_name == 'staging' || github.ref_name == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -258,8 +265,12 @@ jobs:
           retention-days: 14
 
   deploy:
-    if: github.event_name == 'push' && (github.ref_name == 'staging' || github.ref_name == 'main')
     needs: [release]
+    if: |
+      always() &&
+      needs.release.result == 'success' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref_name == 'staging' || github.ref_name == 'main')
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
