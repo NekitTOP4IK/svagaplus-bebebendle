@@ -329,21 +329,37 @@ for venv_path in "$VENVS_DIR"/bot-*; do
 done
 shopt -u nullglob
 
-echo "==> pre-migrate db backup"
-BACKUP="$BACKUP_DIR/pre-$RELEASE_SHA-$(date -u +%Y%m%dT%H%M%SZ).dump"
-run_low_prio pg_dump --format=custom --file="$BACKUP" "$DATABASE_URL"
-
-echo "==> migrate"
+# Compute migrate skip before optional dump (dump only protects schema changes).
+echo "==> migrate decision"
 NEW_MIG_HASH="$(dir_hash "$RELEASE/next/db/migrations")"
 SKIP_MIGRATE=0
-if [[ -n "$PREV_RELEASE" && -d "$PREV_RELEASE/next/db/migrations" ]]; then
+if [[ -n "$PREV_RELEASE" ]]; then
+  # dir_hash returns "missing" when the tree is absent — treat equal hashes as no-op.
   PREV_MIG_HASH="$(dir_hash "$PREV_RELEASE/next/db/migrations")"
   if [[ "$NEW_MIG_HASH" == "$PREV_MIG_HASH" ]]; then
-    echo "    migrations unchanged — skip"
+    echo "    migrations unchanged — skip migrate"
     SKIP_MIGRATE=1
   fi
 fi
+
+SKIP_DB_BACKUP=0
+if [[ "$SKIP_MIGRATE" -eq 1 && "${BEBEBENDLE_FORCE_DB_BACKUP:-0}" != "1" ]]; then
+  SKIP_DB_BACKUP=1
+fi
+
+t_dump_start=$SECONDS
+if [[ "$SKIP_DB_BACKUP" -eq 0 ]]; then
+  echo "==> pre-migrate db backup"
+  BACKUP="$BACKUP_DIR/pre-$RELEASE_SHA-$(date -u +%Y%m%dT%H%M%SZ).dump"
+  run_low_prio pg_dump --format=custom --file="$BACKUP" "$DATABASE_URL"
+else
+  echo "==> skip pg_dump (no migrate; set BEBEBENDLE_FORCE_DB_BACKUP=1 to force)"
+fi
+t_dump=$((SECONDS - t_dump_start))
+
+t_migrate_start=$SECONDS
 if [[ "$SKIP_MIGRATE" -eq 0 ]]; then
+  echo "==> migrate"
   cd "$RELEASE/next"
   if [[ -x "$RELEASE/next/node_modules/.bin/drizzle-kit" ]]; then
     "$RELEASE/next/node_modules/.bin/drizzle-kit" migrate
@@ -352,10 +368,18 @@ if [[ "$SKIP_MIGRATE" -eq 0 ]]; then
   else
     bun x drizzle-kit migrate
   fi
+else
+  echo "==> migrate skipped"
 fi
+t_migrate=$((SECONDS - t_migrate_start))
 
 OLD_RELEASE="$PREV_RELEASE"
 SWITCHED=0
+
+pm2_hard_start_both() {
+  pm2 delete bebebendle-next bebebendle-bot >/dev/null 2>&1 || true
+  pm2 start "$ROOT/current/ecosystem.config.cjs" || true
+}
 
 rollback() {
   local exit_code=$?
@@ -363,8 +387,7 @@ rollback() {
   if [[ "$SWITCHED" -eq 1 && -n "$OLD_RELEASE" && -d "$OLD_RELEASE" ]]; then
     ln -sfn "$OLD_RELEASE" "$ROOT/current.rollback"
     mv -Tf "$ROOT/current.rollback" "$ROOT/current"
-    pm2 delete bebebendle-next bebebendle-bot >/dev/null 2>&1 || true
-    pm2 start "$ROOT/current/ecosystem.config.cjs" || true
+    pm2_hard_start_both
   elif [[ "$SWITCHED" -eq 1 ]]; then
     rm -f "$ROOT/current"
     pm2 delete bebebendle-next bebebendle-bot || true
@@ -382,9 +405,65 @@ SWITCHED=1
 
 echo "==> pm2 reload"
 export PATH="${HOME}/.bun/bin:${HOME}/.local/bin:${HOME}/bin:/usr/local/bin:${PATH}"
-pm2 delete bebebendle-next bebebendle-bot >/dev/null 2>&1 || true
-pm2 start "$ROOT/current/ecosystem.config.cjs"
+
+# Selective restart: only touch processes whose inputs changed.
+RESTART_NEXT=0
+RESTART_BOT=0
+if [[ -z "$PREV_RELEASE" || "${BEBEBENDLE_PM2_HARD_RESTART:-0}" == "1" ]]; then
+  RESTART_NEXT=1
+  RESTART_BOT=1
+  echo "    hard restart both (first deploy or BEBEBENDLE_PM2_HARD_RESTART=1)"
+else
+  if [[ "$SKIP_NEXT_BUILD" -eq 0 ]]; then
+    RESTART_NEXT=1
+  fi
+  # Bot process inputs: lock (venv) or bot source tree.
+  NEW_BOT_SRC="$(dir_hash "$RELEASE/bot")"
+  PREV_BOT_SRC="missing"
+  if [[ -d "$PREV_RELEASE/bot" ]]; then
+    PREV_BOT_SRC="$(dir_hash "$PREV_RELEASE/bot")"
+  fi
+  if [[ "$BOT_LOCK_HASH" != "${PREV_BOT_HASH:-}" || "$NEW_BOT_SRC" != "$PREV_BOT_SRC" ]]; then
+    RESTART_BOT=1
+  fi
+  # Shared process wiring always restarts both.
+  for wiring in ecosystem.config.cjs scripts/run-next.sh scripts/run-bot.sh; do
+    if [[ -f "$RELEASE/$wiring" ]]; then
+      if [[ ! -f "$PREV_RELEASE/$wiring" ]] ||
+        [[ "$(file_hash "$RELEASE/$wiring")" != "$(file_hash "$PREV_RELEASE/$wiring")" ]]; then
+        RESTART_NEXT=1
+        RESTART_BOT=1
+        echo "    wiring changed: $wiring — restart both"
+        break
+      fi
+    fi
+  done
+fi
+
+t_pm2_start=$SECONDS
+if [[ "$RESTART_NEXT" -eq 1 && "$RESTART_BOT" -eq 1 ]]; then
+  echo "    restart both apps"
+  pm2 delete bebebendle-next bebebendle-bot >/dev/null 2>&1 || true
+  pm2 start "$ROOT/current/ecosystem.config.cjs"
+elif [[ "$RESTART_NEXT" -eq 1 ]]; then
+  echo "    restart bebebendle-next only"
+  if pm2 describe bebebendle-next >/dev/null 2>&1; then
+    pm2 restart bebebendle-next --update-env
+  else
+    pm2 start "$ROOT/current/ecosystem.config.cjs" --only bebebendle-next
+  fi
+elif [[ "$RESTART_BOT" -eq 1 ]]; then
+  echo "    restart bebebendle-bot only"
+  if pm2 describe bebebendle-bot >/dev/null 2>&1; then
+    pm2 restart bebebendle-bot --update-env
+  else
+    pm2 start "$ROOT/current/ecosystem.config.cjs" --only bebebendle-bot
+  fi
+else
+  echo "    no process restart required (app inputs unchanged)"
+fi
 pm2 save
+t_pm2=$((SECONDS - t_pm2_start))
 
 wait_for() {
   local url=$1
@@ -400,15 +479,28 @@ wait_for() {
   return 1
 }
 
+t_health_start=$SECONDS
 echo "==> health"
 wait_for "http://127.0.0.1:${PORT:-3000}/api/health/live"
 wait_for "http://127.0.0.1:${PORT:-3000}/api/health/ready"
 wait_for "http://127.0.0.1:${BOT_HEALTH_PORT:-3011}/health"
 wait_for "${APP_URL%/}/api/health/live"
+t_health=$((SECONDS - t_health_start))
 
 SWITCHED=0
 trap - ERR
 rm -f "$ARCHIVE" "$CHECKSUM"
+
+RESTART_LABEL="none"
+if [[ "$RESTART_NEXT" -eq 1 && "$RESTART_BOT" -eq 1 ]]; then
+  RESTART_LABEL="both"
+elif [[ "$RESTART_NEXT" -eq 1 ]]; then
+  RESTART_LABEL="next"
+elif [[ "$RESTART_BOT" -eq 1 ]]; then
+  RESTART_LABEL="bot"
+fi
+echo "==> flags: SKIP_NEXT_BUILD=$SKIP_NEXT_BUILD SKIP_MIGRATE=$SKIP_MIGRATE SKIP_DB_BACKUP=$SKIP_DB_BACKUP RESTART=$RESTART_LABEL"
+echo "==> timing: dump_s=${t_dump} migrate_s=${t_migrate} pm2_s=${t_pm2} health_s=${t_health}"
 
 echo "==> prune old releases (keep $KEEP_RELEASES)"
 mapfile -t OLD_RELEASES < <(

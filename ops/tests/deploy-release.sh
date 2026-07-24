@@ -116,6 +116,29 @@ rm -f /tmp/bebe-health-ok
 ( sleep 1; touch /tmp/bebe-health-ok ) &
 bash "$ROOT/ops/deploy-release.sh" "$SHA2" staging "http://127.0.0.1:3000"
 
+# App-only second deploy: migrations unchanged → no extra pre-migrate dump
+DUMP_COUNT="$(find "$DEPLOY_ROOT/backups" -maxdepth 1 -type f -name 'pre-*.dump' 2>/dev/null | wc -l | tr -d ' ')"
+if [[ "$DUMP_COUNT" -ne 1 ]]; then
+  echo "FAIL: expected 1 pre-migrate dump after second (no-mig) deploy, got $DUMP_COUNT"
+  exit 1
+fi
+
+# Force dump even when migrate skipped
+rm -f /tmp/bebe-health-ok
+( sleep 1; touch /tmp/bebe-health-ok ) &
+SHA2B="$(python3 - <<'PY'
+print("d"*40)
+PY
+)"
+cp "$ARCHIVE_MASTER" "$DEPLOY_ROOT/incoming/bebebendle-$SHA2B.tar.gz"
+(cd "$DEPLOY_ROOT/incoming" && sha256sum "bebebendle-$SHA2B.tar.gz" >"bebebendle-$SHA2B.tar.gz.sha256")
+BEBEBENDLE_FORCE_DB_BACKUP=1 bash "$ROOT/ops/deploy-release.sh" "$SHA2B" staging "http://127.0.0.1:3000"
+DUMP_COUNT_FORCE="$(find "$DEPLOY_ROOT/backups" -maxdepth 1 -type f -name 'pre-*.dump' 2>/dev/null | wc -l | tr -d ' ')"
+if [[ "$DUMP_COUNT_FORCE" -ne 2 ]]; then
+  echo "FAIL: expected 2 dumps after BEBEBENDLE_FORCE_DB_BACKUP=1, got $DUMP_COUNT_FORCE"
+  exit 1
+fi
+
 # Bad checksum
 SHA3="$(python3 - <<'PY'
 print("c"*40)
