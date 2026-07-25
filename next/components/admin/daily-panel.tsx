@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { todayMskDate } from "@/lib/daily-timezone";
 import {
   generateAdminDaily,
   getAdminDailySettings,
@@ -38,7 +39,7 @@ type Props = Readonly<{
 }>;
 
 export function DailyPanel({ role }: Props): ReactElement {
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => todayMskDate());
   const [data, setData] = useState<DailyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
