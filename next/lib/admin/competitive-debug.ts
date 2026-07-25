@@ -8,6 +8,7 @@ import {
 } from "@/db/schema";
 import { resetCompetitiveModalPrefs } from "@/lib/competitive/user-prefs";
 import { writeAuditLog } from "@/lib/moderation-audit";
+import { AUDIT_ACTIONS } from "@/lib/audit-actions";
 
 export type CompetitiveDebugInput = Readonly<{
   userId?: number | string;
@@ -102,6 +103,6 @@ export async function resetCompetitiveDebug(
   if (flags.resetNick) await db.update(users).set({ competitiveDisplayName: null, competitiveDisplayNameUpdatedAt: null, updatedAt: new Date() }).where(eq(users.id, target.id));
   if (flags.resetStandings) await db.delete(competitiveStandings).where(eq(competitiveStandings.userId, target.id));
   if (flags.resetResults) await db.delete(competitiveResults).where(eq(competitiveResults.userId, target.id));
-  await writeAuditLog({ actorUserId, action: "competitive.debug.reset", details: JSON.stringify({ targetUserId: target.id, telegramId: target.telegramId, done }) });
+  await writeAuditLog({ actorUserId, action: AUDIT_ACTIONS.COMPETITIVE_DEBUG_RESET, details: JSON.stringify({ targetUserId: target.id, telegramId: target.telegramId, done }) });
   return { ok: true as const, user: target, done };
 }

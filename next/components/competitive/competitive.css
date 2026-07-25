@@ -637,12 +637,12 @@
 }
 
 .c-streak-fire__icon {
+  display: block;
+  flex: 0 0 auto;
   width: 40px;
   height: 40px;
-  transform-origin: 50% 85%;
   filter: drop-shadow(0 0 6px var(--fire-glow-a))
     drop-shadow(0 0 14px var(--fire-glow-b));
-  animation: c-fire-flicker 1.1s ease-in-out infinite;
 }
 
 .c-streak-fire .c-fire-stop--base {
@@ -675,7 +675,6 @@
 }
 .c-streak-fire--zero .c-streak-fire__icon {
   filter: grayscale(0.9) opacity(0.4);
-  animation: none;
 }
 .c-streak-fire--zero .c-streak-fire__count {
   text-shadow: none;
@@ -693,10 +692,6 @@
   --fire-count: #e8a050;
   --fire-count-shadow: #4a2000;
 }
-.c-streak-fire--ember .c-streak-fire__icon {
-  animation-duration: 1.6s;
-}
-
 /* 3–6 */
 .c-streak-fire--flame {
   --fire-base: #ff3b00;
@@ -722,10 +717,6 @@
   --fire-count: #ffe566;
   --fire-count-shadow: #6a3000;
 }
-.c-streak-fire--blaze .c-streak-fire__icon {
-  animation-duration: 0.85s;
-}
-
 /* 14–29 */
 .c-streak-fire--inferno {
   --fire-base: #ff0044;
@@ -738,10 +729,6 @@
   --fire-count: #ffcc66;
   --fire-count-shadow: #5a0000;
 }
-.c-streak-fire--inferno .c-streak-fire__icon {
-  animation-duration: 0.7s;
-}
-
 /* 30+ — cool blue/violet legend fire */
 .c-streak-fire--legend {
   --fire-base: #5b2bff;
@@ -754,10 +741,6 @@
   --fire-count: #b8ecff;
   --fire-count-shadow: #1a2050;
 }
-.c-streak-fire--legend .c-streak-fire__icon {
-  animation-duration: 0.65s;
-}
-
 /* Ice cube freeze charge (own row under streak) */
 .c-ice-row {
   display: flex;
@@ -783,17 +766,12 @@
   filter: drop-shadow(0 0 6px rgba(120, 200, 255, 0.55));
 }
 
-.c-ice-row--ready .c-ice-cube {
-  animation: c-freeze-shimmer 2.4s ease-in-out infinite;
-}
-
 .c-ice-row--holding {
   border-color: rgba(160, 220, 255, 0.55);
   box-shadow: inset 0 0 12px rgba(80, 160, 255, 0.2);
 }
 .c-ice-row--holding .c-ice-cube {
   filter: drop-shadow(0 0 10px rgba(160, 220, 255, 0.95));
-  animation: c-freeze-pulse 1.4s ease-in-out infinite;
 }
 .c-ice-row--holding .c-ice-row__label {
   color: #e0f4ff;
@@ -809,62 +787,6 @@
 }
 .c-ice-row--used .c-ice-row__label {
   color: var(--c-muted);
-}
-
-@keyframes c-fire-flicker {
-  0%,
-  100% {
-    transform: scale(1, 1) rotate(-1.2deg);
-    filter: drop-shadow(0 0 6px var(--fire-glow-a))
-      drop-shadow(0 0 14px var(--fire-glow-b));
-  }
-  25% {
-    transform: scale(1.04, 1.08) rotate(1deg);
-    filter: drop-shadow(0 0 10px var(--fire-glow-a))
-      drop-shadow(0 0 20px var(--fire-glow-b));
-  }
-  50% {
-    transform: scale(0.97, 1.02) rotate(-0.6deg);
-    filter: drop-shadow(0 0 7px var(--fire-glow-a))
-      drop-shadow(0 0 16px var(--fire-glow-b));
-  }
-  75% {
-    transform: scale(1.05, 1.06) rotate(0.8deg);
-    filter: drop-shadow(0 0 12px var(--fire-glow-a))
-      drop-shadow(0 0 22px var(--fire-glow-b));
-  }
-}
-
-@keyframes c-freeze-shimmer {
-  0%,
-  100% {
-    opacity: 0.75;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-}
-
-@keyframes c-freeze-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    filter: drop-shadow(0 0 8px rgba(160, 220, 255, 0.95));
-  }
-  50% {
-    transform: scale(1.12);
-    filter: drop-shadow(0 0 14px rgba(180, 230, 255, 1));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .c-streak-fire__icon,
-  .c-ice-row--ready .c-ice-cube,
-  .c-ice-row--holding .c-ice-cube {
-    animation: none;
-  }
 }
 
 /* ---- Leaderboard ---- */

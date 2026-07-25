@@ -4,6 +4,7 @@ import { competitiveResults, db, dailyScrandles, dailyUserResults, moderationAud
 import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { requireRole } from "@/lib/auth-server";
 import { getLiveHealth, getReadyHealth, type LiveHealth, type ReadyHealth } from "@/lib/health";
+import { AUDIT_ACTIONS } from "@/lib/audit-actions";
 
 type AdminActionSuccess<T> = { success: true; data: T };
 type AdminActionFailure = { success: false; message: string };
@@ -342,7 +343,7 @@ export async function updateUser(userId: number, input: UserPatch): Promise<Admi
       );
       await tx.insert(moderationAuditLog).values({
         actorUserId: actor.id,
-        action: "users.update",
+        action: AUDIT_ACTIONS.USERS_UPDATE,
         details: JSON.stringify({ userId, changed: Object.keys(patch), changes }),
       });
       return { success: true, data: null };

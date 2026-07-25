@@ -8,6 +8,7 @@ import type { ActionResult } from "@/lib/action-result";
 import { db, dailyScrandles } from "@/db/schema";
 import { generateDailyForDate, getDailyPreview, todayUtcDate } from "@/lib/daily-generate";
 import { writeAuditLog } from "@/lib/moderation-audit";
+import { AUDIT_ACTIONS } from "@/lib/audit-actions";
 import {
   getDailyDisabledReason,
   isDailyGenerationEnabled,
@@ -90,7 +91,7 @@ export async function generateAdminDaily(input: { date?: string }): Promise<Acti
   try {
     const result = await generateDailyForDate(date);
     if (!result.ok) return { ok: false, code: "internal", message: result.error };
-    await writeAuditLog({ actorUserId: auth.user.id, action: "daily.generate", details: JSON.stringify({ date, rounds: result.rounds.length }) });
+    await writeAuditLog({ actorUserId: auth.user.id, action: AUDIT_ACTIONS.DAILY_GENERATE, details: JSON.stringify({ date, rounds: result.rounds.length }) });
     return { ok: true, data: { date: result.date, notify: result.notify ?? null } };
   } catch (error) {
     console.error("[actions/admin-daily] generation failed", error);
@@ -111,11 +112,11 @@ export async function updateAdminDailySettings(input: Partial<Settings>): Promis
   try {
     if (typeof input.dailyRotationNotify === "boolean") {
       await setDailyRotationNotifyEnabled(input.dailyRotationNotify);
-      await writeAuditLog({ actorUserId: auth.user.id, action: "settings.daily_rotation_notify", details: JSON.stringify({ enabled: input.dailyRotationNotify }) });
+      await writeAuditLog({ actorUserId: auth.user.id, action: AUDIT_ACTIONS.SETTINGS_DAILY_ROTATION_NOTIFY, details: JSON.stringify({ enabled: input.dailyRotationNotify }) });
     }
     if (typeof input.dailyGenerationEnabled === "boolean") {
       await setDailyGenerationEnabled(input.dailyGenerationEnabled);
-      await writeAuditLog({ actorUserId: auth.user.id, action: "settings.daily_generation", details: JSON.stringify({ enabled: input.dailyGenerationEnabled, reason: input.dailyDisabledReason }) });
+      await writeAuditLog({ actorUserId: auth.user.id, action: AUDIT_ACTIONS.SETTINGS_DAILY_GENERATION, details: JSON.stringify({ enabled: input.dailyGenerationEnabled, reason: input.dailyDisabledReason }) });
     }
     if (typeof input.dailyDisabledReason === "string") await setDailyDisabledReason(input.dailyDisabledReason);
     return { ok: true, data: await getSettings() };

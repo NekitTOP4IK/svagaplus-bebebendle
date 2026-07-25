@@ -12,6 +12,7 @@ import {
 import { getCompetitiveSeasonDetail } from "@/lib/admin/competitive-season-detail";
 import { getAdminScran, listAdminScrans } from "@/lib/admin/scrans";
 import { writeAuditLog } from "@/lib/moderation-audit";
+import { AUDIT_ACTIONS } from "@/lib/audit-actions";
 
 type QueryResult<T> =
   | Readonly<{ success: true; data: T }>
@@ -66,7 +67,7 @@ export async function generateCompetitiveDailyAction(
     if (!result.ok) return { success: false, message: result.error };
     await writeAuditLog({
       actorUserId: actor.id,
-      action: "competitive.daily.generate",
+      action: AUDIT_ACTIONS.COMPETITIVE_DAILY_GENERATE,
       details: JSON.stringify({ date, dailyId: result.dailyId }),
     });
     return { success: true, data: result };

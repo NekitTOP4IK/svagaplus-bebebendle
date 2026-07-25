@@ -25,6 +25,7 @@ import {
   type CompetitiveIntroConfig,
 } from "@/lib/competitive/intro";
 import { writeAuditLog } from "@/lib/moderation-audit";
+import { AUDIT_ACTIONS } from "@/lib/audit-actions";
 import {
   addToPool,
   listPool,
@@ -173,7 +174,7 @@ export async function createCompetitiveSeasonAction(
     });
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.season.create",
+      action: AUDIT_ACTIONS.COMPETITIVE_SEASON_CREATE,
       details: JSON.stringify({
         id: season.id,
         name: season.name,
@@ -258,7 +259,7 @@ export async function updateCompetitiveSeasonAction(
     const season = (await getSeason(input.id)) ?? updated;
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.season.update",
+      action: AUDIT_ACTIONS.COMPETITIVE_SEASON_UPDATE,
       details: JSON.stringify({ id: input.id, changed, status: season.status }),
     });
     return { success: true, data: season };
@@ -288,7 +289,7 @@ export async function endCompetitiveSeasonAction(
     if (!season) return { success: false, message: "Not found" };
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.season.end",
+      action: AUDIT_ACTIONS.COMPETITIVE_SEASON_END,
       details: JSON.stringify({ id, previousStatus: existing.status }),
     });
     return { success: true, data: season };
@@ -333,7 +334,7 @@ export async function saveCompetitiveIntro(
     );
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.intro.update",
+      action: AUDIT_ACTIONS.COMPETITIVE_INTRO_UPDATE,
       details: JSON.stringify({
         enabled: intro.enabled,
         titleLen: intro.title.length,
@@ -380,7 +381,7 @@ export async function saveCompetitiveSettings(
     await setCompetitiveEnabled(competitiveEnabled);
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.settings.update",
+      action: AUDIT_ACTIONS.COMPETITIVE_SETTINGS_UPDATE,
       details: JSON.stringify({ competitiveEnabled }),
     });
     return { success: true, data: { competitiveEnabled } };
@@ -421,7 +422,7 @@ export async function saveCompetitiveModeRules(
     await setSetting(SETTING_COMPETITIVE_MODE_RULES, serializeContentDoc(doc));
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.content.mode_rules.update",
+      action: AUDIT_ACTIONS.COMPETITIVE_CONTENT_MODE_RULES_UPDATE,
       details: JSON.stringify({ blocks: doc.blocks.length }),
     });
     return {
@@ -463,7 +464,7 @@ export async function uploadCompetitiveContentAsset(
 
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.content.upload",
+      action: AUDIT_ACTIONS.COMPETITIVE_CONTENT_UPLOAD,
       details: JSON.stringify({ filename, type: file.type, size: file.size }),
     });
 
@@ -493,7 +494,7 @@ export async function addCompetitivePoolEntry(
     if (!result.ok) return { success: false, message: result.error };
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.pool.add",
+      action: AUDIT_ACTIONS.COMPETITIVE_POOL_ADD,
       scranId: Number(scranId),
       details: JSON.stringify({ scranId, entryId: result.entry.id }),
     });
@@ -571,7 +572,7 @@ export async function setCompetitivePoolEnabledAction(
     if (!result.ok) return { success: false, message: result.error };
     await writeAuditLog({
       actorUserId: user.id,
-      action: "competitive.pool.enable",
+      action: AUDIT_ACTIONS.COMPETITIVE_POOL_ENABLE,
       scranId: input.scranId,
       details: JSON.stringify({
         scranId: input.scranId,

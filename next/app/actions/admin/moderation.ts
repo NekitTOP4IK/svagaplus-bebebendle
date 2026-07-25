@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { isStaffRole, requireRole } from "@/lib/auth-server";
 import { writeAuditLog } from "@/lib/moderation-audit";
+import { AUDIT_ACTIONS } from "@/lib/audit-actions";
 import {
   buildRejectMessage,
   isRejectReasonCode,
@@ -168,7 +169,7 @@ export async function approveScranAction(
     await notify(row.telegramId, `✅ ${row.name} — одобрено и опубликовано!`);
     await writeAuditLog({
       actorUserId: actor.data.id,
-      action: "scran.approve",
+      action: AUDIT_ACTIONS.SCRAN_APPROVE,
       scranId: id,
       targetTelegramId: row.telegramId,
       details: row.name,
@@ -217,7 +218,7 @@ export async function rejectScranAction(
     );
     await writeAuditLog({
       actorUserId: actor.data.id,
-      action: "scran.reject",
+      action: AUDIT_ACTIONS.SCRAN_REJECT,
       scranId: input.id,
       targetTelegramId: row.telegramId,
       details: JSON.stringify({ reason, note: note || null }),
@@ -246,7 +247,7 @@ export async function unpublishScranAction(
       return { ok: false, code: "not_found", message: "Блюдо не найдено" };
     await writeAuditLog({
       actorUserId: actor.data.id,
-      action: "scran.unpublish",
+      action: AUDIT_ACTIONS.SCRAN_UNPUBLISH,
       scranId: id,
       targetTelegramId: row.telegramId,
       details: row.name,
@@ -358,7 +359,7 @@ export async function restoreScranAction(
       .where(eq(scrans.id, id));
     await writeAuditLog({
       actorUserId: actor.data.id,
-      action: "scran.restore",
+      action: AUDIT_ACTIONS.SCRAN_RESTORE,
       scranId: id,
       targetTelegramId: existing.telegramId,
     });
@@ -412,7 +413,7 @@ export async function editScranAction(
     await db.update(scrans).set(patch).where(eq(scrans.id, input.id));
     await writeAuditLog({
       actorUserId: actor.data.id,
-      action: "scran.edit",
+      action: AUDIT_ACTIONS.SCRAN_EDIT,
       scranId: input.id,
       targetTelegramId: existing.telegramId,
       details: JSON.stringify(patch),
@@ -467,7 +468,7 @@ export async function deleteScranAction(
     );
     await writeAuditLog({
       actorUserId: actor.data.id,
-      action: "scran.delete",
+      action: AUDIT_ACTIONS.SCRAN_DELETE,
       scranId,
       targetTelegramId: row.telegramId,
       details: JSON.stringify({ name: row.name, comment }),
@@ -551,7 +552,7 @@ export async function bulkModerationAction(
     }
     await writeAuditLog({
       actorUserId: actor.data.id,
-      action: `scran.bulk_${input.action}`,
+      action: input.action === "approve" ? AUDIT_ACTIONS.SCRAN_BULK_APPROVE : AUDIT_ACTIONS.SCRAN_BULK_REJECT,
       details: JSON.stringify({
         ids: rows.map((row) => row.id),
         count: ok,

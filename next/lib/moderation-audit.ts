@@ -1,8 +1,9 @@
 import { db, moderationAuditLog } from "@/db/schema";
+import type { AuditAction } from "@/lib/audit-actions";
 
 export async function writeAuditLog(input: {
   actorUserId: number | null;
-  action: string;
+  action: AuditAction;
   scranId?: number | null;
   targetTelegramId?: string | null;
   details?: string | null;

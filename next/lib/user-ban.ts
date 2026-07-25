@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db, scrans, userBans, users } from "@/db/schema";
 import { writeAuditLog } from "@/lib/moderation-audit";
+import { AUDIT_ACTIONS } from "@/lib/audit-actions";
 import {
   buildBanNotifyMessage,
   pendingRejectReasonForBan,
@@ -136,7 +137,7 @@ export async function banTelegramUser(input: {
   for (const p of pending) {
     await writeAuditLog({
       actorUserId: input.actor.id,
-      action: "scran.reject",
+      action: AUDIT_ACTIONS.SCRAN_REJECT,
       scranId: p.id,
       targetTelegramId: telegramId,
       details: JSON.stringify({
@@ -149,7 +150,7 @@ export async function banTelegramUser(input: {
 
   await writeAuditLog({
     actorUserId: input.actor.id,
-    action: "user.ban",
+    action: AUDIT_ACTIONS.USER_BAN,
     scranId: null,
     targetTelegramId: telegramId,
     details: JSON.stringify({
