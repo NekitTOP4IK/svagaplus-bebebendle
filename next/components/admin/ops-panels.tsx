@@ -2,58 +2,32 @@
 
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api-client";
+import {
+  getAdminAuditLogs,
+  getAdminDuplicates,
+  getAdminHealth,
+  getAdminStats,
+  type AdminAuditLog,
+  type AdminDuplicateGroup,
+  type AdminHealth,
+  type AdminStats,
+} from "@/app/admin/actions";
 import { auditActionLabel, auditDetailsPreview } from "@/lib/audit-labels";
 
-type Stats = {
-  scrans: {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
-    subscribersPending: number;
-    unchecked: number;
-  };
-  users: { total: number; admins: number; moderators: number };
-  plays: { results: number; avgScore: number };
-  dailyDays: number;
-};
-
-type AuditLog = {
-  id: number;
-  action: string;
-  scranId: number | null;
-  targetTelegramId: string | null;
-  details: string | null;
-  createdAt: string;
-  actorUsername: string | null;
-  actorDisplayName: string | null;
-};
-
-type DupGroup = { name: string; count: number; ids: number[] };
-
-type Health = {
-  ready: { status: number; body: { status?: string; components?: Record<string, string> } };
-  live: { status: number; body: unknown };
-  env: string;
-  now: string;
-};
-
 export function StatsPanel(): ReactElement {
-  const [data, setData] = useState<Stats | null>(null);
+  const [data, setData] = useState<AdminStats | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiFetch("/api/admin/stats");
-        if (!res.ok) {
+        const result = await getAdminStats();
+        if (!result.success) {
           if (!cancelled) setError("Не удалось загрузить статистику");
           return;
         }
-        const json = (await res.json()) as Stats;
-        if (!cancelled) setData(json);
+        if (!cancelled) setData(result.data);
       } catch {
         if (!cancelled) setError("Ошибка сети");
       }
@@ -93,7 +67,7 @@ export function StatsPanel(): ReactElement {
 }
 
 export function AuditPanel(): ReactElement {
-  const [logs, setLogs] = useState<AuditLog[] | null>(null);
+  const [logs, setLogs] = useState<AdminAuditLog[] | null>(null);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
 
@@ -101,17 +75,16 @@ export function AuditPanel(): ReactElement {
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiFetch("/api/admin/audit?limit=80");
-        if (!res.ok) {
+        const result = await getAdminAuditLogs();
+        if (!result.success) {
           if (!cancelled) {
-            setError(res.status === 401 ? "Только для админа" : "Ошибка audit");
+            setError(result.message === "Unauthorized" ? "Только для админа" : "Ошибка audit");
             setLogs([]);
           }
           return;
         }
-        const json = (await res.json()) as { logs: AuditLog[] };
         if (!cancelled) {
-          setLogs(json.logs);
+          setLogs(result.data);
           setError("");
         }
       } catch {
@@ -206,20 +179,19 @@ export function AuditPanel(): ReactElement {
 }
 
 export function DuplicatesPanel(): ReactElement {
-  const [groups, setGroups] = useState<DupGroup[] | null>(null);
+  const [groups, setGroups] = useState<AdminDuplicateGroup[] | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiFetch("/api/admin/duplicates");
-        if (!res.ok) {
+        const result = await getAdminDuplicates();
+        if (!result.success) {
           if (!cancelled) setError("Не удалось загрузить дубликаты");
           return;
         }
-        const json = (await res.json()) as { groups: DupGroup[] };
-        if (!cancelled) setGroups(json.groups ?? []);
+        if (!cancelled) setGroups(result.data);
       } catch {
         if (!cancelled) setError("Ошибка сети");
       }
@@ -253,7 +225,7 @@ export function DuplicatesPanel(): ReactElement {
 }
 
 export function HealthPanel(): ReactElement {
-  const [data, setData] = useState<Health | null>(null);
+  const [data, setData] = useState<AdminHealth | null>(null);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
 
@@ -261,16 +233,15 @@ export function HealthPanel(): ReactElement {
     let cancelled = false;
     (async () => {
       try {
-        const res = await apiFetch("/api/admin/health");
-        if (!res.ok) {
+        const result = await getAdminHealth();
+        if (!result.success) {
           if (!cancelled) {
-            setError(res.status === 401 ? "Только для админа" : "Ошибка health");
+            setError(result.message === "Unauthorized" ? "Только для админа" : "Ошибка health");
           }
           return;
         }
-        const json = (await res.json()) as Health;
         if (!cancelled) {
-          setData(json);
+          setData(result.data);
           setError("");
         }
       } catch {
