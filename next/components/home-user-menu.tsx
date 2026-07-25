@@ -14,7 +14,7 @@ export type SessionUser = Readonly<{
   telegramPhotoUrl: string | null;
   displayName: string | null;
   competitiveDisplayName?: string | null;
-  role: "player" | "moderator" | "admin";
+  role: "player" | "streamer" | "moderator" | "admin";
   isSubscriber: boolean | null;
 }>;
 

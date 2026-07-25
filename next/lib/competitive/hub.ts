@@ -12,7 +12,6 @@ import {
   competitiveDailies,
   competitiveResults,
   competitiveStandings,
-  competitiveStreakFreezes,
 } from "@/db/schema";
 import {
   mskDateStartUtc,
@@ -35,7 +34,6 @@ import {
   SETTING_COMPETITIVE_INTRO,
   type CompetitiveIntroConfig,
 } from "./intro";
-import { getUserResult } from "./play";
 import {
   ensureSeasonTransitions,
   getLatestEndedSeason,
@@ -172,6 +170,14 @@ export function addCalendarDays(dateStr: string, delta: number): string {
   return `${yy}-${mm}-${dd}`;
 }
 
+/** A user has one freeze charge for each season, consumed only in that season. */
+export function freezeAvailableForSeason(
+  usedSeasonId: number | null,
+  seasonId: number,
+): boolean {
+  return usedSeasonId !== seasonId;
+}
+
 /**
  * 1-based day index of the season for a given MSK calendar day.
  * Day 1 = MSK date of season startsAt.
@@ -201,6 +207,92 @@ export type ComputeStreakOptions = Readonly<{
   /** One free single-day gap per season. Gap day does not increment streak. */
   freezeAvailable?: boolean;
 }>;
+
+export type SeasonDateBounds = Readonly<{
+  startsAt: Date | string;
+  endsAt: Date | string;
+}>;
+
+export type SeasonStreakComputeResult = Readonly<{
+  days: number;
+  /** A single in-season gap can be bridged if a deliberate mutation spends it. */
+  needsFreeze: boolean;
+}>;
+
+function seasonResultDates(
+  resultDates: readonly string[],
+  season: SeasonDateBounds,
+): string[] {
+  const startsAt = typeof season.startsAt === "string" ? new Date(season.startsAt) : season.startsAt;
+  const endsAt = typeof season.endsAt === "string" ? new Date(season.endsAt) : season.endsAt;
+  const startDate = todayMskDate(startsAt);
+  const endDateExclusive = todayMskDate(endsAt);
+  return resultDates.filter((date) => date >= startDate && date < endDateExclusive);
+}
+
+function computeStreakWithStoredFreeze(
+  resultDates: readonly string[],
+  todayMsk: string,
+  freezeDate: string,
+): StreakComputeResult {
+  const set = new Set(resultDates);
+  let cursor: string | null = null;
+  let freezeConsumed = false;
+  if (set.has(todayMsk)) {
+    cursor = todayMsk;
+  } else {
+    const yesterday = addCalendarDays(todayMsk, -1);
+    if (set.has(yesterday)) {
+      cursor = yesterday;
+    } else if (freezeDate === yesterday && set.has(addCalendarDays(todayMsk, -2))) {
+      cursor = addCalendarDays(todayMsk, -2);
+      freezeConsumed = true;
+    }
+  }
+  if (!cursor) return { days: 0, freezeConsumed: false };
+
+  let days = 0;
+  while (true) {
+    if (set.has(cursor)) {
+      days += 1;
+      cursor = addCalendarDays(cursor, -1);
+      continue;
+    }
+    const beforeGap = addCalendarDays(cursor, -1);
+    if (cursor === freezeDate && set.has(beforeGap)) {
+      freezeConsumed = true;
+      cursor = beforeGap;
+      continue;
+    }
+    break;
+  }
+  return { days, freezeConsumed };
+}
+
+/** Returns the single date a newly available charge would bridge, if any. */
+export function findSeasonStreakFreezeDate(
+  resultDates: readonly string[],
+  season: SeasonDateBounds,
+  todayMsk: string,
+): string | null {
+  const set = new Set(seasonResultDates(resultDates, season));
+  let cursor: string | null = null;
+  if (set.has(todayMsk)) {
+    cursor = todayMsk;
+  } else {
+    const yesterday = addCalendarDays(todayMsk, -1);
+    if (set.has(yesterday)) cursor = yesterday;
+    else if (set.has(addCalendarDays(todayMsk, -2))) return yesterday;
+  }
+  if (!cursor) return null;
+  while (true) {
+    if (set.has(cursor)) {
+      cursor = addCalendarDays(cursor, -1);
+      continue;
+    }
+    return set.has(addCalendarDays(cursor, -1)) ? cursor : null;
+  }
+}
 
 /**
  * Consecutive MSK calendar dates with a result, ending on today or yesterday
@@ -247,17 +339,39 @@ export function computeStreakDays(
       continue;
     }
     if (freezesLeft > 0) {
-      // Bridge one empty day without incrementing streak.
+      const beforeGap = addCalendarDays(cursor, -1);
+      if (!set.has(beforeGap)) break;
+      // Bridge one actual empty day without incrementing streak.
       freezesLeft = 0;
       freezeConsumed = true;
-      cursor = addCalendarDays(cursor, -1);
-      if (!set.has(cursor)) break;
+      cursor = beforeGap;
       continue;
     }
     break;
   }
 
   return { days: streak, freezeConsumed };
+}
+
+/**
+ * Read-only, season-bounded streak state. It deliberately never records a
+ * freeze spend: loading the hub must not mutate a user's seasonal charge.
+ */
+export function computeSeasonStreakDays(
+  resultDates: readonly string[],
+  season: SeasonDateBounds,
+  todayMsk: string,
+  freezeAvailable: boolean,
+  freezeHeldDate: string | null = null,
+): SeasonStreakComputeResult {
+  const inSeasonDates = seasonResultDates(resultDates, season);
+  const result = freezeHeldDate
+    ? computeStreakWithStoredFreeze(inSeasonDates, todayMsk, freezeHeldDate)
+    : computeStreakDays(inSeasonDates, todayMsk, { freezeAvailable });
+  return {
+    days: result.days,
+    needsFreeze: result.freezeConsumed && !freezeHeldDate,
+  };
 }
 
 /**
@@ -334,6 +448,9 @@ export async function getHubPayload(
       id: users.id,
       competitiveDisplayName: users.competitiveDisplayName,
       telegramUsername: users.telegramUsername,
+      competitiveStreakFreezeSeasonId: users.competitiveStreakFreezeSeasonId,
+      competitiveStreakFreezeUsedAt: users.competitiveStreakFreezeUsedAt,
+      competitiveStreakFreezeDate: users.competitiveStreakFreezeDate,
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -391,20 +508,20 @@ export async function getHubPayload(
     .limit(1);
   const hasDailyToday = dailyRow !== undefined;
 
-  const todayResult = await getUserResult(userId, today);
-  const hasPlayed = todayResult !== null;
+  const [todayResult] = await db
+    .select({ points: competitiveResults.points })
+    .from(competitiveResults)
+    .where(
+      and(
+        eq(competitiveResults.userId, userId),
+        eq(competitiveResults.date, today),
+      ),
+    )
+    .limit(1);
+  const hasPlayed = todayResult !== undefined;
   const todayPoints = todayResult?.points ?? null;
 
-  // Streak: all competitive results for this user (UI continuity, not season-scoped).
-  // Freeze charge is season-scoped (standings.streak_freeze_used).
-  const resultDateRows = await db
-    .select({ date: competitiveResults.date })
-    .from(competitiveResults)
-    .where(eq(competitiveResults.userId, userId));
-  const resultDates = resultDateRows.map((r) => r.date);
-
   if (!season) {
-    const { days: streakDays } = computeStreakDays(resultDates, today);
     return {
       enabled: true,
       season: null,
@@ -413,7 +530,6 @@ export async function getHubPayload(
       todayPoints,
       me: {
         ...emptyMe(label, competitiveDisplayName),
-        streakDays,
       },
       top: [],
       myRow: null,
@@ -455,46 +571,38 @@ export async function getHubPayload(
   // Defensive sort in case DB collation differs (matches endSeason order).
   const ranked = [...standingRows].sort(compareStandingsRank);
 
-  const [freezeRow] = await db
-    .select({ userId: competitiveStreakFreezes.userId })
-    .from(competitiveStreakFreezes)
+  const resultDateRows = await db
+    .select({ date: competitiveResults.date })
+    .from(competitiveResults)
     .where(
       and(
-        eq(competitiveStreakFreezes.seasonId, season.id),
-        eq(competitiveStreakFreezes.userId, userId),
+        eq(competitiveResults.userId, userId),
+        eq(competitiveResults.seasonId, season.id),
       ),
-    )
-    .limit(1);
-
-  const freezeAlreadyUsed = freezeRow !== undefined;
-
-  // Season always grants one freeze capacity: recompute may keep bridging the
-  // single historical gap after the charge is spent (does not stack).
-  const streakResult = computeStreakDays(resultDates, today, {
-    freezeAvailable: true,
-  });
-
-  // Persist auto-consume the first time a gap is bridged this season.
-  if (streakResult.freezeConsumed && !freezeAlreadyUsed) {
-    await db
-      .insert(competitiveStreakFreezes)
-      .values({
-        seasonId: season.id,
-        userId,
-        usedAt: now,
-      })
-      .onConflictDoNothing({
-        target: [
-          competitiveStreakFreezes.seasonId,
-          competitiveStreakFreezes.userId,
-        ],
-      });
-  }
-
+    );
+  const resultDates = resultDateRows.map((r) => r.date);
+  const freezeAvailable = freezeAvailableForSeason(
+    user?.competitiveStreakFreezeSeasonId ?? null,
+    season.id,
+  );
+  const freezeHeldDate =
+    user?.competitiveStreakFreezeSeasonId === season.id
+      ? user.competitiveStreakFreezeDate
+      : null;
+  const streakResult = computeSeasonStreakDays(
+    resultDates,
+    season,
+    today,
+    freezeAvailable,
+    freezeHeldDate,
+  );
+  const unbridgedStreak = freezeHeldDate
+    ? computeSeasonStreakDays(resultDates, season, today, false)
+    : null;
   const streakDays = streakResult.days;
-  const streakFreezeHolding = streakResult.freezeConsumed;
-  const streakFreezeAvailable =
-    !freezeAlreadyUsed && !streakResult.freezeConsumed;
+  const streakFreezeHolding =
+    freezeHeldDate !== null && streakDays > (unbridgedStreak?.days ?? streakDays);
+  const streakFreezeAvailable = freezeAvailable && !streakResult.needsFreeze;
 
   const top: HubStandingRow[] = ranked.slice(0, TOP_LIMIT).map((row, index) => ({
     place: index + 1,

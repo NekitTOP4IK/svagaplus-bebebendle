@@ -254,6 +254,15 @@ body {
     text-shadow: 1px 1px 0 #0a2848;
 }
 
+.user-nick-glow--streamer {
+    filter: drop-shadow(0 0 5px rgba(216, 180, 254, 0.95))
+        drop-shadow(0 0 12px rgba(168, 85, 247, 0.6));
+}
+.user-nick-glow--streamer .user-nick-text {
+    color: #eadcff;
+    text-shadow: 1px 1px 0 #3b0764;
+}
+
 .user-role-badge {
     transform: translateY(-2px);
     image-rendering: auto;
@@ -266,6 +275,9 @@ body {
 }
 .user-role-badge--moderator {
     filter: drop-shadow(0 0 3px rgba(40, 140, 255, 0.75));
+}
+.user-role-badge--streamer {
+    filter: drop-shadow(0 0 3px rgba(192, 132, 252, 0.8));
 }
 
 /* Chip / avatar rings by tone */
@@ -290,6 +302,13 @@ body {
         inset -2px -2px 0 #555,
         0 0 12px rgba(40, 140, 255, 0.4);
 }
+.user-chip--streamer {
+    overflow: visible;
+    box-shadow:
+        inset 2px 2px 0 #c6c6c6,
+        inset -2px -2px 0 #555,
+        0 0 12px rgba(168, 85, 247, 0.45);
+}
 
 .user-avatar--subscriber {
     box-shadow: 0 0 0 2px #d4a028, 0 0 10px rgba(212, 160, 40, 0.7);
@@ -299,6 +318,9 @@ body {
 }
 .user-avatar--moderator {
     box-shadow: 0 0 0 2px #1e88e5, 0 0 10px rgba(40, 140, 255, 0.7);
+}
+.user-avatar--streamer {
+    box-shadow: 0 0 0 2px #c084fc, 0 0 10px rgba(192, 132, 252, 0.75);
 }
 
 /* Legacy aliases (keep if anything still references) */

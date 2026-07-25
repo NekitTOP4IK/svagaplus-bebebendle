@@ -40,6 +40,10 @@ done
 [[ -n "$out" ]] && : >"$out"
 exit 0
 EOF
+cat >"$HOME/bin/flock" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
 cat >"$HOME/bin/curl" <<'EOF'
 #!/usr/bin/env bash
 if [[ -f "${BEBEBENDLE_TEST_HEALTH_OK:-/tmp/bebe-health-ok}" ]]; then exit 0; fi
@@ -65,12 +69,10 @@ PORT=3000
 BOT_HEALTH_PORT=3011
 EOF
 
-SHA="$(python3 - <<'PY'
-print("a"*40)
-PY
-)"
+SHA="$(printf 'a%.0s' {1..40})"
 WORK="$TMP/src"
 mkdir -p "$WORK"/{next,bot/src,scripts,ops}
+touch "$WORK/bot/src/main.py"
 printf '%s\n' '{"name":"x","scripts":{"build":"true","db:migrate":"true"}}' >"$WORK/next/package.json"
 echo 'lock-content-v1' >"$WORK/next/bun.lock"
 mkdir -p "$WORK/next/node_modules/.bin"
@@ -86,6 +88,15 @@ echo '#!/usr/bin/env bash' >"$WORK/scripts/run-next.sh"
 echo '#!/usr/bin/env bash' >"$WORK/scripts/run-bot.sh"
 echo 'module.exports={apps:[]}' >"$WORK/ecosystem.config.cjs"
 cp "$ROOT/ops/deploy-release.sh" "$WORK/ops/deploy-release.sh"
+cat >"$WORK/ops/install-daily-timers.sh" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "status" ]]; then
+  echo 'timer status unavailable' >&2
+  exit 1
+fi
+exit 2
+EOF
+chmod +x "$WORK/ops/install-daily-timers.sh"
 
 ARCHIVE_MASTER="$TMP/bebebendle-master.tar.gz"
 tar -czf "$ARCHIVE_MASTER" -C "$WORK" .
@@ -100,15 +111,16 @@ export BEBEBENDLE_TEST_HEALTH_OK=/tmp/bebe-health-ok
 export BEBEBENDLE_KEEP_RELEASES=3
 
 # First deploy creates cold caches
-bash "$ROOT/ops/deploy-release.sh" "$SHA" staging "http://127.0.0.1:3000"
+FIRST_DEPLOY_OUTPUT="$(bash "$ROOT/ops/deploy-release.sh" "$SHA" staging "http://127.0.0.1:3000" 2>&1)"
+if ! grep -Fq 'warn: systemd timer status check failed; repair with: sudo bash /opt/bebebendle/current/ops/install-daily-timers.sh install' <<<"$FIRST_DEPLOY_OUTPUT"; then
+  echo 'FAIL: deploy did not warn about unavailable timer status' >&2
+  exit 1
+fi
 [[ -L "$DEPLOY_ROOT/current" ]]
 [[ -L "$DEPLOY_ROOT/current/bot/.venv" ]]
 
 # Second deploy same locks should reuse caches (still success)
-SHA2="$(python3 - <<'PY'
-print("b"*40)
-PY
-)"
+SHA2="$(printf 'b%.0s' {1..40})"
 # new archive with same locks
 cp "$ARCHIVE_MASTER" "$DEPLOY_ROOT/incoming/bebebendle-$SHA2.tar.gz"
 (cd "$DEPLOY_ROOT/incoming" && sha256sum "bebebendle-$SHA2.tar.gz" >"bebebendle-$SHA2.tar.gz.sha256")
@@ -126,10 +138,7 @@ fi
 # Force dump even when migrate skipped
 rm -f /tmp/bebe-health-ok
 ( sleep 1; touch /tmp/bebe-health-ok ) &
-SHA2B="$(python3 - <<'PY'
-print("d"*40)
-PY
-)"
+SHA2B="$(printf 'd%.0s' {1..40})"
 cp "$ARCHIVE_MASTER" "$DEPLOY_ROOT/incoming/bebebendle-$SHA2B.tar.gz"
 (cd "$DEPLOY_ROOT/incoming" && sha256sum "bebebendle-$SHA2B.tar.gz" >"bebebendle-$SHA2B.tar.gz.sha256")
 BEBEBENDLE_FORCE_DB_BACKUP=1 bash "$ROOT/ops/deploy-release.sh" "$SHA2B" staging "http://127.0.0.1:3000"
@@ -140,10 +149,7 @@ if [[ "$DUMP_COUNT_FORCE" -ne 2 ]]; then
 fi
 
 # Bad checksum
-SHA3="$(python3 - <<'PY'
-print("c"*40)
-PY
-)"
+SHA3="$(printf 'c%.0s' {1..40})"
 cp "$ARCHIVE_MASTER" "$DEPLOY_ROOT/incoming/bebebendle-$SHA3.tar.gz"
 echo "0000000000000000000000000000000000000000000000000000000000000000  bebebendle-$SHA3.tar.gz" \
   >"$DEPLOY_ROOT/incoming/bebebendle-$SHA3.tar.gz.sha256"

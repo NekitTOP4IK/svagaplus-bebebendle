@@ -22,7 +22,8 @@ import {
   DuplicatesPanel,
   HealthPanel,
 } from "@/components/admin/ops-panels";
-import { getUsers, updateUserRole, type AdminUser } from "@/app/admin/actions";
+import { getUsersPage, type AdminUser } from "@/app/admin/actions";
+import { UserEditorModal } from "@/components/admin/user-editor-modal";
 import type { BanReasonCode } from "@/lib/ban-reasons";
 import { addCompetitivePoolEntry } from "@/app/admin/competitive-actions";
 import { toast } from "sonner";
@@ -168,6 +169,11 @@ export function AdminDashboard({
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState("");
+  const [userSearchInput, setUserSearchInput] = useState("");
+  const [userSearch, setUserSearch] = useState("");
+  const [userPage, setUserPage] = useState(1);
+  const [userTotal, setUserTotal] = useState(0);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
 
   const visibleTabs = useMemo(
     () => MOD_TABS.filter((t) => !t.adminOnly || role === "admin"),
@@ -263,28 +269,31 @@ export function AdminDashboard({
     setUsersLoading(true);
     setUsersError("");
     try {
-      const data = await getUsers();
-      setUsers(data);
+      const result = await getUsersPage(userSearch, userPage, 25);
+      if (!result.success) {
+        setUsersError(result.message);
+        return;
+      }
+      setUsers(result.data.rows);
+      setUserTotal(result.data.total);
     } catch {
       setUsersError("Не удалось загрузить пользователей");
     } finally {
       setUsersLoading(false);
     }
-  }, [role]);
-
-  const handleRoleChange = useCallback(
-    async (userId: number, newRole: AdminUser["role"]) => {
-      setUsersError("");
-      const result = await updateUserRole(userId, newRole);
-      if (result.success) await loadUsers();
-      else setUsersError(result.message || "Не удалось изменить роль");
-    },
-    [loadUsers],
-  );
+  }, [role, userPage, userSearch]);
 
   useEffect(() => {
     if (view === "users") loadUsers();
   }, [view, loadUsers]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setUserSearch(userSearchInput);
+      setUserPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearchInput]);
 
   useEffect(() => {
     setLocalSearch(searchQuery);
@@ -488,7 +497,10 @@ export function AdminDashboard({
           </div>
         ) : view === "users" ? (
           <div className="pixel-container overflow-hidden border-4 border-black bg-zinc-900/80 p-4">
-            <h2 className="pixel-text mb-4 text-xl font-bold text-white">Пользователи</h2>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="pixel-text text-xl font-bold text-white">Пользователи</h2>
+              <input type="search" value={userSearchInput} onChange={(event) => setUserSearchInput(event.target.value)} placeholder="Имя, username или Telegram ID" className="pixel-input w-full max-w-sm" />
+            </div>
             {usersLoading ? (
               <div className="pixel-text text-white">Загрузка пользователей...</div>
             ) : usersError ? (
@@ -503,13 +515,16 @@ export function AdminDashboard({
                       <th className="py-2 pr-4">Username</th>
                       <th className="py-2 pr-4">Display Name</th>
                       <th className="py-2 pr-4">Role</th>
-                      <th className="py-2">Изменить роль</th>
+                      <th className="py-2 pr-4">SVAGA+</th>
+                      <th className="py-2 pr-4">Создан</th>
+                      <th className="py-2 pr-4">Обновлён</th>
+                      <th className="py-2">Действия</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-700 text-white">
                     {users.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-4 text-white/60">
+                        <td colSpan={9} className="py-4 text-white/60">
                           Нет пользователей
                         </td>
                       </tr>
@@ -527,28 +542,19 @@ export function AdminDashboard({
                                 ? "bg-yellow-400 text-black"
                                 : u.role === "moderator"
                                   ? "bg-blue-400 text-black"
+                                  : u.role === "streamer"
+                                    ? "bg-purple-400 text-black"
                                   : "bg-zinc-600 text-white"
                             }`}
                           >
                             {u.role}
                           </span>
                         </td>
+                        <td className="py-2 pr-4">{u.isSubscriber === null ? "—" : u.isSubscriber ? "Да" : "Нет"}</td>
+                        <td className="py-2 pr-4 whitespace-nowrap">{u.createdAt?.toLocaleString() ?? "—"}</td>
+                        <td className="py-2 pr-4 whitespace-nowrap">{u.updatedAt?.toLocaleString() ?? "—"}</td>
                         <td className="py-2">
-                          <select
-                            value={u.role}
-                            onChange={(e) =>
-                              handleRoleChange(u.id, e.target.value as AdminUser["role"])
-                            }
-                            className="pixel-select w-auto min-w-[7rem] py-1 text-xs"
-                            disabled={
-                              u.role === "admin" &&
-                              users.filter((x) => x.role === "admin").length === 1
-                            }
-                          >
-                            <option value="player">player</option>
-                            <option value="moderator">moderator</option>
-                            <option value="admin">admin</option>
-                          </select>
+                          <button type="button" onClick={() => setEditingUser(u)} className="pixel-btn px-3 py-1 text-xs">Открыть</button>
                         </td>
                       </tr>
                     ))}
@@ -556,6 +562,13 @@ export function AdminDashboard({
                 </table>
               </div>
             )}
+            {userTotal > 25 && (
+              <div className="mt-4 flex items-center justify-between gap-3 text-sm text-white">
+                <span>Страница {userPage} из {Math.ceil(userTotal / 25)} · всего {userTotal}</span>
+                <div className="flex gap-2"><button type="button" className="pixel-btn px-3 py-1" disabled={userPage === 1} onClick={() => setUserPage((page) => page - 1)}>Назад</button><button type="button" className="pixel-btn px-3 py-1" disabled={userPage >= Math.ceil(userTotal / 25)} onClick={() => setUserPage((page) => page + 1)}>Дальше</button></div>
+              </div>
+            )}
+            {editingUser && <UserEditorModal user={editingUser} onClose={() => setEditingUser(null)} onSaved={() => { setEditingUser(null); void loadUsers(); }} />}
           </div>
         ) : loading ? (
           <LoadingState />

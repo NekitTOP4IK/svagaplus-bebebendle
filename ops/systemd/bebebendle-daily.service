@@ -1,0 +1,12 @@
+[Unit]
+Description=Bebebendle daily generation
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/opt/bebebendle/current
+ExecStart=/opt/bebebendle/current/ops/cron-generate-daily.sh
+StandardOutput=append:/opt/bebebendle/shared/logs/daily-cron.log
+StandardError=append:/opt/bebebendle/shared/logs/daily-cron.log

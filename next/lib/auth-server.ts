@@ -12,7 +12,7 @@ export interface CurrentUser {
   displayName: string | null;
   /** Competitive leaderboard nick (optional). */
   competitiveDisplayName: string | null;
-  role: "player" | "moderator" | "admin";
+  role: "player" | "streamer" | "moderator" | "admin";
   isSubscriber: boolean | null;
 }
 

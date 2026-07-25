@@ -243,6 +243,7 @@ force_rm "$RELEASE/uploads"
 ln -sfn "$ROOT/shared/uploads" "$RELEASE/uploads"
 mkdir -p "$ROOT/shared/logs/next" "$ROOT/shared/logs/bot"
 chmod +x "$RELEASE/scripts/run-next.sh" "$RELEASE/scripts/run-bot.sh" 2>/dev/null || true
+chmod +x "$RELEASE/ops/install-daily-timers.sh" 2>/dev/null || true
 
 echo "==> next dependencies"
 NEXT_LOCK_HASH="$(
@@ -486,6 +487,11 @@ wait_for "http://127.0.0.1:${PORT:-3000}/api/health/ready"
 wait_for "http://127.0.0.1:${BOT_HEALTH_PORT:-3011}/health"
 wait_for "${APP_URL%/}/api/health/live"
 t_health=$((SECONDS - t_health_start))
+
+TIMER_STATUS="$ROOT/current/ops/install-daily-timers.sh"
+if [[ -x "$TIMER_STATUS" ]] && ! "$TIMER_STATUS" status; then
+  echo "warn: systemd timer status check failed; repair with: sudo bash /opt/bebebendle/current/ops/install-daily-timers.sh install" >&2
+fi
 
 SWITCHED=0
 trap - ERR

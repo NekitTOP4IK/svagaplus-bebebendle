@@ -15,6 +15,11 @@ describe("resolveIdentityTone", () => {
     expect(identityBadgeSrc("moderator")).toBe("/blue_moderator_badge.svg");
   });
 
+  it("streamer wins over subscriber", () => {
+    expect(resolveIdentityTone("streamer", true)).toBe("streamer");
+    expect(identityBadgeSrc("streamer")).toBe("/streamer-badge.svg");
+  });
+
   it("subscriber for players", () => {
     expect(resolveIdentityTone("player", true)).toBe("subscriber");
     expect(identityBadgeSrc("subscriber")).toBe("/gold_verified_badge.svg");

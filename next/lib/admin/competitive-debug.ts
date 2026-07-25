@@ -2,7 +2,6 @@ import { eq, or, sql } from "drizzle-orm";
 import {
   competitiveResults,
   competitiveStandings,
-  competitiveStreakFreezes,
   competitiveUserPrefs,
   db,
   users,
@@ -50,6 +49,9 @@ export async function getCompetitiveDebugSnapshot(input: CompetitiveDebugInput) 
       displayName: users.displayName,
       competitiveDisplayName: users.competitiveDisplayName,
       competitiveDisplayNameUpdatedAt: users.competitiveDisplayNameUpdatedAt,
+      competitiveStreakFreezeSeasonId: users.competitiveStreakFreezeSeasonId,
+      competitiveStreakFreezeUsedAt: users.competitiveStreakFreezeUsedAt,
+      competitiveStreakFreezeDate: users.competitiveStreakFreezeDate,
       role: users.role,
     })
     .from(users)
@@ -57,16 +59,15 @@ export async function getCompetitiveDebugSnapshot(input: CompetitiveDebugInput) 
     .limit(1);
   if (!target) throw new Error("User not found");
 
-  const [prefs, freezeRows, resultRows, standingRows] = await Promise.all([
+  const [prefs, resultRows, standingRows] = await Promise.all([
     db.select().from(competitiveUserPrefs).where(eq(competitiveUserPrefs.userId, target.id)).limit(1),
-    db.select({ count: sql<number>`count(*)::int` }).from(competitiveStreakFreezes).where(eq(competitiveStreakFreezes.userId, target.id)),
     db.select({ count: sql<number>`count(*)::int` }).from(competitiveResults).where(eq(competitiveResults.userId, target.id)),
     db.select({ count: sql<number>`count(*)::int` }).from(competitiveStandings).where(eq(competitiveStandings.userId, target.id)),
   ]);
   return {
     user: target,
     prefs: prefs[0] ?? { introDismissed: false, nickPromptDismissed: false },
-    freezesUsed: freezeRows[0]?.count ?? 0,
+    freezesUsed: target.competitiveStreakFreezeSeasonId === null ? 0 : 1,
     resultsCount: resultRows[0]?.count ?? 0,
     standingsCount: standingRows[0]?.count ?? 0,
   };
@@ -97,7 +98,7 @@ export async function resetCompetitiveDebug(
     .limit(1);
   if (!target) throw new Error("User not found");
   if (flags.resetModals) await resetCompetitiveModalPrefs(target.id);
-  if (flags.resetFreeze) await db.delete(competitiveStreakFreezes).where(eq(competitiveStreakFreezes.userId, target.id));
+  if (flags.resetFreeze) await db.update(users).set({ competitiveStreakFreezeSeasonId: null, competitiveStreakFreezeUsedAt: null, competitiveStreakFreezeDate: null, updatedAt: new Date() }).where(eq(users.id, target.id));
   if (flags.resetNick) await db.update(users).set({ competitiveDisplayName: null, competitiveDisplayNameUpdatedAt: null, updatedAt: new Date() }).where(eq(users.id, target.id));
   if (flags.resetStandings) await db.delete(competitiveStandings).where(eq(competitiveStandings.userId, target.id));
   if (flags.resetResults) await db.delete(competitiveResults).where(eq(competitiveResults.userId, target.id));

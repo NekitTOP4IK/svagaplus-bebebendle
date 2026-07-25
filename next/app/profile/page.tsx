@@ -127,6 +127,7 @@ function ProfilePageInner(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [telegramLoading, setTelegramLoading] = useState(false);
   const [twitchLoading, setTwitchLoading] = useState(false);
+  const [showTelegramId, setShowTelegramId] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -273,15 +274,24 @@ function ProfilePageInner(): ReactElement {
                 {(displayName || "?").slice(0, 2).toUpperCase()}
               </span>
             )}
-            <UserIdentity
-              name={displayName}
-              role={user.role}
-              isSubscriber={user.isSubscriber ?? null}
-              size="lg"
-              className="min-w-0 flex-1"
-              meta={`ID: ${user.telegramId}`}
-              pixelFont
-            />
+            <div className="min-w-0 flex-1">
+              <UserIdentity
+                name={displayName}
+                role={user.role}
+                isSubscriber={user.isSubscriber ?? null}
+                size="lg"
+                pixelFont
+              />
+              <button
+                type="button"
+                onClick={() => setShowTelegramId((visible) => !visible)}
+                className="mt-0.5 block text-left text-[10px] leading-tight text-white/60 underline decoration-white/30 underline-offset-2"
+              >
+                {showTelegramId
+                  ? `ID: ${user.telegramId}`
+                  : "ID: нажми, чтобы показать"}
+              </button>
+            </div>
           </div>
           <p className="mt-3 text-xs text-white/45">
             Вход привязан к Telegram. Отдельная привязка Twitch здесь не нужна —

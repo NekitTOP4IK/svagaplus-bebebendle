@@ -50,7 +50,7 @@ export const users = pgTable("users", {
   telegramUsername: text("telegram_username"),
   telegramPhotoUrl: text("telegram_photo_url"),
   displayName: text("display_name"),
-  role: text("role", { enum: ["player", "moderator", "admin"] }).notNull().default("player"),
+  role: text("role", { enum: ["player", "streamer", "moderator", "admin"] }).notNull().default("player"),
   // legacy svagaTelegramUserId/svagaUserId/linkedAt stay for rollback compatibility but are no longer written
   svagaTelegramUserId: bigint("svaga_telegram_user_id", { mode: "number" }),
   svagaUserId: text("svaga_user_id"),
@@ -61,6 +61,9 @@ export const users = pgTable("users", {
   linkedAt: timestamp("linked_at"),
   competitiveDisplayName: text("competitive_display_name"),
   competitiveDisplayNameUpdatedAt: timestamp("competitive_display_name_updated_at", { withTimezone: true }),
+  competitiveStreakFreezeSeasonId: integer("competitive_streak_freeze_season_id").references(() => competitiveSeasons.id, { onDelete: "set null" }),
+  competitiveStreakFreezeUsedAt: timestamp("competitive_streak_freeze_used_at", { withTimezone: true }),
+  competitiveStreakFreezeDate: text("competitive_streak_freeze_date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -282,18 +285,6 @@ export const competitiveStandings = pgTable("competitive_standings", {
 }));
 
 /**
- * One streak-freeze charge per user per season (auto-consumed to bridge a single missed day).
- * Separate from standings so freeze-only rows never pollute the leaderboard.
- */
-export const competitiveStreakFreezes = pgTable("competitive_streak_freezes", {
-  seasonId: integer("season_id").notNull().references(() => competitiveSeasons.id, { onDelete: "cascade" }),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  usedAt: timestamp("used_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.seasonId, table.userId] }),
-}));
-
-/**
  * Per-user competitive UX flags (onboarding modals). Server-side so admin can reset.
  */
 export const competitiveUserPrefs = pgTable("competitive_user_prefs", {
@@ -338,6 +329,5 @@ export type CompetitiveRound = typeof competitiveRounds.$inferSelect;
 export type CompetitiveVote = typeof competitiveVotes.$inferSelect;
 export type CompetitiveResult = typeof competitiveResults.$inferSelect;
 export type CompetitiveStanding = typeof competitiveStandings.$inferSelect;
-export type CompetitiveStreakFreeze = typeof competitiveStreakFreezes.$inferSelect;
 export type CompetitiveUserPrefs = typeof competitiveUserPrefs.$inferSelect;
 export type CompetitiveSeasonFinalRank = typeof competitiveSeasonFinalRanks.$inferSelect;

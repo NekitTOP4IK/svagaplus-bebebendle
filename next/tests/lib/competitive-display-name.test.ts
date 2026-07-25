@@ -11,6 +11,8 @@ import {
   addCalendarDays,
   computeStreakDays,
   compareStandingsRank,
+  computeSeasonStreakDays,
+  freezeAvailableForSeason,
   seasonDayNumber,
 } from "@/lib/competitive/hub";
 
@@ -243,16 +245,97 @@ describe("computeStreakDays", () => {
     ).toEqual({ days: 0, freezeConsumed: false });
   });
 
-  it("only one freeze — second gap still breaks chain", () => {
-    // 19 played, miss 20+21, 22+23 played — freeze bridges 21 only, then 20 empty stops
-    // → days 2 (22,23), freeze consumed, 19 not counted
+  it("does not spend a freeze on a two-day gap", () => {
+    // 19 played, miss 20+21, 22+23 played — one charge cannot bridge the pair.
     expect(
       computeStreakDays(
         ["2026-07-19", "2026-07-22", "2026-07-23"],
         today,
         { freezeAvailable: true },
       ),
-    ).toEqual({ days: 2, freezeConsumed: true });
+    ).toEqual({ days: 2, freezeConsumed: false });
+  });
+});
+
+describe("freezeAvailableForSeason", () => {
+  it("makes a charge available until it has been used in the active season", () => {
+    expect(freezeAvailableForSeason(null, 12)).toBe(true);
+    expect(freezeAvailableForSeason(11, 12)).toBe(true);
+    expect(freezeAvailableForSeason(12, 12)).toBe(false);
+  });
+});
+
+describe("computeSeasonStreakDays", () => {
+  const season = {
+    startsAt: "2026-07-01T21:00:00.000Z",
+    endsAt: "2026-08-01T21:00:00.000Z",
+  };
+
+  it("does not need a freeze when the player has played today", () => {
+    expect(
+      computeSeasonStreakDays(["2026-07-22", "2026-07-23"], season, "2026-07-23", true),
+    ).toEqual({ days: 2, needsFreeze: false });
+  });
+
+  it("reports one actual in-season gap without consuming the charge", () => {
+    expect(
+      computeSeasonStreakDays(
+        ["2026-07-20", "2026-07-21", "2026-07-23"],
+        season,
+        "2026-07-23",
+        true,
+      ),
+    ).toEqual({ days: 3, needsFreeze: true });
+  });
+
+  it("keeps a recorded same-season freeze holding its one-day gap", () => {
+    expect(
+      computeSeasonStreakDays(
+        ["2026-07-20", "2026-07-21", "2026-07-23"],
+        season,
+        "2026-07-23",
+        false,
+        "2026-07-22",
+      ),
+    ).toEqual({ days: 3, needsFreeze: false });
+  });
+
+  it("does not move a recorded freeze to a later gap", () => {
+    expect(
+      computeSeasonStreakDays(
+        ["2026-07-20", "2026-07-21", "2026-07-23", "2026-07-24", "2026-07-26"],
+        season,
+        "2026-07-26",
+        false,
+        "2026-07-22",
+      ),
+    ).toEqual({ days: 1, needsFreeze: false });
+  });
+
+  it("does not bridge two missing days with one charge", () => {
+    expect(
+      computeSeasonStreakDays(
+        ["2026-07-19", "2026-07-22", "2026-07-23"],
+        season,
+        "2026-07-23",
+        true,
+      ),
+    ).toEqual({ days: 2, needsFreeze: false });
+  });
+
+  it("makes a charge available again for a new season", () => {
+    expect(freezeAvailableForSeason(12, 13)).toBe(true);
+    expect(
+      computeSeasonStreakDays(
+        ["2026-08-02", "2026-08-04"],
+        {
+          startsAt: "2026-07-31T21:00:00.000Z",
+          endsAt: "2026-08-31T21:00:00.000Z",
+        },
+        "2026-08-04",
+        freezeAvailableForSeason(12, 13),
+      ),
+    ).toEqual({ days: 2, needsFreeze: true });
   });
 });
 

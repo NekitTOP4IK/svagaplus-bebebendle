@@ -5,7 +5,7 @@
  * likes/dislikes — never live scrans counts. Client-sent scores are ignored.
  */
 
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import {
   db,
   competitiveDailies,
@@ -14,11 +14,17 @@ import {
   competitiveResults,
   competitiveStandings,
   scrans,
+  users,
   type CompetitiveResult,
 } from "@/db/schema";
 import { publicScran } from "@/lib/daily-integrity";
 import { todayMskDate } from "@/lib/daily-timezone";
 import { COMPETITIVE_ROUNDS } from "./constants";
+import {
+  computeSeasonStreakDays,
+  findSeasonStreakFreezeDate,
+  freezeAvailableForSeason,
+} from "./hub";
 import { isCompetitiveEnabled } from "./feature";
 import {
   getPresentationPepper,
@@ -679,6 +685,58 @@ export async function finalizeCompetitive(input: {
         hits,
         points,
       });
+
+      const [freezeUser] = await tx
+        .select({
+          competitiveStreakFreezeSeasonId: users.competitiveStreakFreezeSeasonId,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      const seasonResultDates = await tx
+        .select({ date: competitiveResults.date })
+        .from(competitiveResults)
+        .where(
+          and(
+            eq(competitiveResults.userId, userId),
+            eq(competitiveResults.seasonId, seasonId),
+          ),
+        );
+      const freezeAvailable = freezeAvailableForSeason(
+        freezeUser?.competitiveStreakFreezeSeasonId ?? null,
+        seasonId,
+      );
+      const streak = computeSeasonStreakDays(
+        seasonResultDates.map((result) => result.date),
+        season,
+        date,
+        freezeAvailable,
+      );
+      if (streak.needsFreeze) {
+        const freezeDate = findSeasonStreakFreezeDate(
+          seasonResultDates.map((result) => result.date),
+          season,
+          date,
+        );
+        if (!freezeDate) throw new Error("Missing competitive freeze gap date");
+        await tx
+          .update(users)
+          .set({
+            competitiveStreakFreezeSeasonId: seasonId,
+            competitiveStreakFreezeUsedAt: new Date(),
+            competitiveStreakFreezeDate: freezeDate,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(users.id, userId),
+              or(
+                isNull(users.competitiveStreakFreezeSeasonId),
+                ne(users.competitiveStreakFreezeSeasonId, seasonId),
+              ),
+            ),
+          );
+      }
 
       await tx
         .insert(competitiveStandings)
