@@ -2,9 +2,15 @@
 
 import { useState, useCallback, useEffect } from "react";
 import type { Scran } from "@/types/scran";
-import { apiFetch } from "@/lib/api-client";
+import { getAdminScransAction } from "@/app/actions/admin/queries";
 
-type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
+type SortField =
+  | "id"
+  | "name"
+  | "price"
+  | "numberOfLikes"
+  | "numberOfDislikes"
+  | "approved";
 type SortOrder = "asc" | "desc";
 export type ScranStatusFilter = "all" | "pending" | "approved" | "rejected";
 
@@ -13,7 +19,16 @@ interface UseScransDataParams {
   currentPage: number;
   sortField: SortField;
   sortOrder: SortOrder;
-  view?: "list" | "queue" | "users" | "rejected" | "daily" | "stats" | "audit" | "duplicates" | "health";
+  view?:
+    | "list"
+    | "queue"
+    | "users"
+    | "rejected"
+    | "daily"
+    | "stats"
+    | "audit"
+    | "duplicates"
+    | "health";
   subscriberOnly?: boolean;
   searchQuery?: string;
   statusFilter?: ScranStatusFilter;
@@ -48,8 +63,12 @@ export function useScransData({
   const [scrans, setScrans] = useState<Scran[]>([]);
   const [loading, setLoading] = useState(true);
   const [shouldRefetch, setShouldRefetch] = useState(0);
-  const [subscriberCount, setSubscriberCount] = useState<number | undefined>(undefined);
-  const [regularCount, setRegularCount] = useState<number | undefined>(undefined);
+  const [subscriberCount, setSubscriberCount] = useState<number | undefined>(
+    undefined,
+  );
+  const [regularCount, setRegularCount] = useState<number | undefined>(
+    undefined,
+  );
 
   const fetchScrans = useCallback(async () => {
     if (!isAuthenticated || !view || !DATA_VIEWS.has(view)) {
@@ -72,17 +91,22 @@ export function useScransData({
         params.set("status", statusFilter);
       }
       if (view === "rejected") params.set("status", "rejected");
-      if (authorTelegramId?.trim()) params.set("telegram_id", authorTelegramId.trim());
+      if (authorTelegramId?.trim())
+        params.set("telegram_id", authorTelegramId.trim());
 
-      const response = await apiFetch(`/api/admin/scrans?${params.toString()}`);
-
-      if (response.ok) {
-        const data = await response.json();
+      const response = await getAdminScransAction(params.toString());
+      if (response.success) {
+        const data = response.data as {
+          scrans: Scran[];
+          total: number;
+          subscriberCount?: number;
+          regularCount?: number;
+        };
         setScrans(data.scrans);
         onTotalItems(data.total);
         setSubscriberCount(data.subscriberCount);
         setRegularCount(data.regularCount);
-      } else if (response.status === 401) {
+      } else if (response.message === "Unauthorized") {
         onUnauthorized();
       }
     } catch (error) {

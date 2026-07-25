@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactElement, Suspense } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ReactElement,
+  Suspense,
+} from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { apiFetch } from "@/lib/api-client";
+import { getAdminScranAction } from "@/app/actions/admin/queries";
 import { auditActionLabel, auditDetailsPreview } from "@/lib/audit-labels";
 import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
 import { UserIdentity } from "@/components/user-identity";
@@ -64,16 +70,16 @@ function ScranDetailInner(): ReactElement {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch(`/api/admin/scrans/${idParam}`);
-      if (res.status === 401) {
+      const res = await getAdminScranAction(Number(idParam));
+      if (!res.success && res.message === "Unauthorized") {
         setError("Нужна авторизация staff");
         return;
       }
-      if (!res.ok) {
+      if (!res.success) {
         setError("Скран не найден");
         return;
       }
-      setData((await res.json()) as ScranDetail);
+      setData(res.data as ScranDetail);
     } catch {
       setError("Ошибка сети");
     } finally {
@@ -126,25 +132,41 @@ function ScranDetailInner(): ReactElement {
               )}
               <div className="min-w-0 flex-1 space-y-2 text-white">
                 <p className="text-xs text-white/45">#{data.scran.id}</p>
-                <h2 className="pixel-text text-2xl font-bold">{data.scran.name}</h2>
+                <h2 className="pixel-text text-2xl font-bold">
+                  {data.scran.name}
+                </h2>
                 {data.scran.description && (
-                  <p className="text-sm text-zinc-300">{data.scran.description}</p>
+                  <p className="text-sm text-zinc-300">
+                    {data.scran.description}
+                  </p>
                 )}
                 <dl className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
                   <div>
-                    <dt className="text-[10px] uppercase text-white/40">Цена</dt>
-                    <dd className="font-bold">{data.scran.price.toFixed(2)} ₽</dd>
+                    <dt className="text-[10px] uppercase text-white/40">
+                      Цена
+                    </dt>
+                    <dd className="font-bold">
+                      {data.scran.price.toFixed(2)} ₽
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase text-white/40">Лайки</dt>
+                    <dt className="text-[10px] uppercase text-white/40">
+                      Лайки
+                    </dt>
                     <dd className="font-bold">👍 {data.scran.numberOfLikes}</dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase text-white/40">Дизлайки</dt>
-                    <dd className="font-bold">👎 {data.scran.numberOfDislikes}</dd>
+                    <dt className="text-[10px] uppercase text-white/40">
+                      Дизлайки
+                    </dt>
+                    <dd className="font-bold">
+                      👎 {data.scran.numberOfDislikes}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase text-white/40">Статус</dt>
+                    <dt className="text-[10px] uppercase text-white/40">
+                      Статус
+                    </dt>
                     <dd className="font-bold">
                       {data.scran.approved
                         ? "Одобрен"
@@ -154,7 +176,9 @@ function ScranDetailInner(): ReactElement {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase text-white/40">SVAGA при сабмите</dt>
+                    <dt className="text-[10px] uppercase text-white/40">
+                      SVAGA при сабмите
+                    </dt>
                     <dd className="font-bold">
                       {data.scran.isSubscriberAtSubmit === true
                         ? "да"
@@ -164,8 +188,12 @@ function ScranDetailInner(): ReactElement {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-[10px] uppercase text-white/40">Telegram id</dt>
-                    <dd className="font-bold">{data.scran.telegramId || "—"}</dd>
+                    <dt className="text-[10px] uppercase text-white/40">
+                      Telegram id
+                    </dt>
+                    <dd className="font-bold">
+                      {data.scran.telegramId || "—"}
+                    </dd>
                   </div>
                 </dl>
                 {data.scran.rejectReason && (
@@ -179,11 +207,16 @@ function ScranDetailInner(): ReactElement {
             <div className="pixel-container overflow-visible border-4 border-black bg-zinc-900/90 p-4 text-white">
               <h3 className="pixel-text mb-3 text-lg font-bold">Автор</h3>
               {data.author ? (
-                <AuthorBlock author={data.author} telegramId={data.scran.telegramId} />
+                <AuthorBlock
+                  author={data.author}
+                  telegramId={data.scran.telegramId}
+                />
               ) : (
                 <p className="text-sm text-white/50">
                   Локальный user не привязан
-                  {data.scran.telegramId ? ` · tg:${data.scran.telegramId}` : ""}
+                  {data.scran.telegramId
+                    ? ` · tg:${data.scran.telegramId}`
+                    : ""}
                 </p>
               )}
             </div>
@@ -191,7 +224,9 @@ function ScranDetailInner(): ReactElement {
             <div className="pixel-container border-4 border-black bg-zinc-900/90 p-4 text-white">
               <h3 className="pixel-text mb-3 text-lg font-bold">Daily</h3>
               {data.daily.length === 0 ? (
-                <p className="text-sm text-white/50">Ещё не попадал в ротацию</p>
+                <p className="text-sm text-white/50">
+                  Ещё не попадал в ротацию
+                </p>
               ) : (
                 <ul className="space-y-1 text-sm">
                   {data.daily.map((d) => (
@@ -204,7 +239,9 @@ function ScranDetailInner(): ReactElement {
             </div>
 
             <div className="pixel-container border-4 border-black bg-zinc-900/90 p-4 text-white">
-              <h3 className="pixel-text mb-3 text-lg font-bold">История действий</h3>
+              <h3 className="pixel-text mb-3 text-lg font-bold">
+                История действий
+              </h3>
               {data.audit.length === 0 ? (
                 <p className="text-sm text-white/50">Пока пусто</p>
               ) : (
@@ -247,7 +284,9 @@ function AuthorBlock({
   telegramId: string | null;
 }): ReactElement {
   const name =
-    author.displayName || author.telegramUsername || (telegramId ? `tg:${telegramId}` : "—");
+    author.displayName ||
+    author.telegramUsername ||
+    (telegramId ? `tg:${telegramId}` : "—");
   const tone = resolveIdentityTone(author.role, author.isSubscriber);
   const avatarRing = tone === "default" ? "" : `user-avatar--${tone}`;
   // Role/SVAGA label comes once from identityMetaSuffix — don't put role here

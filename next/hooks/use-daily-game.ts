@@ -45,7 +45,6 @@ export function useDailyGame({
     setIsVoting,
     addAnswer,
     incrementRound,
-    getCorrectCount,
     resetLastAnswer,
     getCurrentAnswers,
   } = useVoteSubmission();
@@ -62,15 +61,10 @@ export function useDailyGame({
   const submitScore = useCallback(async () => {
     if (!dailyData) return;
     const answers = getCurrentAnswers();
-    const clientScoreGuess = answers.filter(({ isCorrect }) => isCorrect).length;
 
     try {
       const fingerprint = await getFingerprint();
-      const result = await submitDailyResult(
-        dailyData.date,
-        clientScoreGuess,
-        fingerprint,
-      );
+      const result = await submitDailyResult({ date: dailyData.date, fingerprint });
 
       if ("error" in result) {
         setGameState({
@@ -110,22 +104,15 @@ export function useDailyGame({
     async (chosenScranId: number) => {
       if (!dailyData || isVoting) return;
 
-      const currentRoundData = dailyData.rounds.find(
-        (r) => r.roundNumber === currentRound,
-      );
-      if (!currentRoundData) return;
-
       try {
         setIsVoting(true);
         const fingerprint = await getFingerprint();
-        const result = await submitDailyVote(
-          currentRound,
+        const result = await submitDailyVote({
+          roundNumber: currentRound,
           chosenScranId,
-          currentRoundData.scranA.id,
-          currentRoundData.scranB.id,
           fingerprint,
-          dailyData.date,
-        );
+          date: dailyData.date,
+        });
 
         if ("error" in result) {
           setGameState({
@@ -181,7 +168,6 @@ export function useDailyGame({
       startTransition,
       resetLastAnswer,
       incrementRound,
-      getCorrectCount,
       submitScore,
       setGameState,
     ],

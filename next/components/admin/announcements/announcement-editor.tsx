@@ -2,7 +2,7 @@
 
 import { useState, type ReactElement } from "react";
 import { MarkdownView } from "@/components/announcements/markdown-view";
-import { apiFetch } from "@/lib/api-client";
+import { createAnnouncementAction, updateAnnouncementAction } from "@/app/actions/announcements";
 
 type Announcement = {
   id: number;
@@ -49,26 +49,12 @@ export function AnnouncementEditor({
     setError("");
     try {
       const payload = { title: title.trim(), body: body.trim(), active };
-      const res =
+      const result =
         mode === "create"
-          ? await apiFetch("/api/admin/announcements", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            })
-          : await apiFetch(`/api/admin/announcements/${initial?.id ?? ""}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-
-      if (res.status === 401) {
-        setError("Нужна авторизация администратора");
-        return;
-      }
-      if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(data?.error ?? "Не удалось сохранить");
+          ? await createAnnouncementAction(payload)
+          : await updateAnnouncementAction({ id: initial?.id, ...payload });
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
       onSaved();

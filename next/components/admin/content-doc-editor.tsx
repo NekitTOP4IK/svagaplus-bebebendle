@@ -7,7 +7,7 @@ import {
   type ReactElement,
 } from "react";
 import { toast } from "sonner";
-import { apiFetch } from "@/lib/api-client";
+import { uploadCompetitiveContentAsset } from "@/app/admin/competitive-actions";
 import {
   newContentBlock,
   type CompetitiveContentBlock,
@@ -94,20 +94,11 @@ export function ContentDocEditor({
     if (!file) return;
     setUploadingId(blockId);
     try {
-      const fd = new FormData();
-      fd.set("file", file);
-      const res = await apiFetch("/api/admin/competitive/content/upload", {
-        method: "POST",
-        body: fd,
-      });
-      if (!res.ok) {
-        const err = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(err?.error || "upload failed");
-      }
-      const data = (await res.json()) as { url: string };
-      updateBlock(blockId, { imageUrl: data.url });
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await uploadCompetitiveContentAsset(formData);
+      if (!result.success) throw new Error(result.message);
+      updateBlock(blockId, { imageUrl: result.data.url });
       toast.success("Ассет загружен");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ошибка загрузки");

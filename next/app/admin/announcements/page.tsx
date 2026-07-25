@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api-client";
+import { deleteAnnouncementAction, listAnnouncementsAction, updateAnnouncementAction } from "@/app/actions/announcements";
 import { AnnouncementEditor } from "@/components/admin/announcements/announcement-editor";
 
 type Announcement = {
@@ -26,16 +26,12 @@ export default function AdminAnnouncementsPage(): ReactElement {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch("/api/admin/announcements");
-      if (res.status === 401) {
-        setError("Нужна авторизация администратора");
+      const result = await listAnnouncementsAction();
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
-      if (!res.ok) {
-        setError("Не удалось загрузить список");
-        return;
-      }
-      setRows((await res.json()) as Announcement[]);
+      setRows(result.data);
     } catch {
       setError("Ошибка сети");
     } finally {
@@ -49,13 +45,9 @@ export default function AdminAnnouncementsPage(): ReactElement {
 
   async function toggleActive(row: Announcement) {
     try {
-      const res = await apiFetch(`/api/admin/announcements/${row.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !row.active }),
-      });
-      if (!res.ok) {
-        setError("Не удалось переключить статус");
+      const result = await updateAnnouncementAction({ id: row.id, active: !row.active });
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
       await load();
@@ -67,11 +59,9 @@ export default function AdminAnnouncementsPage(): ReactElement {
   async function remove(row: Announcement) {
     if (!window.confirm(`Удалить объявление #${row.id} «${row.title}»?`)) return;
     try {
-      const res = await apiFetch(`/api/admin/announcements/${row.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok && res.status !== 204) {
-        setError("Не удалось удалить");
+      const result = await deleteAnnouncementAction(row.id);
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
       await load();

@@ -230,3 +230,17 @@ Separate season-ranked daily for **authenticated** users only. Does not touch ca
 Script: `ops/cron-generate-competitive.sh` sources `shared/.env` and hits `/api/cron/competitive`. Skipped cleanly if disabled / no playable season.
 
 See design: `docs/superpowers/specs/2026-07-23-competitive-daily-design.md`; plan: `docs/superpowers/plans/2026-07-23-competitive-daily.md`. Polish: `docs/superpowers/specs/2026-07-24-competitive-polish-twitch-design.md`.
+
+## Application API boundary (Task 10)
+
+Client Components must not call `/api/**` for application state; use Server Component props for reads and `app/actions/**` for writes. Route Handlers remain only for external/process/static contracts:
+
+| Route family | Contract |
+| --- | --- |
+| `/api/auth/twitch/start`, `/api/auth/twitch/callback` | Twitch OAuth redirect and callback |
+| `/api/internal/svaga/subscription-status` | Separate Python bot process |
+| `/api/cron/daily`, `/api/cron/competitive` | Host cron with Bearer secret |
+| `/api/health/live`, `/api/health/ready` | Container and load-balancer probes |
+| `/api/images/**`, `/api/competitive/content-assets/**`, `/cdn/**` | Public binary/static delivery |
+
+Public legacy reads such as `/api/daily`, `/api/scrandle`, `/api/scrandle/results`, `/api/stats`, and season archive reads remain public compatibility contracts until a 30-day access-log review proves that they have no external consumers.

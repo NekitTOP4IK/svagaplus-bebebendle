@@ -24,7 +24,7 @@ import {
 } from "@/components/admin/ops-panels";
 import { getUsers, updateUserRole, type AdminUser } from "@/app/admin/actions";
 import type { BanReasonCode } from "@/lib/ban-reasons";
-import { apiFetch } from "@/lib/api-client";
+import { addCompetitivePoolEntry } from "@/app/admin/competitive-actions";
 import { toast } from "sonner";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
@@ -152,14 +152,9 @@ export function AdminDashboard({
   const handleAddToCompetitive = useCallback(async (id: number) => {
     setCompetitiveBusyId(id);
     try {
-      const res = await apiFetch("/api/admin/competitive/pool", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scranId: id }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        toast.error(json.error || `Ошибка ${res.status}`);
+      const result = await addCompetitivePoolEntry(id);
+      if (!result.success) {
+        toast.error(result.message);
         return;
       }
       toast.success(`#${id} добавлен в competitive pool`);

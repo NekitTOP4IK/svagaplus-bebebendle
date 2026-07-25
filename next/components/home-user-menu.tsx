@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactElement } from "react";
+import { useCallback, useState, type ReactElement } from "react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api-client";
+import { useRouter } from "next/navigation";
+import { logoutCurrentSession } from "@/app/actions/auth";
 import { UserIdentity } from "@/components/user-identity";
 import { resolveIdentityTone } from "@/lib/user-identity";
 
-type SessionUser = Readonly<{
+export type SessionUser = Readonly<{
   id: number;
   telegramId: number;
   telegramUsername: string | null;
@@ -38,47 +39,12 @@ function panelLabel(role: SessionUser["role"]): string {
   return "";
 }
 
-async function fetchSessionUser(): Promise<SessionUser | null> {
-  try {
-    const res = await apiFetch("/api/auth/session");
-    if (!res.ok) return null;
-    const data = (await res.json()) as { user: SessionUser | null };
-    return data.user;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Single profile entry on home:
  * - logged out → «Профиль / СВАГА+»
  * - logged in → avatar + nick (+ badge) + meta «Профиль / СВАГА+» (no chip glow)
  */
-export function HomeUserMenu(): ReactElement {
-  const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchSessionUser().then((u) => {
-      if (!cancelled) setUser(u);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Loading: same footprint as CTA to avoid layout jump
-  if (user === undefined) {
-    return (
-      <div
-        className="pixel-btn flex min-h-11 w-full items-center justify-center px-4 py-2 text-center text-sm font-bold opacity-50"
-        aria-hidden
-      >
-        …
-      </div>
-    );
-  }
-
+export function HomeUserMenu({ user = null }: Readonly<{ user?: SessionUser | null }>): ReactElement {
   if (user === null) {
     return (
       <Link
@@ -157,32 +123,19 @@ type LogoutButtonProps = Readonly<{
 
 /** Logout control for profile page only. */
 export function LogoutButton({ className = "" }: LogoutButtonProps): ReactElement | null {
-  const [user, setUser] = useState<SessionUser | null | undefined>(undefined);
   const [loggingOut, setLoggingOut] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchSessionUser().then((u) => {
-      if (!cancelled) setUser(u);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const router = useRouter();
 
   const logout = useCallback(async () => {
     setLoggingOut(true);
     try {
-      await fetch("/api/auth/session", { method: "DELETE" });
+      await logoutCurrentSession();
     } catch {
       // ignore
     }
-    window.location.href = "/";
-  }, []);
-
-  if (user === undefined || user === null) {
-    return null;
-  }
+    router.push("/");
+    router.refresh();
+  }, [router]);
 
   return (
     <button

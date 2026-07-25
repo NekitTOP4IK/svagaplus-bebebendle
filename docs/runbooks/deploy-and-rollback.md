@@ -80,3 +80,19 @@ curl -fsS http://127.0.0.1:3000/api/health/ready
 | Deploy SSH key | GitHub Environment `DEPLOY_SSH_KEY` + host `~deploy/.ssh/authorized_keys` |
 
 Never put rotated app secrets into GitHub Actions secrets unless they are truly build-time and non-sensitive.
+
+## HTTP boundary and rollback compatibility
+
+The browser must not call `/api/**` for application state. Reads are rendered by Server Components and writes use Server Actions, which perform their own authentication, role checks, validation, and rate limits.
+
+The handlers retained as deployment/runtime contracts are:
+
+| Handler | Consumer |
+| --- | --- |
+| `/api/auth/twitch/start`, `/api/auth/twitch/callback` | Twitch OAuth |
+| `/api/internal/svaga/subscription-status` | Telegram bot |
+| `/api/cron/daily`, `/api/cron/competitive` | Host cron |
+| `/api/health/live`, `/api/health/ready` | Process/load-balancer probes |
+| `/api/images/**`, `/api/competitive/content-assets/**`, `/cdn/**` | Static/binary delivery |
+
+Public legacy reads (`/api/daily`, `/api/scrandle`, `/api/scrandle/results`, `/api/stats`, and season archive reads) remain compatibility contracts until nginx access logs show no external consumer for 30 days. Do not remove those routes as part of an ordinary application deploy.

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AuthOrDivider, TwitchAuthButton } from "@/components/auth-providers";
 import { TelegramLogin } from "@/components/telegram-login";
 import { COMPETITIVE_AUTH_NEXT, sanitizeNextPath } from "@/lib/safe-next-path";
+import { loginWithTelegram } from "@/app/actions/auth";
 import "./competitive.css";
 
 function twitchErrorMessage(
@@ -66,11 +67,7 @@ export function CompetitiveAuthGate({
 
   const handleTelegram = useCallback(
     async (data: Record<string, string>) => {
-      const response = await fetch("/api/auth/telegram", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const response = await loginWithTelegram(data);
       if (!response.ok) return false;
       router.replace(next);
       router.refresh();

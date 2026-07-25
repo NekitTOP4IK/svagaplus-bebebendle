@@ -4,13 +4,18 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ProfileSvagaStatus } from "@/components/profile-svaga-status";
 import { TelegramLogin } from "@/components/telegram-login";
 
+const actions = vi.hoisted(() => ({ refreshSvagaStatus: vi.fn() }));
+
+vi.mock("@/app/actions/profile", () => ({
+  refreshSvagaStatus: actions.refreshSvagaStatus,
+}));
+
 describe("ProfileSvagaStatus", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn());
+    actions.refreshSvagaStatus.mockReset();
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -62,17 +67,10 @@ describe("ProfileSvagaStatus", () => {
   });
 
   it("shows stale error copy with alert role", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          isSubscriber: true,
-          source: "stale_cache",
-          checkedAt: "2026-07-16T10:00:00Z",
-          error: "timeout",
-        }),
-        { status: 503 },
-      ),
-    );
+    actions.refreshSvagaStatus.mockResolvedValueOnce({
+      ok: true,
+      data: { isSubscriber: true, source: "stale_cache", checkedAt: "2026-07-16T10:00:00Z", error: "timeout" },
+    });
 
     render(
       <ProfileSvagaStatus
@@ -96,17 +94,10 @@ describe("ProfileSvagaStatus", () => {
   });
 
   it("shows success live region on refresh", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          isSubscriber: true,
-          source: "fresh",
-          checkedAt: "2026-07-16T12:00:00Z",
-          error: null,
-        }),
-        { status: 200 },
-      ),
-    );
+    actions.refreshSvagaStatus.mockResolvedValueOnce({
+      ok: true,
+      data: { isSubscriber: true, source: "fresh", checkedAt: "2026-07-16T12:00:00Z", error: null },
+    });
 
     render(
       <ProfileSvagaStatus

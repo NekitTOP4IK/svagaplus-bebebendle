@@ -39,6 +39,6 @@ export async function DELETE() {
   } catch (error) {
     console.error("[auth/session] logout revoke failed", error);
   }
-  clearSessionCookies(response);
+  clearSessionCookies(response.cookies);
   return response;
 }

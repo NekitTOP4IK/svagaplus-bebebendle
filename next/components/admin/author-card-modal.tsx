@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactElement } from "react";
-import { apiFetch } from "@/lib/api-client";
+import { getAdminAuthorAction } from "@/app/actions/admin/moderation";
 import { UserIdentity } from "@/components/user-identity";
 import { resolveIdentityTone } from "@/lib/user-identity";
 
@@ -58,14 +58,12 @@ export function AuthorCardModal({
     setError("");
     (async () => {
       try {
-        const res = await apiFetch(
-          `/api/admin/authors?telegram_id=${encodeURIComponent(telegramId)}`,
-        );
-        if (!res.ok) {
+        const result = await getAdminAuthorAction(telegramId);
+        if (!result.ok) {
           if (!cancelled) setError("Не удалось загрузить автора");
           return;
         }
-        const json = (await res.json()) as AuthorPayload;
+        const json = result.data as AuthorPayload;
         if (!cancelled) setData(json);
       } catch {
         if (!cancelled) setError("Ошибка сети");
@@ -91,7 +89,9 @@ export function AuthorCardModal({
     >
       <div className="pixel-container max-h-[85dvh] w-full max-w-lg overflow-y-auto border-4 border-black bg-zinc-900 p-4 sm:p-5">
         <div className="mb-3 flex items-start justify-between gap-2">
-          <h2 className="pixel-text text-lg font-bold text-white">Карточка автора</h2>
+          <h2 className="pixel-text text-lg font-bold text-white">
+            Карточка автора
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -118,7 +118,10 @@ export function AuthorCardModal({
                   ["Отклонено", data.stats.rejected],
                 ] as const
               ).map(([label, value]) => (
-                <div key={label} className="border-2 border-zinc-700 bg-zinc-950 px-2 py-2">
+                <div
+                  key={label}
+                  className="border-2 border-zinc-700 bg-zinc-950 px-2 py-2"
+                >
                   <p className="text-[10px] uppercase text-white/40">{label}</p>
                   <p
                     className={`text-lg font-bold ${
@@ -152,20 +155,23 @@ export function AuthorCardModal({
                   Фильтр по автору
                 </button>
               )}
-              {onBanUser && !data.banned && data.user?.role !== "admin" && data.user?.role !== "moderator" && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    onBanUser(
-                      data.telegramId,
-                      data.user?.displayName || data.user?.username || null,
-                    )
-                  }
-                  className="pixel-btn pixel-btn-danger w-full px-3 py-2 text-sm font-bold"
-                >
-                  Забанить пользователя
-                </button>
-              )}
+              {onBanUser &&
+                !data.banned &&
+                data.user?.role !== "admin" &&
+                data.user?.role !== "moderator" && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onBanUser(
+                        data.telegramId,
+                        data.user?.displayName || data.user?.username || null,
+                      )
+                    }
+                    className="pixel-btn pixel-btn-danger w-full px-3 py-2 text-sm font-bold"
+                  >
+                    Забанить пользователя
+                  </button>
+                )}
               {onBanUser && !data.banned && !data.user && (
                 <button
                   type="button"
@@ -189,7 +195,11 @@ export function AuthorCardModal({
                   >
                     {s.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={s.imageUrl} alt="" className="h-10 w-10 object-cover" />
+                      <img
+                        src={s.imageUrl}
+                        alt=""
+                        className="h-10 w-10 object-cover"
+                      />
                     ) : (
                       <span className="h-10 w-10 bg-zinc-800" />
                     )}
@@ -198,7 +208,11 @@ export function AuthorCardModal({
                         #{s.id} {s.name}
                       </p>
                       <p className="text-[10px] text-white/50">
-                        {s.approved ? "approved" : s.rejected ? `rejected${s.rejectReason ? `: ${s.rejectReason}` : ""}` : "pending"}
+                        {s.approved
+                          ? "approved"
+                          : s.rejected
+                            ? `rejected${s.rejectReason ? `: ${s.rejectReason}` : ""}`
+                            : "pending"}
                         {" · "}
                         {s.price.toFixed(0)} ₽
                       </p>

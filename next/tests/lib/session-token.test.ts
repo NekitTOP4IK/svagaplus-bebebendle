@@ -24,6 +24,21 @@ describe("session access token", () => {
     });
   });
 
+  it("accepts a token one second before its one-hour expiry and rejects it at expiry", () => {
+    const token = signAccessToken(
+      { sessionId: "s1", userId: 7, telegramId: "123" },
+      SESSION_SECRET,
+      now,
+    );
+
+    expect(
+      verifyAccessToken(token, SESSION_SECRET, new Date("2026-07-16T12:59:59Z")),
+    ).toMatchObject({ expiresAt: 1_784_206_800 });
+    expect(
+      verifyAccessToken(token, SESSION_SECRET, new Date("2026-07-16T13:00:00Z")),
+    ).toBeNull();
+  });
+
   it("rejects tampering and the old raw Telegram ID cookie", () => {
     const token = signAccessToken(
       { sessionId: "s1", userId: 7, telegramId: "123" },

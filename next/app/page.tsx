@@ -9,6 +9,7 @@ import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
 import { getDailyPublicStatus } from "@/lib/app-settings";
 import { getActiveAnnouncements } from "@/lib/announcements";
 import { AnnouncementOverlay } from "@/components/announcements/announcement-overlay";
+import { getCurrentUser } from "@/lib/auth-server";
 export const dynamic = "force-dynamic";
 
 const splashTexts = [
@@ -62,7 +63,7 @@ const splashTexts = [
 export default async function HomePage() {
   const hasDaily = await hasDailyForToday();
   const dailyStatus = await getDailyPublicStatus(hasDaily);
-  const announcements = await getActiveAnnouncements();
+  const [announcements, user] = await Promise.all([getActiveAnnouncements(), getCurrentUser()]);
 
   return (
     <div
@@ -99,7 +100,7 @@ export default async function HomePage() {
             available={dailyStatus.available}
             unavailableReason={dailyStatus.reason}
           />
-          <HomeUserMenu />
+          <HomeUserMenu user={user} />
           <Link
             href="/competitive"
             className="relative block w-full overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 transition-transform hover:scale-[1.02] active:scale-[0.98]"

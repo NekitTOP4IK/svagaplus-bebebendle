@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth-server";
 import { getHubPayload } from "@/lib/competitive/hub";
 import { CompetitiveShell } from "@/components/competitive/competitive-shell";
@@ -12,10 +13,15 @@ import { LeaderboardCard } from "@/components/competitive/leaderboard-card";
 import { RulesCard } from "@/components/competitive/rules-card";
 import { RewardsCard } from "@/components/competitive/rewards-card";
 import { CompetitiveOnboarding } from "@/components/competitive/competitive-onboarding";
+import { sanitizeNextPath } from "@/lib/safe-next-path";
 
 export const dynamic = "force-dynamic";
 
-export default async function CompetitiveHubPage(): Promise<ReactElement> {
+export default async function CompetitiveHubPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ next?: string }>;
+}>): Promise<ReactElement> {
   const user = await getCurrentUser();
   if (!user) {
     return (
@@ -30,6 +36,9 @@ export default async function CompetitiveHubPage(): Promise<ReactElement> {
       </Suspense>
     );
   }
+
+  const nextPath = sanitizeNextPath((await searchParams).next, "/competitive");
+  if (nextPath !== "/competitive") redirect(nextPath);
 
   const hub = await getHubPayload(user.id);
 

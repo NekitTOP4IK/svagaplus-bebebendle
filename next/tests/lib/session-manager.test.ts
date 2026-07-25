@@ -27,17 +27,42 @@ class MemorySessionRepository implements SessionRepository {
 }
 
 describe("refresh sessions", () => {
-  it("rotates refresh tokens and caps the family at 180 days", async () => {
+  it("rotates refresh tokens for at least 30 days without exceeding the 180-day family cap", async () => {
     const repo = new MemorySessionRepository();
     const manager = createSessionManager(repo, { sessionSecret: "s".repeat(32) });
     const start = new Date("2026-01-01T00:00:00Z");
     const first = await manager.create(1, "123", null, start);
-    const rotated = await manager.rotate(first.refreshToken, new Date("2026-03-01T00:00:00Z"));
+    const rotationNow = new Date("2026-03-01T00:00:00Z");
+    const rotated = await manager.rotate(first.refreshToken, rotationNow);
     expect(rotated.status).toBe("ok");
     if (rotated.status !== "ok") throw new Error("expected rotation");
     expect(rotated.refreshExpiresAt.toISOString()).toBe("2026-05-30T00:00:00.000Z");
+    expect(rotated.refreshExpiresAt.getTime()).toBeGreaterThanOrEqual(
+      rotationNow.getTime() + 30 * 24 * 60 * 60 * 1000,
+    );
     expect(rotated.absoluteExpiresAt.toISOString()).toBe("2026-06-30T00:00:00.000Z");
     expect(first.refreshToken).not.toBe(rotated.refreshToken);
+  });
+
+  it("caps a rotation in the final 30 days of a family at its absolute expiry", async () => {
+    const repo = new MemorySessionRepository();
+    const manager = createSessionManager(repo, { sessionSecret: "s".repeat(32) });
+    const first = await manager.create(1, "123", null, new Date("2026-01-01T00:00:00Z"));
+    const beforeCapWindow = await manager.rotate(first.refreshToken, new Date("2026-03-30T00:00:00Z"));
+    expect(beforeCapWindow.status).toBe("ok");
+    if (beforeCapWindow.status !== "ok") throw new Error("expected rotation");
+
+    const finalWindow = await manager.rotate(
+      beforeCapWindow.refreshToken,
+      new Date("2026-06-15T00:00:00Z"),
+    );
+    expect(finalWindow.status).toBe("ok");
+    if (finalWindow.status !== "ok") throw new Error("expected rotation");
+    expect(finalWindow.absoluteExpiresAt.toISOString()).toBe("2026-06-30T00:00:00.000Z");
+    expect(finalWindow.refreshExpiresAt).toEqual(finalWindow.absoluteExpiresAt);
+    expect(finalWindow.refreshExpiresAt.getTime()).toBeLessThan(
+      new Date("2026-06-15T00:00:00Z").getTime() + 30 * 24 * 60 * 60 * 1000,
+    );
   });
 
   it("revokes the family when a rotated token is replayed", async () => {

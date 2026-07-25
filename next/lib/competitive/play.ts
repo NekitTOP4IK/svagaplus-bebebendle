@@ -5,7 +5,7 @@
  * likes/dislikes — never live scrans counts. Client-sent scores are ignored.
  */
 
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   competitiveDailies,
@@ -13,8 +13,10 @@ import {
   competitiveVotes,
   competitiveResults,
   competitiveStandings,
+  scrans,
   type CompetitiveResult,
 } from "@/db/schema";
+import { publicScran } from "@/lib/daily-integrity";
 import { todayMskDate } from "@/lib/daily-timezone";
 import { COMPETITIVE_ROUNDS } from "./constants";
 import { isCompetitiveEnabled } from "./feature";
@@ -752,4 +754,59 @@ export async function hasPlayed(
 ): Promise<boolean> {
   const result = await getUserResult(userId, date);
   return result !== null;
+}
+
+export type CompetitiveDailyView = Readonly<{
+  date: string;
+  totalRounds: number;
+  rounds: Array<{
+    displayRoundNumber: number;
+    roundId: number;
+    roundNumber: number;
+    potentialPoints: number;
+    scranA: ReturnType<typeof publicScran>;
+    scranB: ReturnType<typeof publicScran>;
+  }>;
+}>;
+
+/** Assemble the player-specific, presentation-safe daily payload. */
+export async function getCompetitiveDailyView(
+  userId: number,
+): Promise<CompetitiveDailyView | null> {
+  if (!(await isCompetitiveEnabled())) return null;
+  await ensureSeasonTransitions();
+  const date = todayMskDate();
+  const [daily] = await db
+    .select({ id: competitiveDailies.id, date: competitiveDailies.date })
+    .from(competitiveDailies)
+    .where(eq(competitiveDailies.date, date))
+    .limit(1);
+  if (!daily) return null;
+  const rows = await db
+    .select()
+    .from(competitiveRounds)
+    .where(eq(competitiveRounds.dailyId, daily.id))
+    .orderBy(asc(competitiveRounds.roundNumber));
+  if (rows.length === 0) return null;
+  const presented = presentRounds(
+    rows.map((r) => ({ id: r.id, roundNumber: r.roundNumber, scranAId: r.scranAId, scranBId: r.scranBId, likesA: r.likesA, dislikesA: r.dislikesA, likesB: r.likesB, dislikesB: r.dislikesB })),
+    presentationSeed(getPresentationPepper(), userId, daily.date, daily.id),
+  );
+  const ids = [...new Set(presented.flatMap((round) => [round.scranAId, round.scranBId]))];
+  const list = await db.select().from(scrans).where(inArray(scrans.id, ids));
+  const byId = new Map(list.map((scran) => [scran.id, scran]));
+  const rounds = presented.map((round) => {
+    const scranA = byId.get(round.scranAId);
+    const scranB = byId.get(round.scranBId);
+    if (!scranA || !scranB) throw new Error(`Scran missing for competitive round ${round.roundId}`);
+    return {
+      displayRoundNumber: round.displayRoundNumber,
+      roundId: round.roundId,
+      roundNumber: round.roundNumber,
+      potentialPoints: roundPotentialPoints(deltaPp(round.likesA, round.dislikesA, round.likesB, round.dislikesB)),
+      scranA: publicScran(scranA),
+      scranB: publicScran(scranB),
+    };
+  });
+  return { date: daily.date, totalRounds: rounds.length, rounds };
 }

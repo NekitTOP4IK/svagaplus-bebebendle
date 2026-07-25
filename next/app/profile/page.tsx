@@ -10,7 +10,11 @@ import {
 } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { apiFetch } from "@/lib/api-client";
+import {
+  getProfileViewAction,
+  setCompetitiveDisplayNameAction,
+} from "@/app/actions/profile";
+import { loginWithTelegram } from "@/app/actions/auth";
 import { AuthOrDivider, TwitchAuthButton } from "@/components/auth-providers";
 import { TelegramLogin } from "@/components/telegram-login";
 import {
@@ -124,65 +128,33 @@ function ProfilePageInner(): ReactElement {
   const [telegramLoading, setTelegramLoading] = useState(false);
   const [twitchLoading, setTwitchLoading] = useState(false);
 
-  const fetchProfile = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/user/profile");
-      if (res.status === 401) {
-        setUser(null);
-        setError(null);
-        setLoading(false);
-        return;
-      }
-      if (!res.ok) throw new Error("Failed to load profile");
-      const data = await res.json();
-      setUser(data.user);
-      setScrans(data.scrans || []);
-    } catch {
-      setError("Ошибка загрузки профиля");
-    }
-  }, []);
-
-  const fetchHistory = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/user/history");
-      if (res.status === 401) return;
-      if (!res.ok) throw new Error("Failed to load history");
-      const data = await res.json();
-      setHistory(data.history || []);
-    } catch {
-      // history optional
-    }
-  }, []);
-
-  const fetchSvagaStatus = useCallback(async () => {
-    try {
-      const res = await apiFetch("/api/svaga/status");
-      if (res.status === 401) return;
-      if (!res.ok) throw new Error("Failed svaga status");
-      const data = (await res.json()) as LocalSvagaStatus;
-      setSvagaStatus(data);
-    } catch {
-      setSvagaStatus(null);
-    }
-  }, []);
-
   const loadAll = useCallback(async () => {
     setLoading(true);
     setError(null);
-    await Promise.all([fetchProfile(), fetchHistory(), fetchSvagaStatus()]);
-    setLoading(false);
-  }, [fetchProfile, fetchHistory, fetchSvagaStatus]);
+    try {
+      const result = await getProfileViewAction();
+      if (!result.ok && result.code === "unauthorized") {
+        setUser(null);
+        return;
+      }
+      if (!result.ok) throw new Error(result.message);
+      setUser(result.data.user);
+      setScrans(result.data.scrans);
+      setHistory(result.data.history);
+      setSvagaStatus(result.data.svagaStatus);
+    } catch {
+      setError("Ошибка загрузки профиля");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
 
   const handleLogin = useCallback(async (data: Record<string, string>) => {
-    const response = await fetch("/api/auth/telegram", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+    const response = await loginWithTelegram(data);
     if (!response.ok) return false;
     await loadAll();
     return true;
@@ -460,26 +432,17 @@ function CompetitiveNickEditor({
     setError(null);
     setHint(null);
     try {
-      const res = await apiFetch("/api/competitive/display-name", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        competitiveDisplayName?: string | null;
-        label?: string;
-      };
-      if (!res.ok) {
-        setError(data.error || `Ошибка ${res.status}`);
+      const result = await setCompetitiveDisplayNameAction(name);
+      if (!result.ok) {
+        setError(result.message);
         return;
       }
-      const next = data.competitiveDisplayName ?? null;
+      const next = result.data.competitiveDisplayName;
       onSaved(next);
       setValue(next ?? "");
       setHint(
         next
-          ? `В рейтинге: ${data.label || next}`
+          ? `В рейтинге: ${result.data.label || next}`
           : "Псевдоним сброшен — в рейтинге будет Telegram/ID",
       );
     } catch {

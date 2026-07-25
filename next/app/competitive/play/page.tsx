@@ -1,11 +1,9 @@
 import type { ReactElement } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { db, competitiveDailies } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
 import { isCompetitiveEnabled } from "@/lib/competitive/feature";
-import { hasPlayed } from "@/lib/competitive/play";
+import { getCompetitiveDailyView, hasPlayed } from "@/lib/competitive/play";
 import {
   ensureSeasonTransitions,
   getPlayableSeason,
@@ -49,11 +47,7 @@ export default async function CompetitivePlayPage(): Promise<ReactElement> {
     redirect("/competitive");
   }
 
-  const [daily] = await db
-    .select({ id: competitiveDailies.id })
-    .from(competitiveDailies)
-    .where(eq(competitiveDailies.date, today))
-    .limit(1);
+  const daily = await getCompetitiveDailyView(user.id);
 
   if (!daily) {
     return (
@@ -64,7 +58,7 @@ export default async function CompetitivePlayPage(): Promise<ReactElement> {
     );
   }
 
-  return <CompetitiveGameClient />;
+  return <CompetitiveGameClient initialDaily={daily} />;
 }
 
 function UnavailablePanel({

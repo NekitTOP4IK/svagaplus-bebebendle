@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, type ReactElement } from "react";
-import { apiFetch } from "@/lib/api-client";
+import { updateCompetitivePrefs } from "@/app/actions/competitive";
 import { MarkdownView } from "@/components/announcements/markdown-view";
 
 type Props = Readonly<{
@@ -26,14 +26,9 @@ export function CompetitiveIntroModal({
     setSaving(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/competitive/prefs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ introDismissed: true }),
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(data.error || `Ошибка ${res.status}`);
+      const result = await updateCompetitivePrefs({ introDismissed: true });
+      if (!result.ok) {
+        setError(result.message);
         setSaving(false);
         return;
       }

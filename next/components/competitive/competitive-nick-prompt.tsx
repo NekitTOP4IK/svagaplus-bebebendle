@@ -10,7 +10,8 @@ import {
   type ReactElement,
 } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api-client";
+import { updateCompetitivePrefs } from "@/app/actions/competitive";
+import { setCompetitiveDisplayNameAction } from "@/app/actions/profile";
 import {
   COMPETITIVE_DISPLAY_NAME_MAX,
   COMPETITIVE_DISPLAY_NAME_MIN,
@@ -70,11 +71,7 @@ export function CompetitiveNickPrompt({
   useEffect(() => {
     if (!legacyDismissed || serverDismissed || legacySyncedRef.current) return;
     legacySyncedRef.current = true;
-    void apiFetch("/api/competitive/prefs", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nickPromptDismissed: true }),
-    }).catch(() => undefined);
+    void updateCompetitivePrefs({ nickPromptDismissed: true }).catch(() => undefined);
   }, [legacyDismissed, serverDismissed]);
 
   const hasNick = Boolean(competitiveDisplayName?.trim());
@@ -97,11 +94,7 @@ export function CompetitiveNickPrompt({
 
   const dismissOnServer = useCallback(async () => {
     try {
-      await apiFetch("/api/competitive/prefs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickPromptDismissed: true }),
-      });
+      await updateCompetitivePrefs({ nickPromptDismissed: true });
     } catch {
       // still finish locally
     }
@@ -125,14 +118,9 @@ export function CompetitiveNickPrompt({
     setSaving(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/competitive/display-name", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: validation.name }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setError(data.error || `Ошибка ${res.status}`);
+      const result = await setCompetitiveDisplayNameAction(validation.name);
+      if (!result.ok) {
+        setError(result.message);
         setSaving(false);
         return;
       }

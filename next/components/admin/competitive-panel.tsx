@@ -9,7 +9,29 @@ import {
 } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { apiFetch } from "@/lib/api-client";
+import {
+  generateCompetitiveDailyAction,
+  getCompetitiveDailyPreviewAction,
+  getCompetitiveDebugAction,
+  getCompetitiveSeasonDetailAction,
+  resetCompetitiveDebugAction,
+} from "@/app/actions/admin/queries";
+import {
+  getCompetitiveIntro,
+  getCompetitiveModeRules,
+  getCompetitiveSettings,
+  listCompetitiveSeasonsAction,
+  createCompetitiveSeasonAction,
+  updateCompetitiveSeasonAction,
+  endCompetitiveSeasonAction,
+  addCompetitivePoolEntry,
+  getCompetitivePoolAction,
+  getCompetitivePoolCandidatesAction,
+  setCompetitivePoolEnabledAction,
+  saveCompetitiveIntro,
+  saveCompetitiveModeRules,
+  saveCompetitiveSettings,
+} from "@/app/admin/competitive-actions";
 import { ContentDocEditor } from "@/components/admin/content-doc-editor";
 import {
   emptyContentDoc,
@@ -176,15 +198,6 @@ function todayDateInput(): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
-async function readError(res: Response): Promise<string> {
-  try {
-    const json = (await res.json()) as { error?: string };
-    return json.error || `Ошибка ${res.status}`;
-  } catch {
-    return `Ошибка ${res.status}`;
-  }
-}
-
 // ── Main panel ─────────────────────────────────────────────────────────────
 
 export function CompetitivePanel(): ReactElement {
@@ -207,32 +220,25 @@ function SettingsSection(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [modeRules, setModeRules] = useState<CompetitiveContentDoc>(
-    emptyContentDoc(),
-  );
+  const [modeRules, setModeRules] =
+    useState<CompetitiveContentDoc>(emptyContentDoc());
   const [rulesSaving, setRulesSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [resSettings, resRules] = await Promise.all([
-        apiFetch("/api/admin/competitive/settings"),
-        apiFetch("/api/admin/competitive/content/mode-rules"),
+      const [settingsResult, rulesResult] = await Promise.all([
+        getCompetitiveSettings(),
+        getCompetitiveModeRules(),
       ]);
-      if (resSettings.status === 401) {
-        setError("Нужна авторизация администратора");
+      if (!settingsResult.success) {
+        setError(settingsResult.message);
         return;
       }
-      if (!resSettings.ok) {
-        setError(await readError(resSettings));
-        return;
-      }
-      const json = (await resSettings.json()) as { competitiveEnabled: boolean };
-      setEnabled(json.competitiveEnabled);
-      if (resRules.ok) {
-        const r = (await resRules.json()) as { doc: CompetitiveContentDoc };
-        setModeRules(parseContentDoc(r.doc));
+      setEnabled(settingsResult.data.competitiveEnabled);
+      if (rulesResult.success) {
+        setModeRules(parseContentDoc(rulesResult.data.doc));
       }
     } catch {
       setError("Ошибка сети");
@@ -250,21 +256,15 @@ function SettingsSection(): ReactElement {
     setSaving(true);
     setError("");
     try {
-      const res = await apiFetch("/api/admin/competitive/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ competitiveEnabled: !enabled }),
-      });
-      if (!res.ok) {
-        const msg = await readError(res);
-        setError(msg);
-        toast.error(msg);
+      const result = await saveCompetitiveSettings(!enabled);
+      if (!result.success) {
+        setError(result.message);
+        toast.error(result.message);
         return;
       }
-      const json = (await res.json()) as { competitiveEnabled: boolean };
-      setEnabled(json.competitiveEnabled);
+      setEnabled(result.data.competitiveEnabled);
       toast.success(
-        json.competitiveEnabled
+        result.data.competitiveEnabled
           ? "Competitive включён"
           : "Competitive выключен",
       );
@@ -280,17 +280,12 @@ function SettingsSection(): ReactElement {
     if (rulesSaving) return;
     setRulesSaving(true);
     try {
-      const res = await apiFetch("/api/admin/competitive/content/mode-rules", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ doc: modeRules }),
-      });
-      if (!res.ok) {
-        toast.error(await readError(res));
+      const result = await saveCompetitiveModeRules(modeRules);
+      if (!result.success) {
+        toast.error(result.message);
         return;
       }
-      const json = (await res.json()) as { doc: CompetitiveContentDoc };
-      setModeRules(parseContentDoc(json.doc));
+      setModeRules(parseContentDoc(result.data.doc));
       toast.success("Правила режима сохранены");
     } catch {
       toast.error("Ошибка сети");
@@ -362,21 +357,14 @@ function IntroSection(): ReactElement {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch("/api/admin/competitive/intro");
-      if (res.status === 401) {
-        setError("Нужна авторизация администратора");
+      const result = await getCompetitiveIntro();
+      if (!result.success) {
+        setError(result.message);
         return;
       }
-      if (!res.ok) {
-        setError(await readError(res));
-        return;
-      }
-      const json = (await res.json()) as {
-        intro: { enabled: boolean; title: string; body: string };
-      };
-      setEnabled(json.intro.enabled);
-      setTitle(json.intro.title);
-      setBody(json.intro.body);
+      setEnabled(result.data.intro.enabled);
+      setTitle(result.data.intro.title);
+      setBody(result.data.intro.body);
     } catch {
       setError("Ошибка сети");
     } finally {
@@ -392,23 +380,14 @@ function IntroSection(): ReactElement {
     if (saving) return;
     setSaving(true);
     try {
-      const res = await apiFetch("/api/admin/competitive/intro", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          intro: { enabled, title, body },
-        }),
-      });
-      if (!res.ok) {
-        toast.error(await readError(res));
+      const result = await saveCompetitiveIntro({ enabled, title, body });
+      if (!result.success) {
+        toast.error(result.message);
         return;
       }
-      const json = (await res.json()) as {
-        intro: { enabled: boolean; title: string; body: string };
-      };
-      setEnabled(json.intro.enabled);
-      setTitle(json.intro.title);
-      setBody(json.intro.body);
+      setEnabled(result.data.intro.enabled);
+      setTitle(result.data.intro.title);
+      setBody(result.data.intro.body);
       toast.success("Intro-модалка сохранена");
     } catch {
       toast.error("Ошибка сети");
@@ -517,15 +496,14 @@ function DebugSection(): ReactElement {
     setLoading(true);
     setSnapshot(null);
     try {
-      const param = mode === "userId" ? "userId" : "telegramId";
-      const res = await apiFetch(
-        `/api/admin/competitive/debug?${param}=${encodeURIComponent(q)}`,
+      const result = await getCompetitiveDebugAction(
+        mode === "userId" ? { userId: q } : { telegramId: q },
       );
-      if (!res.ok) {
-        toast.error(await readError(res));
+      if (!result.success) {
+        toast.error(result.message);
         return;
       }
-      setSnapshot(await res.json());
+      setSnapshot(result.data as typeof snapshot);
     } catch {
       toast.error("Ошибка сети");
     } finally {
@@ -549,19 +527,15 @@ function DebugSection(): ReactElement {
     }
     setBusy(true);
     try {
-      const res = await apiFetch("/api/admin/competitive/debug", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: snapshot.user.id,
-          ...flags,
-        }),
+      const result = await resetCompetitiveDebugAction({
+        userId: snapshot.user.id,
+        ...flags,
       });
-      if (!res.ok) {
-        toast.error(await readError(res));
+      if (!result.success) {
+        toast.error(result.message);
         return;
       }
-      const json = (await res.json()) as { done: string[] };
+      const json = result.data as { done: string[] };
       toast.success(`Сброшено: ${json.done.join(", ")}`);
       await lookup();
     } catch {
@@ -587,9 +561,7 @@ function DebugSection(): ReactElement {
           Искать по
           <select
             value={mode}
-            onChange={(e) =>
-              setMode(e.target.value as "userId" | "telegramId")
-            }
+            onChange={(e) => setMode(e.target.value as "userId" | "telegramId")}
             className="pixel-input mt-1 block min-w-[10rem]"
           >
             <option value="telegramId">Telegram ID</option>
@@ -737,16 +709,16 @@ function SeasonsSection(): ReactElement {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch("/api/admin/competitive/seasons");
-      if (res.status === 401) {
-        setError("Нужна авторизация администратора");
+      const result = await listCompetitiveSeasonsAction();
+      if (!result.success) {
+        if (result.message === "Unauthorized") {
+          setError("Нужна авторизация администратора");
+        } else {
+          setError(result.message);
+        }
         return;
       }
-      if (!res.ok) {
-        setError(await readError(res));
-        return;
-      }
-      setSeasons((await res.json()) as Season[]);
+      setSeasons(result.data as Season[]);
     } catch {
       setError("Ошибка сети");
     } finally {
@@ -771,18 +743,16 @@ function SeasonsSection(): ReactElement {
     setDetailError("");
     setDetailLoading(true);
     try {
-      const res = await apiFetch(
-        `/api/admin/competitive/seasons/${season.id}/detail`,
-      );
-      if (res.status === 401) {
-        setDetailError("Нужна авторизация администратора");
+      const result = await getCompetitiveSeasonDetailAction(season.id);
+      if (!result.success) {
+        setDetailError(
+          result.message === "Unauthorized"
+            ? "Нужна авторизация администратора"
+            : result.message,
+        );
         return;
       }
-      if (!res.ok) {
-        setDetailError(await readError(res));
-        return;
-      }
-      setDetail((await res.json()) as SeasonDetail);
+      setDetail(result.data as SeasonDetail);
     } catch {
       setDetailError("Ошибка сети");
     } finally {
@@ -835,20 +805,12 @@ function SeasonsSection(): ReactElement {
       },
     };
     try {
-      const res =
+      const result =
         mode === "edit" && editId != null
-          ? await apiFetch(`/api/admin/competitive/seasons/${editId}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-            })
-          : await apiFetch("/api/admin/competitive/seasons", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-            });
-      if (!res.ok) {
-        const msg = await readError(res);
+          ? await updateCompetitiveSeasonAction({ id: editId, ...body })
+          : await createCompetitiveSeasonAction(body);
+      if (!result.success) {
+        const msg = result.message;
         setError(msg);
         toast.error(msg);
         return;
@@ -876,12 +838,9 @@ function SeasonsSection(): ReactElement {
     setBusyId(season.id);
     setError("");
     try {
-      const res = await apiFetch(
-        `/api/admin/competitive/seasons/${season.id}`,
-        { method: "POST" },
-      );
-      if (!res.ok) {
-        const msg = await readError(res);
+      const result = await endCompetitiveSeasonAction(season.id);
+      if (!result.success) {
+        const msg = result.message;
         setError(msg);
         toast.error(msg);
         return;
@@ -902,16 +861,12 @@ function SeasonsSection(): ReactElement {
     setBusyId(season.id);
     setError("");
     try {
-      const res = await apiFetch(
-        `/api/admin/competitive/seasons/${season.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
-        },
-      );
-      if (!res.ok) {
-        const msg = await readError(res);
+      const result = await updateCompetitiveSeasonAction({
+        id: season.id,
+        status,
+      });
+      if (!result.success) {
+        const msg = result.message;
         setError(msg);
         toast.error(msg);
         return;
@@ -970,7 +925,9 @@ function SeasonsSection(): ReactElement {
               <input
                 type="text"
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
                 required
                 maxLength={120}
                 placeholder="Эндовый сезон I"
@@ -1087,9 +1044,7 @@ function SeasonsSection(): ReactElement {
             <li
               key={s.id}
               className={`border-2 bg-zinc-950 px-3 py-3 ${
-                editId === s.id
-                  ? "border-amber-500/60"
-                  : "border-zinc-700"
+                editId === s.id ? "border-amber-500/60" : "border-zinc-700"
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1223,12 +1178,14 @@ function SeasonDetailPanel({
             Просмотр · #{detail.season.id}
           </p>
           <p className="text-sm text-white/70">
-            {detail.season.name} ·{" "}
-            <StatusBadge status={detail.season.status} />
+            {detail.season.name} · <StatusBadge status={detail.season.status} />
           </p>
           <p className="mt-0.5 text-xs text-white/45">
-            {formatRu(detail.season.startsAt)} → {formatRu(detail.season.endsAt)}
-            {detail.season.themeKey ? ` · theme: ${detail.season.themeKey}` : ""}
+            {formatRu(detail.season.startsAt)} →{" "}
+            {formatRu(detail.season.endsAt)}
+            {detail.season.themeKey
+              ? ` · theme: ${detail.season.themeKey}`
+              : ""}
           </p>
         </div>
         <button
@@ -1397,34 +1354,30 @@ function PoolSection(): ReactElement {
     setLoading(true);
     setError("");
     try {
-      const [poolRes, candRes] = await Promise.all([
-        apiFetch("/api/admin/competitive/pool"),
-        apiFetch("/api/admin/competitive/pool/candidates?limit=300"),
+      const [poolResult, candidatesResult] = await Promise.all([
+        getCompetitivePoolAction(),
+        getCompetitivePoolCandidatesAction(300),
       ]);
-      if (poolRes.status === 401 || candRes.status === 401) {
-        setError("Нужна авторизация администратора");
+      if (!poolResult.success) {
+        setError(
+          poolResult.message === "Unauthorized"
+            ? "Нужна авторизация администратора"
+            : poolResult.message,
+        );
         return;
       }
-      if (!poolRes.ok) {
-        setError(await readError(poolRes));
+      if (!candidatesResult.success) {
+        setError(
+          candidatesResult.message === "Unauthorized"
+            ? "Нужна авторизация администратора"
+            : candidatesResult.message,
+        );
         return;
       }
-      if (!candRes.ok) {
-        setError(await readError(candRes));
-        return;
-      }
-      const poolJson = (await poolRes.json()) as {
-        date: string;
-        entries: PoolEntry[];
-      };
-      const candJson = (await candRes.json()) as {
-        minVotes: number;
-        candidates: PoolCandidate[];
-      };
-      setDate(poolJson.date);
-      setEntries(poolJson.entries);
-      setCandidates(candJson.candidates);
-      setMinVotes(candJson.minVotes ?? 15);
+      setDate(poolResult.data.date);
+      setEntries(poolResult.data.entries as PoolEntry[]);
+      setCandidates(candidatesResult.data.candidates as PoolCandidate[]);
+      setMinVotes(candidatesResult.data.minVotes ?? 15);
       setSelected(new Set());
     } catch {
       setError("Ошибка сети");
@@ -1456,25 +1409,14 @@ function PoolSection(): ReactElement {
     setAdding(true);
     setError("");
     try {
-      const res = await apiFetch("/api/admin/competitive/pool", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scranIds: ids }),
-      });
-      const json = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        addedCount?: number;
-        failedCount?: number;
-      };
-      if (!res.ok) {
-        const msg = json.error || `Ошибка ${res.status}`;
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
+      const results = await Promise.all(
+        ids.map((scranId) => addCompetitivePoolEntry(scranId)),
+      );
+      const addedCount = results.filter((result) => result.success).length;
+      const failedCount = results.length - addedCount;
       toast.success(
-        `В пул: ${json.addedCount ?? ids.length}` +
-          (json.failedCount ? ` · ошибок: ${json.failedCount}` : ""),
+        `В пул: ${addedCount}` +
+          (failedCount ? ` · ошибок: ${failedCount}` : ""),
       );
       await load();
     } catch {
@@ -1489,13 +1431,9 @@ function PoolSection(): ReactElement {
     setBusyScranId(scranId);
     setError("");
     try {
-      const res = await apiFetch("/api/admin/competitive/pool", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scranId }),
-      });
-      if (!res.ok) {
-        const msg = await readError(res);
+      const result = await addCompetitivePoolEntry(scranId);
+      if (!result.success) {
+        const msg = result.message;
         setError(msg);
         toast.error(msg);
         return;
@@ -1514,16 +1452,12 @@ function PoolSection(): ReactElement {
     setBusyScranId(entry.scranId);
     setError("");
     try {
-      const res = await apiFetch(
-        `/api/admin/competitive/pool/${entry.scranId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enabled: !entry.enabled }),
-        },
-      );
-      if (!res.ok) {
-        const msg = await readError(res);
+      const result = await setCompetitivePoolEnabledAction({
+        scranId: entry.scranId,
+        enabled: !entry.enabled,
+      });
+      if (!result.success) {
+        const msg = result.message;
         setError(msg);
         toast.error(msg);
         return;
@@ -1545,22 +1479,21 @@ function PoolSection(): ReactElement {
   const q = filter.trim().toLowerCase();
   let filtered = entries;
   if (statusFilter === "enabled") filtered = filtered.filter((e) => e.enabled);
-  if (statusFilter === "disabled") filtered = filtered.filter((e) => !e.enabled);
+  if (statusFilter === "disabled")
+    filtered = filtered.filter((e) => !e.enabled);
   if (statusFilter === "rotation")
     filtered = filtered.filter((e) => e.inTodaysRotation);
   if (q) {
     filtered = filtered.filter(
       (e) =>
-        String(e.scranId).includes(q) ||
-        e.scranName.toLowerCase().includes(q),
+        String(e.scranId).includes(q) || e.scranName.toLowerCase().includes(q),
     );
   }
 
   const cq = candFilter.trim().toLowerCase();
   const visibleCandidates = cq
     ? candidates.filter(
-        (c) =>
-          String(c.id).includes(cq) || c.name.toLowerCase().includes(cq),
+        (c) => String(c.id).includes(cq) || c.name.toLowerCase().includes(cq),
       )
     : candidates;
 
@@ -1574,9 +1507,7 @@ function PoolSection(): ReactElement {
           <h2 className="pixel-text text-xl font-bold text-white">Пул</h2>
           <p className="text-sm text-white/60">
             Выбор из одобренных (≥{minVotes} голосов) · bulk · snapshot
-            {date ? (
-              <span className="text-white/40"> · MSK {date}</span>
-            ) : null}
+            {date ? <span className="text-white/40"> · MSK {date}</span> : null}
           </p>
         </div>
         <button
@@ -1637,9 +1568,7 @@ function PoolSection(): ReactElement {
               onClick={() => void addSelected()}
               className="pixel-btn pixel-btn-ok px-4 py-1.5 text-xs font-bold"
             >
-              {adding
-                ? "…"
-                : `В competitive (${selected.size})`}
+              {adding ? "…" : `В competitive (${selected.size})`}
             </button>
           </div>
         </div>
@@ -1658,7 +1587,8 @@ function PoolSection(): ReactElement {
         ) : visibleCandidates.length === 0 ? (
           <p className="text-sm text-white/50">
             Нет кандидатов (нужны approved, ≥{minVotes} голосов, ещё не в пуле).
-            Можно добавить кнопку «В competitive» у скрана в списке /admin/scrans.
+            Можно добавить кнопку «В competitive» у скрана в списке
+            /admin/scrans.
           </p>
         ) : (
           <ul className="max-h-80 space-y-1 overflow-y-auto pr-1">
@@ -1792,11 +1722,7 @@ function PoolSection(): ReactElement {
                   e.enabled ? "pixel-btn-warn" : "pixel-btn-ok"
                 }`}
               >
-                {busyScranId === e.scranId
-                  ? "…"
-                  : e.enabled
-                    ? "Выкл"
-                    : "Вкл"}
+                {busyScranId === e.scranId ? "…" : e.enabled ? "Выкл" : "Вкл"}
               </button>
             </li>
           ))}
@@ -1824,20 +1750,17 @@ function DailySection(): ReactElement {
     setLoading(true);
     setError("");
     try {
-      const res = await apiFetch(
-        `/api/admin/competitive/daily?date=${encodeURIComponent(date)}`,
-      );
-      if (res.status === 401) {
-        setError("Нужна авторизация администратора");
+      const result = await getCompetitiveDailyPreviewAction(date);
+      if (!result.success) {
+        setError(
+          result.message === "Unauthorized"
+            ? "Нужна авторизация администратора"
+            : result.message,
+        );
         setPreview(null);
         return;
       }
-      if (!res.ok) {
-        setError(await readError(res));
-        setPreview(null);
-        return;
-      }
-      setPreview((await res.json()) as DailyPreview);
+      setPreview(result.data as DailyPreview);
     } catch {
       setError("Ошибка сети");
       setPreview(null);
@@ -1855,18 +1778,14 @@ function DailySection(): ReactElement {
     setBusy(true);
     setError("");
     try {
-      const res = await apiFetch("/api/admin/competitive/daily", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date }),
-      });
-      const json = (await res.json().catch(() => ({}))) as {
+      const result = await generateCompetitiveDailyAction(date);
+      const json = (result.success ? result.data : {}) as {
         error?: string;
         dailyId?: number;
         message?: string;
       };
-      if (!res.ok) {
-        const msg = json.error || `Ошибка ${res.status}`;
+      if (!result.success) {
+        const msg = result.message;
         setError(msg);
         toast.error(msg);
         return;
@@ -1896,7 +1815,8 @@ function DailySection(): ReactElement {
   const blockReason = (() => {
     if (!preview) return null;
     if (!preview.enabled) return "Competitive выключен (флаг)";
-    if (!preview.playableSeason) return "Нет playable сезона (active/countdown)";
+    if (!preview.playableSeason)
+      return "Нет playable сезона (active/countdown)";
     if (preview.existingDaily)
       return `Daily уже есть (#${preview.existingDaily.id})`;
     if (preview.candidateCount < preview.minCandidatesNeeded) {
@@ -2072,4 +1992,3 @@ function Stat({
     </div>
   );
 }
-

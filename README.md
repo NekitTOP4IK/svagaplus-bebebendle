@@ -149,6 +149,10 @@ Both scripts run inside the `next` container using the shared DB. They can also 
 - Global flag `competitive_enabled` (admin → Competitive panel): if off, API returns `{ skipped: true }` (cron exits 0)
 - Admin: `/admin/competitive` — pool, seasons, generate, enable flag
 
+### Frontend application-state boundary
+
+Browser components do not read or mutate application state through `/api/**`. Server Components load initial data directly, and Client Components invoke typed Server Actions from `next/app/actions/**`. The remaining HTTP handlers are reserved for OAuth callbacks, bot and cron contracts, health probes, public legacy reads, and static/binary delivery. See `AGENTS.md` for the retained handler table.
+
 ## Структура
 
 - `next/` — Next.js 16 + React 19 фронтенд

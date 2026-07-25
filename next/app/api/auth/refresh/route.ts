@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const result = await createSessionManager(sessionRepository, { sessionSecret: secret }).rotate(refreshToken);
   if (result.status !== "ok") {
     const response = NextResponse.json({ error: result.status }, { status: 401 });
-    clearSessionCookies(response);
+    clearSessionCookies(response.cookies);
     return response;
   }
   const response = NextResponse.json({ success: true });

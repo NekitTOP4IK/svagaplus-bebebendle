@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { apiFetch } from "@/lib/api-client";
+import {
+  generateAdminDaily,
+  getAdminDailySettings,
+  getAdminDailyView,
+  updateAdminDailySettings,
+} from "@/app/actions/admin-daily";
 
 type DailyData = {
   date: string;
@@ -45,9 +50,9 @@ export function DailyPanel({ role }: Props): ReactElement {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/admin/daily?date=${encodeURIComponent(date)}`);
-      if (res.ok) {
-        setData((await res.json()) as DailyData);
+      const result = await getAdminDailyView({ date });
+      if (result.ok) {
+        setData(result.data as DailyData);
       } else {
         toast.error("Не удалось загрузить daily");
       }
@@ -61,11 +66,10 @@ export function DailyPanel({ role }: Props): ReactElement {
   const loadSettings = useCallback(async () => {
     setSettingsLoading(true);
     try {
-      const res = await apiFetch("/api/admin/settings");
-      if (res.ok) {
-        const json = (await res.json()) as Settings;
-        setSettings(json);
-        setReasonDraft(json.dailyDisabledReason ?? "");
+      const result = await getAdminDailySettings();
+      if (result.ok) {
+        setSettings(result.data);
+        setReasonDraft(result.data.dailyDisabledReason ?? "");
       }
     } catch {
       // non-fatal
@@ -86,17 +90,9 @@ export function DailyPanel({ role }: Props): ReactElement {
     if (role !== "admin") return;
     setBusy(true);
     try {
-      const res = await apiFetch("/api/admin/daily", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date }),
-      });
-      const json = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        notify?: { sent?: number; skipped?: number; disabled?: boolean } | null;
-      };
-      if (res.ok) {
-        const n = json.notify;
+      const result = await generateAdminDaily({ date });
+      if (result.ok) {
+        const n = result.data.notify as { sent?: number; skipped?: number; disabled?: boolean } | null;
         if (n && !n.disabled) {
           toast.success(
             `Daily на ${date} создан · TG: ${n.sent ?? 0} отправлено` +
@@ -107,7 +103,7 @@ export function DailyPanel({ role }: Props): ReactElement {
         }
         await load();
       } else {
-        toast.error(json.error || "Не удалось создать");
+        toast.error(result.message || "Не удалось создать");
       }
     } finally {
       setBusy(false);
@@ -118,15 +114,10 @@ export function DailyPanel({ role }: Props): ReactElement {
     if (role !== "admin") return;
     setSettingsSaving(true);
     try {
-      const res = await apiFetch("/api/admin/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (res.ok) {
-        const json = (await res.json()) as Settings;
-        setSettings(json);
-        setReasonDraft(json.dailyDisabledReason ?? "");
+      const result = await updateAdminDailySettings(patch);
+      if (result.ok) {
+        setSettings(result.data);
+        setReasonDraft(result.data.dailyDisabledReason ?? "");
         toast.success("Настройки сохранены");
       } else {
         toast.error("Не удалось сохранить");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactElement } from "react";
-import { apiFetch } from "@/lib/api-client";
+import { refreshSvagaStatus } from "@/app/actions/profile";
 
 export type LocalSvagaStatus = Readonly<{
   status: "subscriber" | "not_subscriber" | "unknown";
@@ -44,21 +44,16 @@ export function ProfileSvagaStatus({ initialStatus }: Props): ReactElement {
     setErrorMessage(null);
     setStaleNote(false);
     try {
-      const res = await apiFetch("/api/svaga/refresh", { method: "POST" });
-      const body = (await res.json().catch(() => ({}))) as {
-        isSubscriber?: boolean | null;
-        source?: string;
-        checkedAt?: string | null;
-        error?: string | null;
-      };
+      const result = await refreshSvagaStatus();
+      const body = result.ok ? result.data : null;
 
-      if (body.source === "unknown" || (!res.ok && body.source !== "stale_cache")) {
+      if (!body || body.source === "unknown") {
         setErrorMessage(
-          body.error
+          body?.error
             ? `Не удалось проверить подписку (${body.error})`
             : "Не удалось проверить подписку",
         );
-        if (body.source === "unknown") {
+        if (body?.source === "unknown") {
           setStatus((prev) => ({
             status: "unknown",
             isSubscriber: null,
@@ -82,7 +77,7 @@ export function ProfileSvagaStatus({ initialStatus }: Props): ReactElement {
         return;
       }
 
-      if (res.ok && (body.source === "fresh" || body.source === "cache")) {
+      if (body.source === "fresh" || body.source === "cache") {
         setSuccessMessage("Статус подписки обновлён");
         setStatus({
           status:

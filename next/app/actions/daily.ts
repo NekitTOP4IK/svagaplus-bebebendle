@@ -29,12 +29,7 @@ async function getClientIpFromHeaders(): Promise<string> {
  * Persists choice for server-side score.
  */
 export async function submitDailyVote(
-  roundNumber: number,
-  chosenScranId: number,
-  _scranAId: number,
-  _scranBId: number,
-  fingerprint: string | null,
-  date?: string,
+  input: Readonly<{ roundNumber: number; chosenScranId: number; fingerprint: string | null; date?: string }>,
 ) {
   const clientIp = await getClientIpFromHeaders();
 
@@ -49,16 +44,16 @@ export async function submitDailyVote(
   }
 
   const playDate =
-    date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayMskDate();
+    input.date && /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : todayMskDate();
 
-  const sessionId = resolvePlaySessionId(fingerprint, clientIp);
+  const sessionId = resolvePlaySessionId(input.fingerprint, clientIp);
 
   const result = await recordDailyVote({
     date: playDate,
-    roundNumber,
-    chosenScranId,
+    roundNumber: input.roundNumber,
+    chosenScranId: input.chosenScranId,
     sessionId,
-    fingerprint,
+    fingerprint: input.fingerprint,
   });
 
   if ("error" in result) {
@@ -73,7 +68,7 @@ export async function submitDailyVote(
     correctScranId: result.correctScranId,
     percentageA: result.percentageA,
     percentageB: result.percentageB,
-    fingerprint,
+    fingerprint: input.fingerprint,
   };
 }
 
@@ -81,9 +76,7 @@ export async function submitDailyVote(
  * Finalize daily. Score is computed only from stored round votes — client score ignored.
  */
 export async function submitDailyResult(
-  date: string,
-  _clientScore: number | null | undefined,
-  fingerprint: string | null,
+  input: Readonly<{ date: string; fingerprint: string | null }>,
 ) {
   const clientIp = await getClientIpFromHeaders();
 
@@ -97,15 +90,15 @@ export async function submitDailyResult(
     return { error: "Too many requests. Please wait.", status: 429 };
   }
 
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!input.date || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
     return { error: "Invalid date", status: 400 };
   }
 
-  const sessionId = resolvePlaySessionId(fingerprint, clientIp);
+  const sessionId = resolvePlaySessionId(input.fingerprint, clientIp);
   const result = await computeAndStoreDailyResult({
-    date,
+    date: input.date,
     sessionId,
-    fingerprint,
+    fingerprint: input.fingerprint,
   });
 
   if ("error" in result) {
@@ -116,7 +109,7 @@ export async function submitDailyResult(
     success: true as const,
     score: result.score,
     alreadyPlayed: result.alreadyPlayed ?? false,
-    fingerprint,
+    fingerprint: input.fingerprint,
   };
 }
 

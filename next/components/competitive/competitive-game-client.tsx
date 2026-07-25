@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useEffect,
   useState,
   type ReactElement,
 } from "react";
@@ -17,6 +16,7 @@ import {
 } from "@/components/competitive/competitive-round";
 import { useTransitionState } from "@/hooks/use-transition-state";
 import { COMPETITIVE_ROUNDS } from "@/lib/competitive/constants";
+import { finalizeCompetitiveDay, submitCompetitiveVote } from "@/app/actions/competitive";
 
 type CompetitiveDailyPayload = Readonly<{
   date: string;
@@ -48,8 +48,8 @@ type GameState =
 /**
  * Competitive daily client — daily-style transitions + points final + mini board.
  */
-export function CompetitiveGameClient(): ReactElement {
-  const [gameState, setGameState] = useState<GameState>({ type: "loading" });
+export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily: CompetitiveDailyPayload }>): ReactElement {
+  const [gameState, setGameState] = useState<GameState>({ type: "playing", data: initialDaily });
   const [currentRound, setCurrentRound] = useState(1);
   const [lastResult, setLastResult] = useState<RoundVoteResult | null>(null);
   const [isVoting, setIsVoting] = useState(false);
@@ -57,202 +57,14 @@ export function CompetitiveGameClient(): ReactElement {
   const { showResult, isTransitioning, setShowResult, startTransition } =
     useTransitionState();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadDaily(): Promise<void> {
-      try {
-        const res = await fetch("/api/competitive/daily", {
-          method: "GET",
-          credentials: "same-origin",
-        });
-
-        if (cancelled) return;
-
-        if (res.status === 401) {
-          setGameState({
-            type: "error",
-            message: "Нужно войти, чтобы играть в ranked.",
-          });
-          return;
-        }
-
-        if (res.status === 403) {
-          setGameState({
-            type: "error",
-            message: "Соревновательный режим отключён.",
-          });
-          return;
-        }
-
-        if (res.status === 404) {
-          setGameState({
-            type: "error",
-            message: "Дейлик на сегодня ещё не готов.",
-          });
-          return;
-        }
-
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          setGameState({
-            type: "error",
-            message: body?.error ?? "Не удалось загрузить дейлик.",
-          });
-          return;
-        }
-
-        const data = (await res.json()) as CompetitiveDailyPayload;
-        if (!data.rounds?.length) {
-          setGameState({
-            type: "error",
-            message: "Дейлик на сегодня ещё не готов.",
-          });
-          return;
-        }
-
-        prefetchRoundImages(data, 1);
-        if (data.rounds.length > 1) {
-          prefetchRoundImages(data, 2);
-        }
-
-        setGameState({ type: "playing", data });
-      } catch {
-        if (!cancelled) {
-          setGameState({
-            type: "error",
-            message: "Не удалось загрузить дейлик. Проверь сеть и попробуй снова.",
-          });
-        }
-      }
+  const finalizeDay = useCallback(async (dayAnswers: { isCorrect: boolean }[]): Promise<void> => {
+    const result = await finalizeCompetitiveDay();
+    if (!result.ok) {
+      setGameState({ type: "error", message: result.message });
+      return;
     }
-
-    void loadDaily();
-    return () => {
-      cancelled = true;
-    };
+    setGameState({ type: "complete", points: result.data.points, hits: result.data.hits, answers: dayAnswers, board: [], seasonPoints: null, place: null });
   }, []);
-
-  const finalizeDay = useCallback(
-    async (
-      date: string,
-      dayAnswers: { isCorrect: boolean }[],
-    ): Promise<void> => {
-      try {
-        const res = await fetch("/api/competitive/finalize", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ date }),
-        });
-
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          if (res.status === 409) {
-            window.location.href = "/competitive";
-            return;
-          }
-          setGameState({
-            type: "error",
-            message: body?.error ?? "Не удалось сохранить результат.",
-          });
-          return;
-        }
-
-        const body = (await res.json()) as { points: number; hits: number };
-
-        // Mini leaderboard after standings update
-        let board: BoardRow[] = [];
-        let seasonPoints: number | null = null;
-        let place: number | null = null;
-        try {
-          const hubRes = await fetch("/api/competitive/hub", {
-            credentials: "same-origin",
-          });
-          if (hubRes.ok) {
-            const hub = (await hubRes.json()) as {
-              me?: { place: number | null; points: number; label?: string };
-              top?: Array<{
-                place: number;
-                label: string;
-                points: number;
-                isMe: boolean;
-              }>;
-            };
-            seasonPoints = hub.me?.points ?? null;
-            place = hub.me?.place ?? null;
-            const top = hub.top ?? [];
-            const TOP_N = 8;
-            board = top.slice(0, TOP_N).map((r) => ({
-              place: r.place,
-              label: r.label,
-              points: r.points,
-              isMe: r.isMe,
-            }));
-
-            // User outside top: fetch window me + 2 below
-            if (place != null && place > TOP_N) {
-              const offset = Math.max(0, place - 1);
-              const lbRes = await fetch(
-                `/api/competitive/leaderboard?limit=3&offset=${offset}`,
-                { credentials: "same-origin" },
-              );
-              if (lbRes.ok) {
-                const lb = (await lbRes.json()) as {
-                  rows?: Array<{
-                    place: number;
-                    label: string;
-                    points: number;
-                    isMe: boolean;
-                  }>;
-                };
-                for (const r of lb.rows ?? []) {
-                  if (!board.some((b) => b.place === r.place)) {
-                    board.push({
-                      place: r.place,
-                      label: r.label,
-                      points: r.points,
-                      isMe: r.isMe,
-                    });
-                  }
-                }
-                board.sort((a, b) => a.place - b.place);
-              } else if (hub.me) {
-                board.push({
-                  place,
-                  label: hub.me.label ?? "ты",
-                  points: hub.me.points,
-                  isMe: true,
-                });
-              }
-            }
-          }
-        } catch {
-          // board optional
-        }
-
-        setGameState({
-          type: "complete",
-          points: body.points,
-          hits: body.hits,
-          answers: dayAnswers,
-          board,
-          seasonPoints,
-          place,
-        });
-      } catch {
-        setGameState({
-          type: "error",
-          message: "Не удалось сохранить результат. Попробуй ещё раз.",
-        });
-      }
-    },
-    [],
-  );
 
   const handleVote = useCallback(
     async (chosenScranId: number): Promise<void> => {
@@ -267,38 +79,13 @@ export function CompetitiveGameClient(): ReactElement {
       try {
         setIsVoting(true);
 
-        const res = await fetch("/api/competitive/vote", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            date: data.date,
-            roundId: round.roundId,
-            chosenScranId,
-          }),
-        });
-
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          if (res.status === 409) {
-            setGameState({
-              type: "error",
-              message: body?.error ?? "День уже завершён или ответ записан.",
-            });
-            setIsVoting(false);
-            return;
-          }
-          setGameState({
-            type: "error",
-            message: body?.error ?? "Не удалось записать голос.",
-          });
+        const actionResult = await submitCompetitiveVote({ roundId: round.roundId, chosenScranId });
+        if (!actionResult.ok) {
+          setGameState({ type: "error", message: actionResult.message });
           setIsVoting(false);
           return;
         }
-
-        const result = (await res.json()) as RoundVoteResult;
+        const result: RoundVoteResult = actionResult.data;
         setLastResult(result);
         setShowResult(true);
 
@@ -319,7 +106,7 @@ export function CompetitiveGameClient(): ReactElement {
             setCurrentRound((n) => n + 1);
             setIsVoting(false);
           } else {
-            void finalizeDay(data.date, nextAnswers);
+            void finalizeDay(nextAnswers);
           }
         });
       } catch {
