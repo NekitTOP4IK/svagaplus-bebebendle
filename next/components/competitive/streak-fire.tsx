@@ -91,8 +91,8 @@ function FireIcon({
   return (
     <svg
       className={className}
-      viewBox="0 0 64 64"
-      width={40}
+      viewBox="15 5 34 60.5"
+      width={23}
       height={40}
       aria-hidden
       focusable="false"

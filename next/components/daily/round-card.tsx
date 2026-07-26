@@ -41,17 +41,12 @@ export function RoundCard({
         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
       />
 
-      <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
-        <div
-          className="relative flex w-full items-center gap-3 p-3 text-left sm:gap-4 sm:p-4"
-          style={{
-            backgroundColor: "#1b1b1b",
-            border: "6px solid #555555",
-            boxShadow:
-              "inset 6px 6px 0 #8b8b8b, inset -6px -6px 0 #1a1a1a, 0 0 0 3px #000000",
-            imageRendering: "pixelated",
-          }}
-        >
+      <div
+        className={`absolute bottom-0 left-0 right-0 p-2 sm:p-6 ${
+          position === "left" ? "pb-8 sm:pb-6" : ""
+        }`}
+      >
+        <div className="scran-frame relative flex w-full items-center gap-2 p-2 text-left sm:gap-4 sm:p-4">
           {isSvaga ? (
             <div className="absolute -left-3 -top-3 z-10">
               <div
@@ -82,7 +77,7 @@ export function RoundCard({
           <img
             src={`/sprites/${scran.icon}`}
             alt=""
-            className="h-10 w-10 flex-shrink-0 object-cover sm:h-12 sm:w-12"
+            className="h-8 w-8 flex-shrink-0 object-cover sm:h-12 sm:w-12"
             style={{
               imageRendering: "pixelated",
               filter: "drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.6))",
@@ -96,7 +91,7 @@ export function RoundCard({
               {scran.name}
             </h2>
             {scran.description && (
-              <p className="pixel-text line-clamp-2 text-[10px] text-white sm:text-xs">
+              <p className="pixel-text line-clamp-1 text-[10px] text-white sm:line-clamp-2 sm:text-xs">
                 {scran.description}
               </p>
             )}

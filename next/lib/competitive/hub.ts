@@ -5,13 +5,12 @@
  * Ranking order: points DESC, daysPlayed DESC, hits DESC, userId ASC.
  */
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   db,
   users,
   competitiveDailies,
   competitiveResults,
-  competitiveStandings,
 } from "@/db/schema";
 import {
   mskDateStartUtc,
@@ -41,6 +40,7 @@ import {
   type Season,
   type SeasonStatus,
 } from "./seasons";
+import { getSeasonRanking } from "./standings";
 import { getCompetitiveUserPrefs } from "./user-prefs";
 
 const TOP_LIMIT = 50;
@@ -374,31 +374,6 @@ export function computeSeasonStreakDays(
   };
 }
 
-/**
- * Compare two standings for rank order.
- * Higher rank (better place) returns negative (sort ascending place).
- * Order: points DESC, daysPlayed DESC, hits DESC, userId ASC.
- */
-export function compareStandingsRank(
-  a: {
-    points: number;
-    daysPlayed: number;
-    hits: number;
-    userId: number;
-  },
-  b: {
-    points: number;
-    daysPlayed: number;
-    hits: number;
-    userId: number;
-  },
-): number {
-  if (a.points !== b.points) return b.points - a.points;
-  if (a.daysPlayed !== b.daysPlayed) return b.daysPlayed - a.daysPlayed;
-  if (a.hits !== b.hits) return b.hits - a.hits;
-  return a.userId - b.userId;
-}
-
 function seasonSummary(season: Season): HubSeasonSummary {
   return {
     id: season.id,
@@ -549,27 +524,7 @@ export async function getHubPayload(
   const seasonRules = theme.rules ?? emptyContent;
   const seasonRewards = theme.rewards ?? emptyContent;
 
-  const standingRows = await db
-    .select({
-      userId: competitiveStandings.userId,
-      points: competitiveStandings.points,
-      daysPlayed: competitiveStandings.daysPlayed,
-      hits: competitiveStandings.hits,
-      competitiveDisplayName: users.competitiveDisplayName,
-      telegramUsername: users.telegramUsername,
-    })
-    .from(competitiveStandings)
-    .innerJoin(users, eq(competitiveStandings.userId, users.id))
-    .where(eq(competitiveStandings.seasonId, season.id))
-    .orderBy(
-      desc(competitiveStandings.points),
-      desc(competitiveStandings.daysPlayed),
-      desc(competitiveStandings.hits),
-      asc(competitiveStandings.userId),
-    );
-
-  // Defensive sort in case DB collation differs (matches endSeason order).
-  const ranked = [...standingRows].sort(compareStandingsRank);
+  const ranked = await getSeasonRanking(season.id);
 
   const resultDateRows = await db
     .select({ date: competitiveResults.date })
@@ -610,11 +565,7 @@ export async function getHubPayload(
     points: row.points,
     daysPlayed: row.daysPlayed,
     hits: row.hits,
-    label: leaderboardLabel({
-      id: row.userId,
-      competitiveDisplayName: row.competitiveDisplayName,
-      telegramUsername: row.telegramUsername,
-    }),
+    label: row.label,
     isMe: row.userId === userId,
   }));
 

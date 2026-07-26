@@ -19,7 +19,13 @@ import {
 } from "@/db/schema";
 import { publicScran } from "@/lib/daily-integrity";
 import { todayMskDate } from "@/lib/daily-timezone";
-import { COMPETITIVE_ROUNDS } from "./constants";
+import { COMPETITIVE_ROUNDS, COMPETITIVE_RESULT_BOARD_TOP } from "./constants";
+import {
+  betterThanPercent,
+  buildDayResultBoard,
+  type CompetitiveDaySummary,
+} from "./day-result";
+import { getSeasonRanking } from "./standings";
 import {
   computeSeasonStreakDays,
   findSeasonStreakFreezeDate,
@@ -242,7 +248,12 @@ export type RecordCompetitiveVoteResult =
   | { ok: false; error: string; status: number };
 
 export type FinalizeCompetitiveResult =
-  | { ok: true; hits: number; points: number }
+  | {
+      ok: true;
+      hits: number;
+      points: number;
+      summary: CompetitiveDaySummary;
+    }
   | { ok: false; error: string; status: number };
 
 async function getDailyByDate(date: string): Promise<{
@@ -786,7 +797,32 @@ export async function finalizeCompetitive(input: {
     `[competitive-play] finalize user=${userId} date=${date} hits=${hits} points=${points} season=${seasonId}`,
   );
 
-  return { ok: true, hits, points };
+  const ranked = await getSeasonRanking(seasonId);
+  const myIndex = ranked.findIndex((entry) => entry.userId === userId);
+
+  const [dayStats] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      worse: sql<number>`count(*) filter (where ${competitiveResults.points} < ${points})::int`,
+    })
+    .from(competitiveResults)
+    .where(
+      and(
+        eq(competitiveResults.date, date),
+        eq(competitiveResults.seasonId, seasonId),
+      ),
+    );
+
+  const playersToday = dayStats?.total ?? 0;
+
+  const summary: CompetitiveDaySummary = {
+    seasonPoints: myIndex >= 0 ? ranked[myIndex].points : points,
+    place: myIndex >= 0 ? myIndex + 1 : null,
+    betterThanPercent: betterThanPercent(dayStats?.worse ?? 0, playersToday),
+    board: buildDayResultBoard(ranked, userId, COMPETITIVE_RESULT_BOARD_TOP),
+  };
+
+  return { ok: true, hits, points, summary };
 }
 
 export async function getUserResult(

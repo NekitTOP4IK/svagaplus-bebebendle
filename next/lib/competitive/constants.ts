@@ -23,3 +23,5 @@ export const DIFFICULTY_BANDS = [
   { roundStart: 5, roundEnd: 7, minDelta: 3, maxDelta: 7 },
   { roundStart: 8, roundEnd: 10, minDelta: 1, maxDelta: 3 },
 ] as const;
+
+export const COMPETITIVE_RESULT_BOARD_TOP = 5;

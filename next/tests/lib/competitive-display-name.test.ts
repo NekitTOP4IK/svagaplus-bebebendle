@@ -10,7 +10,6 @@ import {
 import {
   addCalendarDays,
   computeStreakDays,
-  compareStandingsRank,
   computeSeasonStreakDays,
   freezeAvailableForSeason,
   seasonDayNumber,
@@ -343,20 +342,6 @@ describe("addCalendarDays", () => {
   it("steps across month boundary", () => {
     expect(addCalendarDays("2026-07-01", -1)).toBe("2026-06-30");
     expect(addCalendarDays("2026-02-28", 1)).toBe("2026-03-01");
-  });
-});
-
-describe("compareStandingsRank", () => {
-  it("orders by points, then days, then hits, then userId", () => {
-    const rows = [
-      { userId: 3, points: 100, daysPlayed: 5, hits: 40 },
-      { userId: 1, points: 100, daysPlayed: 5, hits: 50 },
-      { userId: 2, points: 200, daysPlayed: 1, hits: 10 },
-      { userId: 4, points: 100, daysPlayed: 6, hits: 10 },
-      { userId: 5, points: 100, daysPlayed: 5, hits: 50 },
-    ];
-    const sorted = [...rows].sort(compareStandingsRank);
-    expect(sorted.map((r) => r.userId)).toEqual([2, 4, 1, 5, 3]);
   });
 });
 

@@ -629,17 +629,10 @@
   transition: color 0.25s ease, text-shadow 0.25s ease;
 }
 
-.c-streak-fire__icons {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 4px;
-  position: relative;
-}
-
 .c-streak-fire__icon {
   display: block;
   flex: 0 0 auto;
-  width: 40px;
+  width: 23px;
   height: 40px;
   filter: drop-shadow(0 0 6px var(--fire-glow-a))
     drop-shadow(0 0 14px var(--fire-glow-b));
@@ -1540,11 +1533,5 @@
 
   .c-reward-frame {
     height: 90px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .c-streak-fire__icon {
-    animation: none !important;
   }
 }
