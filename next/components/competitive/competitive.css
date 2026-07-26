@@ -133,11 +133,20 @@
   width: 41px;
   height: 41px;
   background: #2a1819;
-  border: 2px solid #ff2d34;
+  border: 2px solid #08080b;
+  flex-shrink: 0;
+}
+
+/*
+ * The base carries no ring so a role tone can supply one via
+ * .user-avatar--<tone> without two equal-specificity box-shadow rules racing
+ * on source order. Players without a tone keep the card's red treatment.
+ */
+.c-player-avatar--plain {
+  border-color: #ff2d34;
   box-shadow:
     0 0 0 2px #08080b,
     0 0 14px rgba(255, 0, 23, 0.4);
-  flex-shrink: 0;
 }
 
 .c-player-avatar img {
@@ -150,13 +159,6 @@
   font-family: var(--font-pixel), monospace;
   font-size: 11px;
   color: #ffd6d8;
-}
-
-.c-player-line strong {
-  font-family: var(--font-pixel), monospace;
-  color: var(--c-white);
-  font-size: 14px;
-  font-weight: 400;
 }
 
 .c-brand {
@@ -554,11 +556,6 @@
 .c-player-avatar {
   width: 40px;
   height: 40px;
-}
-
-.c-player-line strong {
-  font-size: 15px;
-  min-width: 0;
 }
 
 .c-stats-list {

@@ -77,6 +77,8 @@ export default async function CompetitiveHubPage({
         <ProgressCard
           me={hub.me}
           photoUrl={user.telegramPhotoUrl}
+          role={user.role}
+          isSubscriber={user.isSubscriber}
           showFreeze={hub.season != null}
         />
         <LeaderboardCard
