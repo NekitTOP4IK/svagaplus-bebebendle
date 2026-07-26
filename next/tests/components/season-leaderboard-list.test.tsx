@@ -301,6 +301,9 @@ describe("SeasonLeaderboardList", () => {
       expect(screen.queryByText("Загрузка…")).not.toBeInTheDocument(),
     );
     expect(loadSeasonLeaderboardPage).toHaveBeenCalledTimes(1);
+    // waitFor resolves at commit, before React's passive effects flush, so the
+    // teardown that calls disconnect() may not have run yet. Flush it.
+    await act(async () => {});
     // hasMore is now false: the sentinel effect should have torn down its
     // observer, and the sentinel node itself should be gone from the DOM.
     expect(observer.disconnect).toHaveBeenCalled();

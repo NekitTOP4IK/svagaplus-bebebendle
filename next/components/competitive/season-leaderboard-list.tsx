@@ -92,11 +92,12 @@ export function SeasonLeaderboardList({ initialPage }: Props): ReactElement {
         // Standings shift under live play: a page fetched at a stale offset
         // can re-return someone already in `prev` (they climbed past it
         // between fetches). Drop repeats so React keys stay unique.
-        setRows((prev) => {
-          const held = new Set(prev.map((row) => row.userId));
-          return [...prev, ...page.rows.filter((row) => !held.has(row.userId))];
-        });
-        if (page.rows.length === 0) setExhausted(true);
+        const held = new Set(latest.current.rows.map((row) => row.userId));
+        const fresh = page.rows.filter((row) => !held.has(row.userId));
+        setRows((prev) => [...prev, ...fresh]);
+        // Nothing new means the next offset — derived from rows.length — would
+        // be the one just requested, so continuing would re-fetch it forever.
+        if (fresh.length === 0) setExhausted(true);
       } else {
         setRows(page.rows);
         setRangeStart(request.offset);
