@@ -25,3 +25,10 @@ export const DIFFICULTY_BANDS = [
 ] as const;
 
 export const COMPETITIVE_RESULT_BOARD_TOP = 5;
+
+/**
+ * Page size for the full season leaderboard: the initial SSR page, the
+ * client's infinite-scroll fetch, and the server action's upper bound all
+ * share this so raising one without the others can't desync the offset math.
+ */
+export const SEASON_LEADERBOARD_PAGE_SIZE = 25;

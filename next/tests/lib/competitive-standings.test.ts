@@ -14,6 +14,7 @@ import { leaderboardLabel } from "@/lib/competitive/display-name";
 import {
   compareStandingsRank,
   getSeasonBoard,
+  getSeasonLeaderboardPage,
 } from "@/lib/competitive/standings";
 
 const hub = readFileSync(
@@ -290,33 +291,189 @@ describe("getSeasonBoard", () => {
   });
 });
 
+type StubLeaderboardRow = {
+  place: number;
+  user_id: number;
+  points: number;
+  days_played: number;
+  hits: number;
+  competitive_display_name: string | null;
+  telegram_username: string | null;
+  total: number;
+};
+
+function stubLeaderboardRow(
+  place: number,
+  overrides: Partial<StubLeaderboardRow> = {},
+): StubLeaderboardRow {
+  return {
+    place,
+    user_id: place,
+    points: 1000 - place,
+    days_played: 5,
+    hits: 3,
+    competitive_display_name: `Player${place}`,
+    telegram_username: null,
+    total: 1000,
+    ...overrides,
+  };
+}
+
+describe("getSeasonLeaderboardPage", () => {
+  beforeEach(() => {
+    dependencies.execute.mockReset();
+  });
+
+  it("returns the requested slice in ascending place order", async () => {
+    const places = Array.from({ length: 25 }, (_, i) => i + 26); // places 26..50
+    const rows = places.map((place) => stubLeaderboardRow(place));
+    dependencies.execute.mockResolvedValue({ rows });
+
+    const page = await getSeasonLeaderboardPage({
+      seasonId: 1,
+      userId: 999,
+      offset: 25,
+      limit: 25,
+    });
+
+    expect(page.rows.map((row) => row.place)).toEqual(places);
+  });
+
+  it("excludes the caller from rows but reports them via myRow when they sit outside the slice", async () => {
+    const places = Array.from({ length: 25 }, (_, i) => i + 26); // places 26..50
+    const rows = [
+      ...places.map((place) => stubLeaderboardRow(place)),
+      stubLeaderboardRow(700),
+    ];
+    dependencies.execute.mockResolvedValue({ rows });
+
+    const page = await getSeasonLeaderboardPage({
+      seasonId: 1,
+      userId: 700,
+      offset: 25,
+      limit: 25,
+    });
+
+    expect(page.rows.map((row) => row.place)).toEqual(places);
+    expect(page.rows.some((row) => row.userId === 700)).toBe(false);
+    expect(page.myPlace).toBe(700);
+    expect(page.myRow?.place).toBe(700);
+  });
+
+  it("includes the caller once in rows and mirrors them in myRow when they sit inside the slice", async () => {
+    const places = Array.from({ length: 25 }, (_, i) => i + 26); // places 26..50
+    const rows = places.map((place) => stubLeaderboardRow(place));
+    dependencies.execute.mockResolvedValue({ rows });
+
+    const page = await getSeasonLeaderboardPage({
+      seasonId: 1,
+      userId: 30,
+      offset: 25,
+      limit: 25,
+    });
+
+    expect(page.rows).toHaveLength(25);
+    expect(page.rows.filter((row) => row.userId === 30)).toHaveLength(1);
+    expect(page.myPlace).toBe(30);
+    expect(page.myRow?.place).toBe(30);
+  });
+
+  it("propagates total from the stubbed row set", async () => {
+    const rows = [1, 2, 3].map((place) =>
+      stubLeaderboardRow(place, { total: 987 }),
+    );
+    dependencies.execute.mockResolvedValue({ rows });
+
+    const page = await getSeasonLeaderboardPage({
+      seasonId: 1,
+      userId: 999,
+      offset: 0,
+      limit: 25,
+    });
+
+    expect(page.total).toBe(987);
+  });
+
+  it("returns an empty page when the stub yields no rows", async () => {
+    dependencies.execute.mockResolvedValue({ rows: [] });
+
+    const page = await getSeasonLeaderboardPage({
+      seasonId: 1,
+      userId: 999,
+      offset: 0,
+      limit: 25,
+    });
+
+    expect(page.rows).toEqual([]);
+    expect(page.total).toBe(0);
+    expect(page.myPlace).toBeNull();
+    expect(page.myRow).toBeNull();
+  });
+
+  it("ranks in SQL with row_number() over the exact standings order, a count(*) total, the BETWEEN page predicate, the caller OR-clause, and the outer order by place", async () => {
+    dependencies.execute.mockResolvedValue({ rows: [] });
+
+    await getSeasonLeaderboardPage({
+      seasonId: 7,
+      userId: 1,
+      offset: 25,
+      limit: 25,
+    });
+
+    const text = capturedSqlText();
+    expect(text).toContain(
+      "row_number() OVER ( ORDER BY s.points DESC, s.days_played DESC, s.hits DESC, s.user_id ASC )",
+    );
+    expect(text).toContain("INNER JOIN users u ON u.id = s.user_id");
+    expect(text).toContain("WHERE s.season_id =");
+    expect(text).toContain("count(*) OVER ()");
+    // The page predicate: place falls in [offset + 1, offset + limit]. This
+    // needle pins the BETWEEN construct itself, not just the surrounding
+    // words, so replacing it with e.g. a plain >= / <= pair still fails.
+    expect(text).toContain("WHERE r.place BETWEEN + 1 AND + ");
+    // ... OR the caller's own row, so callers always see their place even off-page.
+    expect(text).toContain("OR r.user_id = ");
+    expect(text).toContain("ORDER BY r.place");
+  });
+});
+
 /**
- * The ordering now lives in three unlinked places: compareStandingsRank
- * (tested but with zero production call sites), the raw SQL in
- * standings.ts, and the drizzle orderBy in seasons.ts's endSeason. The
- * last two must stay in lockstep or the live leaderboard silently
- * desynchronises from the archived final ranks in
- * competitive_season_final_ranks. This reads both files as source text —
- * the same convention the SQL-shape assertions above use — and compares
- * the four ordering keys and directions structurally.
+ * The ordering now lives in four unlinked places: compareStandingsRank
+ * (tested but with zero production call sites), the two raw-SQL
+ * row_number() blocks in standings.ts (getSeasonBoard and
+ * getSeasonLeaderboardPage), and the drizzle orderBy in seasons.ts's
+ * endSeason. All of the SQL occurrences must stay in lockstep with the
+ * snapshot orderBy or the live leaderboard silently desynchronises from
+ * the archived final ranks in competitive_season_final_ranks. This reads
+ * both files as source text — the same convention the SQL-shape
+ * assertions above use — and compares the four ordering keys and
+ * directions structurally, across every row_number() block found, not
+ * just the first — otherwise adding a second ranking query to
+ * standings.ts would make this check pass vacuously for it.
  */
 describe("ordering stays in lockstep between the live board and the season snapshot", () => {
   function snakeToCamel(s: string): string {
     return s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
   }
 
-  function sqlOrderKeys(src: string): Array<{ column: string; dir: string }> {
-    const match = src.match(
-      /ORDER BY s\.(\w+) (DESC|ASC), s\.(\w+) (DESC|ASC), s\.(\w+) (DESC|ASC), s\.(\w+) (DESC|ASC)/,
-    );
-    if (!match) throw new Error("standings.ts row_number() ORDER BY clause not found");
-    const [, c1, d1, c2, d2, c3, d3, c4, d4] = match as unknown as string[];
-    return [
-      { column: snakeToCamel(c1), dir: d1.toLowerCase() },
-      { column: snakeToCamel(c2), dir: d2.toLowerCase() },
-      { column: snakeToCamel(c3), dir: d3.toLowerCase() },
-      { column: snakeToCamel(c4), dir: d4.toLowerCase() },
+  function sqlOrderKeysAll(src: string): Array<Array<{ column: string; dir: string }>> {
+    const matches = [
+      ...src.matchAll(
+        /ORDER BY s\.(\w+) (DESC|ASC), s\.(\w+) (DESC|ASC), s\.(\w+) (DESC|ASC), s\.(\w+) (DESC|ASC)/g,
+      ),
     ];
+    if (matches.length === 0) {
+      throw new Error("standings.ts row_number() ORDER BY clause not found");
+    }
+    return matches.map((match) => {
+      const [, c1, d1, c2, d2, c3, d3, c4, d4] = match as unknown as string[];
+      return [
+        { column: snakeToCamel(c1), dir: d1.toLowerCase() },
+        { column: snakeToCamel(c2), dir: d2.toLowerCase() },
+        { column: snakeToCamel(c3), dir: d3.toLowerCase() },
+        { column: snakeToCamel(c4), dir: d4.toLowerCase() },
+      ];
+    });
   }
 
   function drizzleOrderKeys(src: string): Array<{ column: string; dir: string }> {
@@ -328,7 +485,15 @@ describe("ordering stays in lockstep between the live board and the season snaps
     return pairs.map(([, dir, column]) => ({ column, dir }));
   }
 
-  it("the four ordering keys and directions match between standings.ts's SQL and seasons.ts's endSeason orderBy", () => {
-    expect(sqlOrderKeys(standingsSrc)).toEqual(drizzleOrderKeys(seasonsSrc));
+  it("the four ordering keys and directions match between every row_number() block in standings.ts's SQL and seasons.ts's endSeason orderBy", () => {
+    const seasonsKeys = drizzleOrderKeys(seasonsSrc);
+    const sqlBlocks = sqlOrderKeysAll(standingsSrc);
+
+    // Pin the block count too: if this regresses to 1, the loop below
+    // would silently stop covering getSeasonLeaderboardPage's query.
+    expect(sqlBlocks.length).toBe(2);
+    for (const keys of sqlBlocks) {
+      expect(keys).toEqual(seasonsKeys);
+    }
   });
 });

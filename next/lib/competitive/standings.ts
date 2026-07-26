@@ -104,3 +104,74 @@ export async function getSeasonBoard(
     myPlace: rows[0]?.my_place ?? null,
   };
 }
+
+export type SeasonLeaderboardPage = Readonly<{
+  rows: SeasonBoardRow[];
+  total: number;
+  myPlace: number | null;
+  myRow: SeasonBoardRow | null;
+}>;
+
+export async function getSeasonLeaderboardPage(
+  input: Readonly<{
+    seasonId: number;
+    userId: number;
+    offset: number;
+    limit: number;
+  }>,
+): Promise<SeasonLeaderboardPage> {
+  const { seasonId, userId, offset, limit } = input;
+
+  const result = await db.execute(sql`
+    WITH ranked AS (
+      SELECT s.user_id, s.points, s.days_played, s.hits,
+             u.competitive_display_name, u.telegram_username,
+             row_number() OVER (
+               ORDER BY s.points DESC, s.days_played DESC, s.hits DESC, s.user_id ASC
+             )::int AS place,
+             count(*) OVER ()::int AS total
+      FROM competitive_standings s
+      INNER JOIN users u ON u.id = s.user_id
+      WHERE s.season_id = ${seasonId}
+    )
+    SELECT * FROM ranked r
+    WHERE r.place BETWEEN ${offset} + 1 AND ${offset} + ${limit}
+       OR r.user_id = ${userId}
+    ORDER BY r.place
+  `);
+
+  const raw = result.rows as Array<{
+    place: number;
+    user_id: number;
+    points: number;
+    days_played: number;
+    hits: number;
+    total: number;
+    competitive_display_name: string | null;
+    telegram_username: string | null;
+  }>;
+
+  const toRow = (row: (typeof raw)[number]): SeasonBoardRow => ({
+    place: row.place,
+    userId: row.user_id,
+    points: row.points,
+    daysPlayed: row.days_played,
+    hits: row.hits,
+    label: leaderboardLabel({
+      id: row.user_id,
+      competitiveDisplayName: row.competitive_display_name,
+      telegramUsername: row.telegram_username,
+    }),
+  });
+
+  const mine = raw.find((row) => row.user_id === userId);
+
+  return {
+    rows: raw
+      .filter((row) => row.place > offset && row.place <= offset + limit)
+      .map(toRow),
+    total: raw[0]?.total ?? 0,
+    myPlace: mine?.place ?? null,
+    myRow: mine ? toRow(mine) : null,
+  };
+}

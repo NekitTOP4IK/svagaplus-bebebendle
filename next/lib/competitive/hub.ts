@@ -109,8 +109,8 @@ export type HubPayload = Readonly<{
   todayPoints: number | null;
   me: HubMe;
   top: HubStandingRow[];
-  /** Present when the current user has a standing outside the top 50. */
-  myRow: HubStandingRow | null;
+  /** Neighbours around the caller's place when it sits outside the top 50. */
+  myWindow: HubStandingRow[];
   countdowns: Readonly<{
     seasonEndsAt: string | null;
     nextDailyAt: string;
@@ -453,7 +453,7 @@ export async function getHubPayload(
       todayPoints: null,
       me: emptyMe(label, competitiveDisplayName),
       top: [],
-      myRow: null,
+      myWindow: [],
       countdowns: {
         seasonEndsAt: null,
         nextDailyAt,
@@ -507,7 +507,7 @@ export async function getHubPayload(
         ...emptyMe(label, competitiveDisplayName),
       },
       top: [],
-      myRow: null,
+      myWindow: [],
       countdowns: {
         seasonEndsAt: null,
         nextDailyAt,
@@ -528,7 +528,7 @@ export async function getHubPayload(
     seasonId: season.id,
     userId,
     topN: TOP_LIMIT,
-    windowRadius: 0,
+    windowRadius: 1,
   });
 
   const resultDateRows = await db
@@ -577,7 +577,7 @@ export async function getHubPayload(
     }));
 
   let me: HubMe;
-  let myRow: HubStandingRow | null = null;
+  let myWindow: HubStandingRow[] = [];
 
   if (board.myPlace !== null) {
     const place = board.myPlace;
@@ -593,17 +593,17 @@ export async function getHubPayload(
       label,
       competitiveDisplayName,
     };
-    if (place > TOP_LIMIT) {
-      myRow = {
-        place,
-        userId: row.userId,
-        points: row.points,
-        daysPlayed: row.daysPlayed,
-        hits: row.hits,
-        label,
-        isMe: true,
-      };
-    }
+    myWindow = board.rows
+      .filter((r) => r.place > TOP_LIMIT)
+      .map((r) => ({
+        place: r.place,
+        userId: r.userId,
+        points: r.points,
+        daysPlayed: r.daysPlayed,
+        hits: r.hits,
+        label: r.userId === userId ? label : r.label,
+        isMe: r.userId === userId,
+      }));
   } else {
     me = {
       place: null,
@@ -626,7 +626,7 @@ export async function getHubPayload(
     todayPoints,
     me,
     top,
-    myRow,
+    myWindow,
     countdowns: {
       seasonEndsAt: season.endsAt.toISOString(),
       nextDailyAt,

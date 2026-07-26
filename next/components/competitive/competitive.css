@@ -26,7 +26,11 @@
   min-width: 320px;
   color: var(--c-white);
   background: #0a0610;
-  overflow-x: hidden;
+  /* clip (not hidden): hidden on only one axis forces the other axis's
+     computed overflow to auto, which turns this wrapper into a scroll
+     container and silently breaks position: sticky for every descendant
+     between here and the real (document-level) scroller. */
+  overflow-x: clip;
   font-family: Arial, Helvetica, sans-serif;
   padding-bottom: 0;
   box-sizing: border-box;
@@ -1343,6 +1347,117 @@
   color: var(--c-muted);
 }
 
+/* ---- Hub card: link to the full leaderboard ---- */
+
+.c-leaderboard-more-btn {
+  margin-left: auto;
+}
+
+/* ---- Full leaderboard (infinite scroll) ---- */
+
+.c-leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.c-leaderboard-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 0;
+  background: var(--c-ink);
+}
+
+.c-leaderboard-table-wrap {
+  max-height: none;
+  overflow-y: visible;
+}
+
+.c-leaderboard-table-wrap .c-table th {
+  position: static;
+}
+
+.c-leaderboard-sentinel {
+  height: 1px;
+}
+
+.c-leaderboard-loading {
+  padding: 8px 0;
+  text-align: center;
+  font: 10px var(--c-pixel);
+  color: var(--c-muted);
+}
+
+.c-leaderboard-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid #050507;
+  outline: 1px solid rgba(255, 63, 67, 0.55);
+  background: rgba(60, 10, 12, 0.55);
+  font: 11px/1.5 var(--c-pixel);
+  color: #ffb3b5;
+}
+
+.c-leaderboard-error p {
+  margin: 0;
+}
+
+.c-leaderboard-pinned {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #050507;
+  outline: 1px solid #bf42e3;
+  /* Opaque flattening of the old rgba(133, 29, 170, 0.28) over the page's
+     --c-ink base — sticky means rows now scroll behind this, not past it. */
+  background: #2a0c38;
+  color: var(--c-white);
+  font: 11px var(--c-pixel);
+  text-align: left;
+  cursor: pointer;
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  transition: filter 0.12s ease, transform 0.08s ease;
+}
+
+.c-leaderboard-pinned:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.c-leaderboard-pinned:active:not(:disabled) {
+  transform: translate(1px, 1px);
+}
+
+.c-leaderboard-pinned:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.c-leaderboard-pinned__label {
+  color: var(--c-gold);
+  font-weight: 700;
+}
+
+.c-leaderboard-pinned__place {
+  color: var(--c-gold);
+}
+
+.c-row-highlight {
+  outline: 2px solid var(--c-gold);
+  box-shadow: inset 0 0 14px rgba(255, 210, 45, 0.25);
+}
+
 /* ---- Disabled / empty states ---- */
 
 .c-disabled-box {
@@ -1533,5 +1648,12 @@
 
   .c-reward-frame {
     height: 90px;
+  }
+
+  .c-leaderboard-pinned,
+  .c-leaderboard-error {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
   }
 }

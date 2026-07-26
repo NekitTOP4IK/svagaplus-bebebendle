@@ -81,8 +81,10 @@ export default async function CompetitiveHubPage({
         />
         <LeaderboardCard
           top={hub.top}
-          myRow={hub.myRow}
+          myWindow={hub.myWindow}
           seasonStatus={hub.season?.status}
+          seasonStartsAt={hub.season?.startsAt}
+          seasonEndsAt={hub.season?.endsAt}
         />
         <aside className="c-right-column">
           <RulesCard
