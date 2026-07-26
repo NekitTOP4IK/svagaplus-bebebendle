@@ -22,10 +22,9 @@ import { todayMskDate } from "@/lib/daily-timezone";
 import { COMPETITIVE_ROUNDS, COMPETITIVE_RESULT_BOARD_TOP } from "./constants";
 import {
   betterThanPercent,
-  buildDayResultBoard,
   type CompetitiveDaySummary,
 } from "./day-result";
-import { getSeasonRanking } from "./standings";
+import { getSeasonBoard } from "./standings";
 import {
   computeSeasonStreakDays,
   findSeasonStreakFreezeDate,
@@ -797,8 +796,13 @@ export async function finalizeCompetitive(input: {
     `[competitive-play] finalize user=${userId} date=${date} hits=${hits} points=${points} season=${seasonId}`,
   );
 
-  const ranked = await getSeasonRanking(seasonId);
-  const myIndex = ranked.findIndex((entry) => entry.userId === userId);
+  const board = await getSeasonBoard({
+    seasonId,
+    userId,
+    topN: COMPETITIVE_RESULT_BOARD_TOP,
+    windowRadius: 1,
+  });
+  const myRow = board.rows.find((row) => row.userId === userId);
 
   const [dayStats] = await db
     .select({
@@ -816,10 +820,15 @@ export async function finalizeCompetitive(input: {
   const playersToday = dayStats?.total ?? 0;
 
   const summary: CompetitiveDaySummary = {
-    seasonPoints: myIndex >= 0 ? ranked[myIndex].points : points,
-    place: myIndex >= 0 ? myIndex + 1 : null,
+    seasonPoints: myRow ? myRow.points : points,
+    place: board.myPlace,
     betterThanPercent: betterThanPercent(dayStats?.worse ?? 0, playersToday),
-    board: buildDayResultBoard(ranked, userId, COMPETITIVE_RESULT_BOARD_TOP),
+    board: board.rows.map((row) => ({
+      place: row.place,
+      label: row.label,
+      points: row.points,
+      isMe: row.userId === userId,
+    })),
   };
 
   return { ok: true, hits, points, summary };

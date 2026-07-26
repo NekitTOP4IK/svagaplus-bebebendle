@@ -40,7 +40,7 @@ import {
   type Season,
   type SeasonStatus,
 } from "./seasons";
-import { getSeasonRanking } from "./standings";
+import { getSeasonBoard } from "./standings";
 import { getCompetitiveUserPrefs } from "./user-prefs";
 
 const TOP_LIMIT = 50;
@@ -524,7 +524,12 @@ export async function getHubPayload(
   const seasonRules = theme.rules ?? emptyContent;
   const seasonRewards = theme.rewards ?? emptyContent;
 
-  const ranked = await getSeasonRanking(season.id);
+  const board = await getSeasonBoard({
+    seasonId: season.id,
+    userId,
+    topN: TOP_LIMIT,
+    windowRadius: 0,
+  });
 
   const resultDateRows = await db
     .select({ date: competitiveResults.date })
@@ -559,23 +564,24 @@ export async function getHubPayload(
     freezeHeldDate !== null && streakDays > (unbridgedStreak?.days ?? streakDays);
   const streakFreezeAvailable = freezeAvailable && !streakResult.needsFreeze;
 
-  const top: HubStandingRow[] = ranked.slice(0, TOP_LIMIT).map((row, index) => ({
-    place: index + 1,
-    userId: row.userId,
-    points: row.points,
-    daysPlayed: row.daysPlayed,
-    hits: row.hits,
-    label: row.label,
-    isMe: row.userId === userId,
-  }));
+  const top: HubStandingRow[] = board.rows
+    .filter((row) => row.place <= TOP_LIMIT)
+    .map((row) => ({
+      place: row.place,
+      userId: row.userId,
+      points: row.points,
+      daysPlayed: row.daysPlayed,
+      hits: row.hits,
+      label: row.label,
+      isMe: row.userId === userId,
+    }));
 
-  const myIndex = ranked.findIndex((r) => r.userId === userId);
   let me: HubMe;
   let myRow: HubStandingRow | null = null;
 
-  if (myIndex >= 0) {
-    const row = ranked[myIndex]!;
-    const place = myIndex + 1;
+  if (board.myPlace !== null) {
+    const place = board.myPlace;
+    const row = board.rows.find((r) => r.userId === userId)!;
     me = {
       place,
       points: row.points,

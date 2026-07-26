@@ -31,9 +31,17 @@ describe("finalizeCompetitive day summary", () => {
     );
   });
 
-  it("builds the board from the shared ranking", () => {
-    expect(play).toContain("getSeasonRanking(seasonId)");
-    expect(play).toContain("buildDayResultBoard");
-    expect(play).toContain("COMPETITIVE_RESULT_BOARD_TOP");
+  it("builds the board from the shared bounded season-board query", () => {
+    // Pins the actual call site (both arguments), not just the import line:
+    // `import { ..., COMPETITIVE_RESULT_BOARD_TOP } from "./constants"` also
+    // contains the substring "COMPETITIVE_RESULT_BOARD_TOP", so a plain
+    // `toContain("COMPETITIVE_RESULT_BOARD_TOP")` is satisfied by the import
+    // alone and never reaches the call below — changing `topN:
+    // COMPETITIVE_RESULT_BOARD_TOP` to `topN: 50` would leave it green.
+    expect(normalizedPlay).toContain(
+      "getSeasonBoard({ seasonId, userId, topN: COMPETITIVE_RESULT_BOARD_TOP, windowRadius: 1, });",
+    );
+    expect(play).not.toContain("getSeasonRanking");
+    expect(play).not.toContain("buildDayResultBoard");
   });
 });
