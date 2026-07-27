@@ -23,3 +23,12 @@ export const DIFFICULTY_BANDS = [
   { roundStart: 5, roundEnd: 7, minDelta: 3, maxDelta: 7 },
   { roundStart: 8, roundEnd: 10, minDelta: 1, maxDelta: 3 },
 ] as const;
+
+export const COMPETITIVE_RESULT_BOARD_TOP = 5;
+
+/**
+ * Page size for the full season leaderboard: the initial SSR page, the
+ * client's infinite-scroll fetch, and the server action's upper bound all
+ * share this so raising one without the others can't desync the offset math.
+ */
+export const SEASON_LEADERBOARD_PAGE_SIZE = 25;

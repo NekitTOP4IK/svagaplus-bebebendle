@@ -5,13 +5,12 @@
  * Ranking order: points DESC, daysPlayed DESC, hits DESC, userId ASC.
  */
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
   db,
   users,
   competitiveDailies,
   competitiveResults,
-  competitiveStandings,
 } from "@/db/schema";
 import {
   mskDateStartUtc,
@@ -41,7 +40,9 @@ import {
   type Season,
   type SeasonStatus,
 } from "./seasons";
+import { getSeasonBoard } from "./standings";
 import { getCompetitiveUserPrefs } from "./user-prefs";
+import { getEndedSeasonBoard } from "./archive";
 
 const TOP_LIMIT = 50;
 
@@ -109,8 +110,8 @@ export type HubPayload = Readonly<{
   todayPoints: number | null;
   me: HubMe;
   top: HubStandingRow[];
-  /** Present when the current user has a standing outside the top 50. */
-  myRow: HubStandingRow | null;
+  /** Neighbours around the caller's place when it sits outside the top 50. */
+  myWindow: HubStandingRow[];
   countdowns: Readonly<{
     seasonEndsAt: string | null;
     nextDailyAt: string;
@@ -374,31 +375,6 @@ export function computeSeasonStreakDays(
   };
 }
 
-/**
- * Compare two standings for rank order.
- * Higher rank (better place) returns negative (sort ascending place).
- * Order: points DESC, daysPlayed DESC, hits DESC, userId ASC.
- */
-export function compareStandingsRank(
-  a: {
-    points: number;
-    daysPlayed: number;
-    hits: number;
-    userId: number;
-  },
-  b: {
-    points: number;
-    daysPlayed: number;
-    hits: number;
-    userId: number;
-  },
-): number {
-  if (a.points !== b.points) return b.points - a.points;
-  if (a.daysPlayed !== b.daysPlayed) return b.daysPlayed - a.daysPlayed;
-  if (a.hits !== b.hits) return b.hits - a.hits;
-  return a.userId - b.userId;
-}
-
 function seasonSummary(season: Season): HubSeasonSummary {
   return {
     id: season.id,
@@ -478,7 +454,7 @@ export async function getHubPayload(
       todayPoints: null,
       me: emptyMe(label, competitiveDisplayName),
       top: [],
-      myRow: null,
+      myWindow: [],
       countdowns: {
         seasonEndsAt: null,
         nextDailyAt,
@@ -532,7 +508,7 @@ export async function getHubPayload(
         ...emptyMe(label, competitiveDisplayName),
       },
       top: [],
-      myRow: null,
+      myWindow: [],
       countdowns: {
         seasonEndsAt: null,
         nextDailyAt,
@@ -549,27 +525,19 @@ export async function getHubPayload(
   const seasonRules = theme.rules ?? emptyContent;
   const seasonRewards = theme.rewards ?? emptyContent;
 
-  const standingRows = await db
-    .select({
-      userId: competitiveStandings.userId,
-      points: competitiveStandings.points,
-      daysPlayed: competitiveStandings.daysPlayed,
-      hits: competitiveStandings.hits,
-      competitiveDisplayName: users.competitiveDisplayName,
-      telegramUsername: users.telegramUsername,
-    })
-    .from(competitiveStandings)
-    .innerJoin(users, eq(competitiveStandings.userId, users.id))
-    .where(eq(competitiveStandings.seasonId, season.id))
-    .orderBy(
-      desc(competitiveStandings.points),
-      desc(competitiveStandings.daysPlayed),
-      desc(competitiveStandings.hits),
-      asc(competitiveStandings.userId),
-    );
-
-  // Defensive sort in case DB collation differs (matches endSeason order).
-  const ranked = [...standingRows].sort(compareStandingsRank);
+  const board = season.status === "ended" ?
+    await getEndedSeasonBoard({
+      seasonId: season.id,
+      userId,
+      topN: TOP_LIMIT,
+      windowRadius: 1,
+    }) :
+    await getSeasonBoard({
+      seasonId: season.id,
+      userId,
+      topN: TOP_LIMIT,
+      windowRadius: 1,
+    });
 
   const resultDateRows = await db
     .select({ date: competitiveResults.date })
@@ -604,27 +572,24 @@ export async function getHubPayload(
     freezeHeldDate !== null && streakDays > (unbridgedStreak?.days ?? streakDays);
   const streakFreezeAvailable = freezeAvailable && !streakResult.needsFreeze;
 
-  const top: HubStandingRow[] = ranked.slice(0, TOP_LIMIT).map((row, index) => ({
-    place: index + 1,
-    userId: row.userId,
-    points: row.points,
-    daysPlayed: row.daysPlayed,
-    hits: row.hits,
-    label: leaderboardLabel({
-      id: row.userId,
-      competitiveDisplayName: row.competitiveDisplayName,
-      telegramUsername: row.telegramUsername,
-    }),
-    isMe: row.userId === userId,
-  }));
+  const top: HubStandingRow[] = board.rows
+    .filter((row) => row.place <= TOP_LIMIT)
+    .map((row) => ({
+      place: row.place,
+      userId: row.userId,
+      points: row.points,
+      daysPlayed: row.daysPlayed,
+      hits: row.hits,
+      label: row.label,
+      isMe: row.userId === userId,
+    }));
 
-  const myIndex = ranked.findIndex((r) => r.userId === userId);
   let me: HubMe;
-  let myRow: HubStandingRow | null = null;
+  let myWindow: HubStandingRow[] = [];
 
-  if (myIndex >= 0) {
-    const row = ranked[myIndex]!;
-    const place = myIndex + 1;
+  if (board.myPlace !== null) {
+    const place = board.myPlace;
+    const row = board.rows.find((r) => r.userId === userId)!;
     me = {
       place,
       points: row.points,
@@ -636,17 +601,17 @@ export async function getHubPayload(
       label,
       competitiveDisplayName,
     };
-    if (place > TOP_LIMIT) {
-      myRow = {
-        place,
-        userId: row.userId,
-        points: row.points,
-        daysPlayed: row.daysPlayed,
-        hits: row.hits,
-        label,
-        isMe: true,
-      };
-    }
+    myWindow = board.rows
+      .filter((r) => r.place > TOP_LIMIT)
+      .map((r) => ({
+        place: r.place,
+        userId: r.userId,
+        points: r.points,
+        daysPlayed: r.daysPlayed,
+        hits: r.hits,
+        label: r.userId === userId ? label : r.label,
+        isMe: r.userId === userId,
+      }));
   } else {
     me = {
       place: null,
@@ -669,7 +634,7 @@ export async function getHubPayload(
     todayPoints,
     me,
     top,
-    myRow,
+    myWindow,
     countdowns: {
       seasonEndsAt: season.endsAt.toISOString(),
       nextDailyAt,

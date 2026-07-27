@@ -4,8 +4,11 @@ import { checkRateLimit } from "@/app/api/middleware/rateLimit";
 import { ActionResult } from "@/lib/action-result";
 import { getCurrentUser } from "@/lib/auth-server";
 import { finalizeCompetitive, getCompetitiveDailyView, recordCompetitiveVote } from "@/lib/competitive/play";
+import { getPlayableSeason } from "@/lib/competitive/seasons";
+import { getSeasonLeaderboardPage, SeasonLeaderboardPage } from "@/lib/competitive/standings";
 import { todayMskDate } from "@/lib/daily-timezone";
 import { patchCompetitiveUserPrefs } from "@/lib/competitive/user-prefs";
+import { SEASON_LEADERBOARD_PAGE_SIZE } from "@/lib/competitive/constants";
 
 type CompetitiveActionError = "unauthorized" | "invalid_input" | "rate_limited" | "failed";
 
@@ -46,6 +49,24 @@ export async function getCompetitiveDailyAction(): Promise<ActionResult<Awaited<
   if (!player.ok) return player;
   try { return { ok: true, data: await getCompetitiveDailyView(player.data.id) }; }
   catch (error) { console.error("[competitive-action] daily failed", { userId: player.data.id }, error); return { ok: false, code: "failed", message: "Не удалось загрузить дейлик." }; }
+}
+
+export async function loadSeasonLeaderboardPage(input: Readonly<{ offset: number; limit: number }>): Promise<ActionResult<SeasonLeaderboardPage, CompetitiveActionError>> {
+  const player = await currentPlayer();
+  if (!player.ok) return player;
+  if (!Number.isInteger(input.offset) || input.offset < 0 || !Number.isInteger(input.limit) || input.limit < 1 || input.limit > SEASON_LEADERBOARD_PAGE_SIZE) {
+    return { ok: false, code: "invalid_input", message: "Некорректные параметры страницы." };
+  }
+  if (!(await checkRateLimit(`competitive-leaderboard:${player.data.id}`, 30, 60)).allowed) return { ok: false, code: "rate_limited", message: "Слишком много попыток. Подожди немного." };
+  try {
+    const season = await getPlayableSeason();
+    if (!season) return { ok: false, code: "failed", message: "Нет активного сезона." };
+    const data = await getSeasonLeaderboardPage({ seasonId: season.id, userId: player.data.id, offset: input.offset, limit: input.limit });
+    return { ok: true, data };
+  } catch (error) {
+    console.error("[competitive-action] leaderboard page failed", { userId: player.data.id }, error);
+    return { ok: false, code: "failed", message: "Не удалось загрузить таблицу лидеров." };
+  }
 }
 
 export async function updateCompetitivePrefs(input: Readonly<{ introDismissed?: boolean; nickPromptDismissed?: boolean }>): Promise<ActionResult<null, CompetitiveActionError>> {

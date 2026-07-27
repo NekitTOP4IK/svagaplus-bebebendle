@@ -19,7 +19,12 @@ import {
 } from "@/db/schema";
 import { publicScran } from "@/lib/daily-integrity";
 import { todayMskDate } from "@/lib/daily-timezone";
-import { COMPETITIVE_ROUNDS } from "./constants";
+import { COMPETITIVE_ROUNDS, COMPETITIVE_RESULT_BOARD_TOP } from "./constants";
+import {
+  betterThanPercent,
+  type CompetitiveDaySummary,
+} from "./day-result";
+import { getSeasonBoard } from "./standings";
 import {
   computeSeasonStreakDays,
   findSeasonStreakFreezeDate,
@@ -242,7 +247,12 @@ export type RecordCompetitiveVoteResult =
   | { ok: false; error: string; status: number };
 
 export type FinalizeCompetitiveResult =
-  | { ok: true; hits: number; points: number }
+  | {
+      ok: true;
+      hits: number;
+      points: number;
+      summary: CompetitiveDaySummary;
+    }
   | { ok: false; error: string; status: number };
 
 async function getDailyByDate(date: string): Promise<{
@@ -786,7 +796,42 @@ export async function finalizeCompetitive(input: {
     `[competitive-play] finalize user=${userId} date=${date} hits=${hits} points=${points} season=${seasonId}`,
   );
 
-  return { ok: true, hits, points };
+  const board = await getSeasonBoard({
+    seasonId,
+    userId,
+    topN: COMPETITIVE_RESULT_BOARD_TOP,
+    windowRadius: 1,
+  });
+  const myRow = board.rows.find((row) => row.userId === userId);
+
+  const [dayStats] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      worse: sql<number>`count(*) filter (where ${competitiveResults.points} < ${points})::int`,
+    })
+    .from(competitiveResults)
+    .where(
+      and(
+        eq(competitiveResults.date, date),
+        eq(competitiveResults.seasonId, seasonId),
+      ),
+    );
+
+  const playersToday = dayStats?.total ?? 0;
+
+  const summary: CompetitiveDaySummary = {
+    seasonPoints: myRow ? myRow.points : points,
+    place: board.myPlace,
+    betterThanPercent: betterThanPercent(dayStats?.worse ?? 0, playersToday),
+    board: board.rows.map((row) => ({
+      place: row.place,
+      label: row.label,
+      points: row.points,
+      isMe: row.userId === userId,
+    })),
+  };
+
+  return { ok: true, hits, points, summary };
 }
 
 export async function getUserResult(

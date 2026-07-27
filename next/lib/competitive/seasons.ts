@@ -284,6 +284,22 @@ export function isSeasonStatusPlayable(status: string): boolean {
 }
 
 /**
+ * Pure mirror of getPlayableSeason's WHERE clause, for callers that already
+ * hold a season summary and need the same active-and-in-window check
+ * without a DB round-trip (e.g. gating a link so it agrees with where that
+ * link leads).
+ */
+export function isSeasonPlayableNow(
+  season: { status: string; startsAt: Date | string; endsAt: Date | string },
+  now: Date = new Date(),
+): boolean {
+  if (season.status !== "active") return false;
+  const startsAt = typeof season.startsAt === "string" ? new Date(season.startsAt) : season.startsAt;
+  const endsAt = typeof season.endsAt === "string" ? new Date(season.endsAt) : season.endsAt;
+  return startsAt.getTime() <= now.getTime() && now.getTime() < endsAt.getTime();
+}
+
+/**
  * Prefer active, else countdown, else latest ended (for hub visibility).
  * Prefer in-window active when `now` is provided (default: current time).
  */

@@ -26,7 +26,11 @@
   min-width: 320px;
   color: var(--c-white);
   background: #0a0610;
-  overflow-x: hidden;
+  /* clip (not hidden): hidden on only one axis forces the other axis's
+     computed overflow to auto, which turns this wrapper into a scroll
+     container and silently breaks position: sticky for every descendant
+     between here and the real (document-level) scroller. */
+  overflow-x: clip;
   font-family: Arial, Helvetica, sans-serif;
   padding-bottom: 0;
   box-sizing: border-box;
@@ -129,11 +133,20 @@
   width: 41px;
   height: 41px;
   background: #2a1819;
-  border: 2px solid #ff2d34;
+  border: 2px solid #08080b;
+  flex-shrink: 0;
+}
+
+/*
+ * The base carries no ring so a role tone can supply one via
+ * .user-avatar--<tone> without two equal-specificity box-shadow rules racing
+ * on source order. Players without a tone keep the card's red treatment.
+ */
+.c-player-avatar--plain {
+  border-color: #ff2d34;
   box-shadow:
     0 0 0 2px #08080b,
     0 0 14px rgba(255, 0, 23, 0.4);
-  flex-shrink: 0;
 }
 
 .c-player-avatar img {
@@ -146,13 +159,6 @@
   font-family: var(--font-pixel), monospace;
   font-size: 11px;
   color: #ffd6d8;
-}
-
-.c-player-line strong {
-  font-family: var(--font-pixel), monospace;
-  color: var(--c-white);
-  font-size: 14px;
-  font-weight: 400;
 }
 
 .c-brand {
@@ -552,11 +558,6 @@
   height: 40px;
 }
 
-.c-player-line strong {
-  font-size: 15px;
-  min-width: 0;
-}
-
 .c-stats-list {
   display: grid;
   gap: 14px;
@@ -629,17 +630,10 @@
   transition: color 0.25s ease, text-shadow 0.25s ease;
 }
 
-.c-streak-fire__icons {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 4px;
-  position: relative;
-}
-
 .c-streak-fire__icon {
   display: block;
   flex: 0 0 auto;
-  width: 40px;
+  width: 23px;
   height: 40px;
   filter: drop-shadow(0 0 6px var(--fire-glow-a))
     drop-shadow(0 0 14px var(--fire-glow-b));
@@ -1350,6 +1344,117 @@
   color: var(--c-muted);
 }
 
+/* ---- Hub card: link to the full leaderboard ---- */
+
+.c-leaderboard-more-btn {
+  margin-left: auto;
+}
+
+/* ---- Full leaderboard (infinite scroll) ---- */
+
+.c-leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.c-leaderboard-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 0;
+  background: var(--c-ink);
+}
+
+.c-leaderboard-table-wrap {
+  max-height: none;
+  overflow-y: visible;
+}
+
+.c-leaderboard-table-wrap .c-table th {
+  position: static;
+}
+
+.c-leaderboard-sentinel {
+  height: 1px;
+}
+
+.c-leaderboard-loading {
+  padding: 8px 0;
+  text-align: center;
+  font: 10px var(--c-pixel);
+  color: var(--c-muted);
+}
+
+.c-leaderboard-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid #050507;
+  outline: 1px solid rgba(255, 63, 67, 0.55);
+  background: rgba(60, 10, 12, 0.55);
+  font: 11px/1.5 var(--c-pixel);
+  color: #ffb3b5;
+}
+
+.c-leaderboard-error p {
+  margin: 0;
+}
+
+.c-leaderboard-pinned {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #050507;
+  outline: 1px solid #bf42e3;
+  /* Opaque flattening of the old rgba(133, 29, 170, 0.28) over the page's
+     --c-ink base — sticky means rows now scroll behind this, not past it. */
+  background: #2a0c38;
+  color: var(--c-white);
+  font: 11px var(--c-pixel);
+  text-align: left;
+  cursor: pointer;
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  transition: filter 0.12s ease, transform 0.08s ease;
+}
+
+.c-leaderboard-pinned:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.c-leaderboard-pinned:active:not(:disabled) {
+  transform: translate(1px, 1px);
+}
+
+.c-leaderboard-pinned:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.c-leaderboard-pinned__label {
+  color: var(--c-gold);
+  font-weight: 700;
+}
+
+.c-leaderboard-pinned__place {
+  color: var(--c-gold);
+}
+
+.c-row-highlight {
+  outline: 2px solid var(--c-gold);
+  box-shadow: inset 0 0 14px rgba(255, 210, 45, 0.25);
+}
+
 /* ---- Disabled / empty states ---- */
 
 .c-disabled-box {
@@ -1541,10 +1646,11 @@
   .c-reward-frame {
     height: 90px;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  .c-streak-fire__icon {
-    animation: none !important;
+  .c-leaderboard-pinned,
+  .c-leaderboard-error {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
   }
 }

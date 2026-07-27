@@ -17,18 +17,12 @@ import {
 import { useTransitionState } from "@/hooks/use-transition-state";
 import { COMPETITIVE_ROUNDS } from "@/lib/competitive/constants";
 import { finalizeCompetitiveDay, submitCompetitiveVote } from "@/app/actions/competitive";
+import type { CompetitiveDaySummary } from "@/lib/competitive/day-result";
 
 type CompetitiveDailyPayload = Readonly<{
   date: string;
   totalRounds: number;
   rounds: CompetitiveRoundData[];
-}>;
-
-type BoardRow = Readonly<{
-  place: number;
-  label: string;
-  points: number;
-  isMe: boolean;
 }>;
 
 type GameState =
@@ -39,9 +33,7 @@ type GameState =
       points: number;
       hits: number;
       answers: { isCorrect: boolean }[];
-      board: BoardRow[];
-      seasonPoints: number | null;
-      place: number | null;
+      summary: CompetitiveDaySummary;
     }
   | { type: "error"; message: string };
 
@@ -63,7 +55,13 @@ export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily:
       setGameState({ type: "error", message: result.message });
       return;
     }
-    setGameState({ type: "complete", points: result.data.points, hits: result.data.hits, answers: dayAnswers, board: [], seasonPoints: null, place: null });
+    setGameState({
+      type: "complete",
+      points: result.data.points,
+      hits: result.data.hits,
+      answers: dayAnswers,
+      summary: result.data.summary,
+    });
   }, []);
 
   const handleVote = useCallback(
@@ -141,9 +139,7 @@ export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily:
           points={gameState.points}
           hits={gameState.hits}
           answers={gameState.answers}
-          board={gameState.board}
-          seasonPoints={gameState.seasonPoints}
-          place={gameState.place}
+          summary={gameState.summary}
         />
       );
 
@@ -214,16 +210,12 @@ function CompletePanel({
   points,
   hits,
   answers,
-  board,
-  seasonPoints,
-  place,
+  summary,
 }: Readonly<{
   points: number;
   hits: number;
   answers: { isCorrect: boolean }[];
-  board: BoardRow[];
-  seasonPoints: number | null;
-  place: number | null;
+  summary: CompetitiveDaySummary;
 }>): ReactElement {
   return (
     <div className="retro-bg flex min-h-dvh flex-col items-center justify-center px-4 py-10">
@@ -254,32 +246,35 @@ function CompletePanel({
               {points}
             </p>
             <p className="pixel-text mt-2 text-sm text-white/80">
-              {pointsWord(points)} · {hits}/{answers.length || 10} верных
+              {hits}/{answers.length || 10} верных
             </p>
+            {summary.betterThanPercent != null ? (
+              <p className="pixel-text mt-2 text-sm text-amber-200">
+                Ты лучше, чем {summary.betterThanPercent}% игроков сегодня
+              </p>
+            ) : null}
           </div>
 
-          {(seasonPoints != null || place != null) && (
-            <div className="pixel-container rounded-none border-4 border-black bg-zinc-900/80 px-4 py-3">
-              <p className="pixel-text text-sm text-white/80 sm:text-base">
-                {place != null ? (
-                  <>
-                    Место в сезоне:{" "}
-                    <span className="font-bold text-amber-300">#{place}</span>
-                  </>
-                ) : null}
-                {place != null && seasonPoints != null ? " · " : null}
-                {seasonPoints != null ? (
-                  <>
-                    Всего:{" "}
-                    <span className="font-bold text-white">{seasonPoints}</span>
-                  </>
-                ) : null}
-              </p>
-            </div>
-          )}
+          <div className="pixel-container rounded-none border-4 border-black bg-zinc-900/80 px-4 py-3">
+            <p className="pixel-text text-sm text-white/80 sm:text-base">
+              {summary.place != null ? (
+                <>
+                  Место в сезоне:{" "}
+                  <span className="font-bold text-amber-300">#{summary.place}</span>
+                </>
+              ) : null}
+              {summary.place != null ? " · " : null}
+              {summary.seasonPoints != null ? (
+                <>
+                  Всего:{" "}
+                  <span className="font-bold text-white">{summary.seasonPoints}</span>
+                </>
+              ) : null}
+            </p>
+          </div>
         </div>
 
-        {board.length > 0 ? (
+        {summary.board.length > 0 ? (
           <div className="pixel-container mb-8 overflow-hidden rounded-none border-4 border-black bg-zinc-900/90 text-left">
             <div className="border-b-2 border-black bg-zinc-800 px-3 py-2">
               <p className="pixel-text text-sm font-bold text-white">
@@ -287,8 +282,8 @@ function CompletePanel({
               </p>
             </div>
             <ul className="divide-y divide-zinc-700">
-              {board.flatMap((row, idx) => {
-                const prev = board[idx - 1];
+              {summary.board.flatMap((row, idx) => {
+                const prev = summary.board[idx - 1];
                 const items: ReactElement[] = [];
                 if (prev != null && row.place > prev.place + 1) {
                   items.push(
@@ -343,12 +338,4 @@ function CompletePanel({
       </motion.div>
     </div>
   );
-}
-
-function pointsWord(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "очко";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "очка";
-  return "очков";
 }

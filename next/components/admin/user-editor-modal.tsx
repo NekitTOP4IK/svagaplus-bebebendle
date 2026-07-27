@@ -97,10 +97,45 @@ export function UserEditorModal({ user, onClose, onSaved }: Props): React.JSX.El
             <label className="text-sm">Last sync attempt<input type="datetime-local" value={lastSyncAttemptAt} onChange={(event) => setLastSyncAttemptAt(event.target.value)} className="pixel-input mt-1 w-full" /></label>
           </div>
           <label className="mt-3 block text-sm">Last sync error<textarea value={lastSyncError} onChange={(event) => setLastSyncError(event.target.value)} className="pixel-input mt-1 min-h-20 w-full" maxLength={1000} /></label>
-          <section className="mt-5 border-t border-zinc-700 pt-4 text-sm text-white/75"><h3 className="mb-2 font-bold text-white">Только чтение</h3><div className="grid grid-cols-2 gap-2 sm:grid-cols-3"><span>Local ID: {diagnostics.id}</span><span>Telegram ID: {diagnostics.telegramId}</span><span>Telegram photo: {diagnostics.telegramPhotoUrl ?? "—"}</span><span>SVAGA Telegram ID: {diagnostics.svagaTelegramUserId ?? "—"}</span><span>SVAGA user ID: {diagnostics.svagaUserId ?? "—"}</span><span>SVAGA linked: {diagnostics.linkedAt?.toLocaleString() ?? "—"}</span><span>Created: {diagnostics.createdAt?.toLocaleString() ?? "—"}</span><span>Updated: {diagnostics.updatedAt?.toLocaleString() ?? "—"}</span><span>Sessions: {diagnostics.sessionCount}</span><span>Casual: {diagnostics.casualResultCount}</span><span>Competitive: {diagnostics.competitiveResultCount}</span><span>Freeze season: {diagnostics.competitiveStreakFreezeSeasonId ?? "—"}</span><span>Freeze used: {diagnostics.competitiveStreakFreezeUsedAt?.toLocaleString() ?? "—"}</span><span>Freeze gap: {diagnostics.competitiveStreakFreezeDate ?? "—"}</span></div></section>
+          <section className="mt-5 border-t border-zinc-700 pt-4 text-sm text-white/75">
+            <h3 className="mb-2 font-bold text-white">Только чтение</h3>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <Diag label="Local ID" value={diagnostics.id} />
+              <Diag label="Telegram ID" value={diagnostics.telegramId} />
+              <Diag label="Telegram photo" value={diagnostics.telegramPhotoUrl} />
+              <Diag label="SVAGA Telegram ID" value={diagnostics.svagaTelegramUserId} />
+              <Diag label="SVAGA user ID" value={diagnostics.svagaUserId} />
+              <Diag label="SVAGA linked" value={diagnostics.linkedAt?.toLocaleString()} />
+              <Diag label="Created" value={diagnostics.createdAt?.toLocaleString()} />
+              <Diag label="Updated" value={diagnostics.updatedAt?.toLocaleString()} />
+              <Diag label="Sessions" value={diagnostics.sessionCount} />
+              <Diag label="Casual" value={diagnostics.casualResultCount} />
+              <Diag label="Competitive" value={diagnostics.competitiveResultCount} />
+              <Diag label="Freeze season" value={diagnostics.competitiveStreakFreezeSeasonId} />
+              <Diag label="Freeze used" value={diagnostics.competitiveStreakFreezeUsedAt?.toLocaleString()} />
+              <Diag label="Freeze gap" value={diagnostics.competitiveStreakFreezeDate} />
+            </div>
+          </section>
           <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="pixel-btn px-4 py-2">Отмена</button><button type="button" onClick={() => void save()} disabled={saving} className="pixel-btn pixel-btn-warn px-4 py-2">{saving ? "Сохранение..." : "Сохранить"}</button></div>
         </>}
       </div>
     </div>
+  );
+}
+
+/**
+ * One read-only diagnostic field. `min-w-0` lets the grid track shrink below
+ * its content and `break-all` breaks unspaced values — without both, a Telegram
+ * photo URL is a single unbreakable token that widens the track and pushes the
+ * panel past the modal.
+ */
+function Diag({
+  label,
+  value,
+}: Readonly<{ label: string; value: string | number | null | undefined }>) {
+  return (
+    <span className="min-w-0 break-all">
+      {label}: {value ?? "—"}
+    </span>
   );
 }
