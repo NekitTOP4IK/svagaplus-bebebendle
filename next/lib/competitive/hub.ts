@@ -42,6 +42,7 @@ import {
 } from "./seasons";
 import { getSeasonBoard } from "./standings";
 import { getCompetitiveUserPrefs } from "./user-prefs";
+import { getEndedSeasonBoard } from "./archive";
 
 const TOP_LIMIT = 50;
 
@@ -524,12 +525,19 @@ export async function getHubPayload(
   const seasonRules = theme.rules ?? emptyContent;
   const seasonRewards = theme.rewards ?? emptyContent;
 
-  const board = await getSeasonBoard({
-    seasonId: season.id,
-    userId,
-    topN: TOP_LIMIT,
-    windowRadius: 1,
-  });
+  const board = season.status === "ended" ?
+    await getEndedSeasonBoard({
+      seasonId: season.id,
+      userId,
+      topN: TOP_LIMIT,
+      windowRadius: 1,
+    }) :
+    await getSeasonBoard({
+      seasonId: season.id,
+      userId,
+      topN: TOP_LIMIT,
+      windowRadius: 1,
+    });
 
   const resultDateRows = await db
     .select({ date: competitiveResults.date })

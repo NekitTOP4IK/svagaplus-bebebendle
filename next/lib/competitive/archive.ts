@@ -10,6 +10,7 @@ import {
   type CompetitiveSeason,
 } from "@/db/schema";
 import { getSeason, listEndedSeasons } from "./seasons";
+import type { SeasonBoard } from "./standings";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -166,4 +167,48 @@ export async function getEndedSeasonDetail(
     ranks,
     me,
   };
+}
+
+export async function getEndedSeasonBoard(
+  input: Readonly<{
+    seasonId: number;
+    userId: number;
+    topN: number;
+    windowRadius: number;
+  }>,
+): Promise<SeasonBoard> {
+  const rankRows = await db
+    .select({
+      userId: competitiveSeasonFinalRanks.userId,
+      rank: competitiveSeasonFinalRanks.rank,
+      points: competitiveSeasonFinalRanks.points,
+      daysPlayed: competitiveSeasonFinalRanks.daysPlayed,
+      displayNameSnapshot: competitiveSeasonFinalRanks.displayNameSnapshot,
+    })
+    .from(competitiveSeasonFinalRanks)
+    .where(eq(competitiveSeasonFinalRanks.seasonId, input.seasonId))
+    .orderBy(asc(competitiveSeasonFinalRanks.rank));
+
+    const rows = rankRows.map((row) => ({
+      place: row.rank,
+      userId: row.userId,
+      points: row.points,
+      daysPlayed: row.daysPlayed,
+      hits: 0,
+      label: row.displayNameSnapshot?.trim() || `Игрок #${row.userId}`,
+    }));
+
+    const myPlace = rows.find((row) => row.userId === input.userId)?.place ?? null;
+
+    const top = rows.filter((row) => row.place <= input.topN);
+    if (myPlace === null || myPlace <= input.topN) {
+      return {rows: top, myPlace};
+    }
+
+    return {
+      rows: rows.filter(
+        (row) => row.place <= input.topN || Math.abs(row.place - myPlace) <= input.windowRadius,
+      ),
+      myPlace,
+    };
 }

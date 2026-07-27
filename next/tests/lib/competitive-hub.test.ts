@@ -69,8 +69,13 @@ vi.mock("@/lib/competitive/standings", () => ({
   getSeasonBoard: vi.fn(),
 }));
 
+vi.mock("@/lib/competitive/archive", () => ({
+    getEndedSeasonBoard: vi.fn(),
+  }));
+
 const { getHubPayload } = await import("@/lib/competitive/hub");
 const { getSeasonBoard } = await import("@/lib/competitive/standings");
+const { getEndedSeasonBoard } = await import("@/lib/competitive/archive");
 const { getVisibleSeason } = await import("@/lib/competitive/seasons");
 
 const SEASON = {
@@ -156,28 +161,55 @@ describe("getHubPayload myWindow construction", () => {
   });
 
   it("gives a caller far outside the top their neighbours, with the caller's own row using the outer label", async () => {
-    const rows = [
-      ...topRows(50),
-      neighbourRow(199, 199, "Neighbour199"),
-      neighbourRow(200, TEST_USER_ID, "ShouldNotBeUsed"),
-      neighbourRow(201, 201, "Neighbour201"),
-    ];
-    vi.mocked(getSeasonBoard).mockResolvedValue({ rows, myPlace: 200 });
+      const rows = [
+        ...topRows(50),
+        neighbourRow(199, 199, "Neighbour199"),
+        neighbourRow(200, TEST_USER_ID, "ShouldNotBeUsed"),
+        neighbourRow(201, 201, "Neighbour201"),
+      ];
+      vi.mocked(getSeasonBoard).mockResolvedValue({ rows, myPlace: 200 });
 
-    const payload = await getHubPayload(TEST_USER_ID, new Date("2026-07-26T12:00:00Z"));
+      const payload = await getHubPayload(
+        TEST_USER_ID,
+        new Date("2026-07-26T12:00:00Z"),
+      );
 
-    expect(payload.myWindow.map((r) => r.place)).toEqual([199, 200, 201]);
+      expect(payload.myWindow.map((r) => r.place)).toEqual([199, 200, 201]);
 
-    const mine = payload.myWindow.find((r) => r.place === 200)!;
-    expect(mine.isMe).toBe(true);
-    expect(mine.label).toBe(OUTER_LABEL);
-    expect(mine.label).not.toBe("ShouldNotBeUsed");
+      const mine = payload.myWindow.find((r) => r.place === 200)!;
+      expect(mine.isMe).toBe(true);
+      expect(mine.label).toBe(OUTER_LABEL);
+      expect(mine.label).not.toBe("ShouldNotBeUsed");
 
-    const before = payload.myWindow.find((r) => r.place === 199)!;
-    const after = payload.myWindow.find((r) => r.place === 201)!;
-    expect(before.label).toBe("Neighbour199");
-    expect(before.isMe).toBe(false);
-    expect(after.label).toBe("Neighbour201");
-    expect(after.isMe).toBe(false);
+      const before = payload.myWindow.find((r) => r.place === 199)!;
+      const after = payload.myWindow.find((r) => r.place === 201)!;
+      expect(before.label).toBe("Neighbour199");
+      expect(before.isMe).toBe(false);
+      expect(after.label).toBe("Neighbour201");
+      expect(after.isMe).toBe(false);
+    });
+
+    it("uses frozen final ranks for the visible ended season", async () => {
+      vi.mocked(getVisibleSeason).mockResolvedValue({
+        ...SEASON,
+        status: "ended",
+      });
+      const rows = topRows(2, { place: 2, userId: TEST_USER_ID });
+      vi.mocked(getEndedSeasonBoard).mockResolvedValue({ rows, myPlace: 2 });
+
+      const payload = await getHubPayload(
+        TEST_USER_ID,
+        new Date("2026-08-02T12:00:00Z"),
+      );
+
+      expect(payload.top.map((row) => row.place)).toEqual([1, 2]);
+      expect(payload.me.place).toBe(2);
+      expect(getEndedSeasonBoard).toHaveBeenCalledWith({
+        seasonId: SEASON.id,
+        userId: TEST_USER_ID,
+        topN: 50,
+        windowRadius: 1,
+      });
+      expect(getSeasonBoard).not.toHaveBeenCalled();
+    });
   });
-});
