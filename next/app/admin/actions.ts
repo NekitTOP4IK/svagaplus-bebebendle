@@ -35,6 +35,11 @@ export type AdminAuditLog = {
   actorDisplayName: string | null;
 };
 
+export type AdminAuditPage = {
+  rows: AdminAuditLog[];
+  total: number;
+};
+
 export type AdminDuplicateGroup = { name: string; count: number; ids: number[] };
 
 export type AdminHealth = {
@@ -93,18 +98,24 @@ export async function getAdminStats(): Promise<AdminActionResult<AdminStats>> {
   }
 }
 
-export async function getAdminAuditLogs(limit = 80): Promise<AdminActionResult<AdminAuditLog[]>> {
+export async function getAdminAuditLogs(
+  pageInput = 1,
+  pageSizeInput = 25,
+): Promise<AdminActionResult<AdminAuditPage>> {
   try {
     await requireRole("admin");
   } catch {
     return unauthorized();
   }
-  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
-    return { success: false, message: "Invalid audit limit" };
+  if (!Number.isInteger(pageInput) || pageInput < 1) {
+    return { success: false, message: "Invalid audit page" };
+  }
+  if (!Number.isInteger(pageSizeInput) || pageSizeInput < 1 || pageSizeInput > 100) {
+    return { success: false, message: "Invalid audit page size" };
   }
 
   try {
-    const rows = await db
+    const rowsQuery = db
       .select({
         id: moderationAuditLog.id,
         action: moderationAuditLog.action,
@@ -118,10 +129,18 @@ export async function getAdminAuditLogs(limit = 80): Promise<AdminActionResult<A
       .from(moderationAuditLog)
       .leftJoin(users, eq(moderationAuditLog.actorUserId, users.id))
       .orderBy(desc(moderationAuditLog.createdAt))
-      .limit(limit);
+      .limit(pageSizeInput)
+      .offset((pageInput - 1) * pageSizeInput);
+    const countQuery = db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(moderationAuditLog);
+    const [rows, counts] = await Promise.all([rowsQuery, countQuery]);
     return {
       success: true,
-      data: rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })),
+      data: {
+        rows: rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })),
+        total: counts[0]?.count ?? 0,
+      },
     };
   } catch (error) {
     console.error("[admin/actions/audit]", error);

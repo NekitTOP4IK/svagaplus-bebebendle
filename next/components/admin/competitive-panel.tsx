@@ -39,6 +39,7 @@ import {
   parseSeasonThemeConfig,
   type CompetitiveContentDoc,
 } from "@/lib/competitive/content";
+import { Pagination } from "@/components/admin/pagination";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1326,6 +1327,7 @@ function StatusBadge({ status }: { status: SeasonStatus }): ReactElement {
 // ── Pool ───────────────────────────────────────────────────────────────────
 
 type PoolFilter = "all" | "enabled" | "disabled" | "rotation";
+const POOL_PAGE_SIZE = 20;
 
 type PoolCandidate = {
   id: number;
@@ -1348,6 +1350,7 @@ function PoolSection(): ReactElement {
   const [filter, setFilter] = useState("");
   const [candFilter, setCandFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<PoolFilter>("all");
+  const [poolPage, setPoolPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const load = useCallback(async () => {
@@ -1489,6 +1492,12 @@ function PoolSection(): ReactElement {
         String(e.scranId).includes(q) || e.scranName.toLowerCase().includes(q),
     );
   }
+  const poolTotalPages = Math.max(1, Math.ceil(filtered.length / POOL_PAGE_SIZE));
+  const visiblePoolPage = Math.min(poolPage, poolTotalPages);
+  const paginatedEntries = filtered.slice(
+    (visiblePoolPage - 1) * POOL_PAGE_SIZE,
+    visiblePoolPage * POOL_PAGE_SIZE,
+  );
 
   const cq = candFilter.trim().toLowerCase();
   const visibleCandidates = cq
@@ -1641,7 +1650,10 @@ function PoolSection(): ReactElement {
           <input
             type="search"
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => {
+              setFilter(e.target.value);
+              setPoolPage(1);
+            }}
             placeholder="поиск…"
             className="pixel-input mt-1 block w-full"
           />
@@ -1650,7 +1662,10 @@ function PoolSection(): ReactElement {
           Фильтр
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as PoolFilter)}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as PoolFilter);
+              setPoolPage(1);
+            }}
             className="pixel-input mt-1 block w-full min-w-[10rem]"
           >
             <option value="all">Все в пуле</option>
@@ -1669,7 +1684,7 @@ function PoolSection(): ReactElement {
         </p>
       ) : (
         <ul className="grid gap-2 lg:grid-cols-2">
-          {filtered.map((e) => (
+          {paginatedEntries.map((e) => (
             <li
               key={e.id}
               className={`flex gap-3 border-2 bg-zinc-950 p-3 ${
@@ -1728,9 +1743,18 @@ function PoolSection(): ReactElement {
           ))}
         </ul>
       )}
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          currentPage={visiblePoolPage}
+          totalPages={poolTotalPages}
+          onPageChange={setPoolPage}
+        />
+      )}
       {!loading && entries.length > 0 && (
         <p className="text-xs text-white/40">
-          В пуле показано: {filtered.length} / {entries.length}
+          {filtered.length === entries.length
+            ? `В пуле: ${entries.length}`
+            : `Найдено: ${filtered.length} из ${entries.length}`}
         </p>
       )}
     </section>

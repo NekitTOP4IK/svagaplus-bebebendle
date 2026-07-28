@@ -13,6 +13,9 @@ import {
   type AdminStats,
 } from "@/app/admin/actions";
 import { auditActionLabel, auditDetailsPreview } from "@/lib/audit-labels";
+import { Pagination } from "@/components/admin/pagination";
+
+const AUDIT_PAGE_SIZE = 25;
 
 export function StatsPanel(): ReactElement {
   const [data, setData] = useState<AdminStats | null>(null);
@@ -68,6 +71,8 @@ export function StatsPanel(): ReactElement {
 
 export function AuditPanel(): ReactElement {
   const [logs, setLogs] = useState<AdminAuditLog[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
 
@@ -75,7 +80,7 @@ export function AuditPanel(): ReactElement {
     let cancelled = false;
     (async () => {
       try {
-        const result = await getAdminAuditLogs();
+        const result = await getAdminAuditLogs(page, AUDIT_PAGE_SIZE);
         if (!result.success) {
           if (!cancelled) {
             setError(result.message === "Unauthorized" ? "Только для админа" : "Ошибка audit");
@@ -84,7 +89,8 @@ export function AuditPanel(): ReactElement {
           return;
         }
         if (!cancelled) {
-          setLogs(result.data);
+          setLogs(result.data.rows);
+          setTotal(result.data.total);
           setError("");
         }
       } catch {
@@ -97,7 +103,7 @@ export function AuditPanel(): ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [tick]);
+  }, [page, tick]);
 
   if (error) return <p className="text-sm text-red-400">{error}</p>;
   if (!logs) return <p className="text-sm text-white/60">Загрузка…</p>;
@@ -174,6 +180,11 @@ export function AuditPanel(): ReactElement {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={page}
+        totalPages={Math.max(1, Math.ceil(total / AUDIT_PAGE_SIZE))}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
