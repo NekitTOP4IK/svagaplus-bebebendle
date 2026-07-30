@@ -121,6 +121,7 @@ export async function getSeasonLeaderboardPage(
   }>,
 ): Promise<SeasonLeaderboardPage> {
   const { seasonId, userId, offset, limit } = input;
+  const pageEnd = offset + limit;
 
   const result = await db.execute(sql`
     WITH ranked AS (
@@ -135,7 +136,7 @@ export async function getSeasonLeaderboardPage(
       WHERE s.season_id = ${seasonId}
     )
     SELECT * FROM ranked r
-    WHERE r.place BETWEEN ${offset} + 1 AND ${offset} + ${limit}
+    WHERE r.place > ${offset} AND r.place <= ${pageEnd}
        OR r.user_id = ${userId}
     ORDER BY r.place
   `);

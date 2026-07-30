@@ -410,7 +410,7 @@ describe("getSeasonLeaderboardPage", () => {
     expect(page.myRow).toBeNull();
   });
 
-  it("ranks in SQL with row_number() over the exact standings order, a count(*) total, the BETWEEN page predicate, the caller OR-clause, and the outer order by place", async () => {
+  it("compares typed page bounds directly with place instead of adding untyped SQL parameters", async () => {
     dependencies.execute.mockResolvedValue({ rows: [] });
 
     await getSeasonLeaderboardPage({
@@ -427,10 +427,12 @@ describe("getSeasonLeaderboardPage", () => {
     expect(text).toContain("INNER JOIN users u ON u.id = s.user_id");
     expect(text).toContain("WHERE s.season_id =");
     expect(text).toContain("count(*) OVER ()");
-    // The page predicate: place falls in [offset + 1, offset + limit]. This
-    // needle pins the BETWEEN construct itself, not just the surrounding
-    // words, so replacing it with e.g. a plain >= / <= pair still fails.
-    expect(text).toContain("WHERE r.place BETWEEN + 1 AND + ");
+    // Each interpolated bound must be compared directly with the typed
+    // integer column. Arithmetic between two independently interpolated
+    // parameters compiles to `$n + $m`, which PostgreSQL rejects because
+    // both operands have unknown types.
+    expect(text).toContain("WHERE r.place > AND r.place <=");
+    expect(text).not.toContain("BETWEEN");
     // ... OR the caller's own row, so callers always see their place even off-page.
     expect(text).toContain("OR r.user_id = ");
     expect(text).toContain("ORDER BY r.place");
