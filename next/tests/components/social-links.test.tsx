@@ -19,11 +19,11 @@ describe("SocialLinks", () => {
     render(<SocialLinks />);
 
     fireEvent.click(screen.getByRole("button", { name: "Авторы" }));
-    expect(screen.getByRole("dialog", { name: "Авторы игры" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Авторы" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Авторы игры" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Авторы" })).toBeNull();
     });
   });
 });

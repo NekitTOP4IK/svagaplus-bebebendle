@@ -68,11 +68,8 @@ export function CreditsButton(): ReactElement {
             >
               <header className="flex items-center justify-between gap-4 border-b-4 border-black pb-4">
                 <div>
-                  <span className="font-[family-name:var(--font-pixel)] text-[10px] text-yellow-200">
-                    НАД ИГРОЙ РАБОТАЛИ
-                  </span>
-                  <h2 id="credits-title" className="pixel-text mt-1 text-xl sm:text-2xl">
-                    Авторы игры
+                  <h2 id="credits-title" className="pixel-text text-xl sm:text-2xl">
+                    Авторы
                   </h2>
                 </div>
                 <button
