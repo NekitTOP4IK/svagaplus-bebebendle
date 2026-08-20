@@ -7,7 +7,7 @@ describe("SocialLinks", () => {
   it("uses a wide credits action followed by square settings and info actions", () => {
     render(<SocialLinks />);
 
-    expect(screen.getByRole("button", { name: "Благодарности" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Авторы" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Настройки" })).toHaveClass("h-10", "w-10");
     expect(screen.getByRole("button", { name: "Показать статистику" })).toHaveClass(
       "h-10",
@@ -18,12 +18,12 @@ describe("SocialLinks", () => {
   it("opens and closes the credits dialog", async () => {
     render(<SocialLinks />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Благодарности" }));
-    expect(screen.getByRole("dialog", { name: "Благодарности" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Авторы" }));
+    expect(screen.getByRole("dialog", { name: "Авторы игры" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Закрыть" }));
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Благодарности" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Авторы игры" })).toBeNull();
     });
   });
 });

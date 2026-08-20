@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ComponentType, type ReactElement } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Heart, Send, Twitch, Twitter, X, Youtube } from "lucide-react";
+import { Send, Twitch, Twitter, Users, X, Youtube } from "lucide-react";
 import {
   CREDIT_GROUPS,
   type CreditSocialPlatform,
@@ -40,8 +40,8 @@ export function CreditsButton(): ReactElement {
         className="pixel-btn inline-flex min-h-10 min-w-0 items-center justify-center gap-2 px-3 py-2 text-xs sm:min-h-12 sm:text-sm"
         onClick={() => setIsOpen(true)}
       >
-        <Heart className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <span className="truncate">Благодарности</span>
+        <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
+        <span className="truncate">Авторы</span>
       </button>
 
       <AnimatePresence>
@@ -49,7 +49,7 @@ export function CreditsButton(): ReactElement {
           <>
             <motion.button
               type="button"
-              aria-label="Закрыть благодарности"
+              aria-label="Закрыть авторов"
               className="fixed inset-0 z-50 cursor-default bg-black/65"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -69,10 +69,10 @@ export function CreditsButton(): ReactElement {
               <header className="flex items-center justify-between gap-4 border-b-4 border-black pb-4">
                 <div>
                   <span className="font-[family-name:var(--font-pixel)] text-[10px] text-yellow-200">
-                    СПАСИБО, ЧТО ВЫ С НАМИ
+                    НАД ИГРОЙ РАБОТАЛИ
                   </span>
                   <h2 id="credits-title" className="pixel-text mt-1 text-xl sm:text-2xl">
-                    Благодарности
+                    Авторы игры
                   </h2>
                 </div>
                 <button
@@ -87,7 +87,7 @@ export function CreditsButton(): ReactElement {
 
               {CREDIT_GROUPS.length === 0 ? (
                 <p className="my-8 text-center text-sm text-white/65">
-                  Список благодарностей пока готовится.
+                  Список авторов пока готовится.
                 </p>
               ) : (
                 <div className="mt-5 grid gap-5">
