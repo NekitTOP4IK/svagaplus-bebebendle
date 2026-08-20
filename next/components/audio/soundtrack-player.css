@@ -6,22 +6,22 @@
   position: fixed;
   z-index: 48;
   right: 0;
-  bottom: max(18px, env(safe-area-inset-bottom));
+  bottom: max(84px, calc(env(safe-area-inset-bottom) + 66px));
   display: grid;
   grid-template-columns: var(--soundtrack-handle-width) var(--soundtrack-panel-width);
   align-items: stretch;
   width: calc(var(--soundtrack-handle-width) + var(--soundtrack-panel-width));
   min-height: 62px;
-  transition: transform 220ms steps(3, end);
+  transition: transform 380ms cubic-bezier(.22, 1, .36, 1);
   will-change: transform;
 }
 
 .soundtrack-player--collapsed {
-  transform: translateX(var(--soundtrack-panel-width));
+  transform: translate3d(var(--soundtrack-panel-width), 0, 0);
 }
 
 .soundtrack-player--expanded {
-  transform: translateX(0);
+  transform: translate3d(0, 0, 0);
 }
 
 .soundtrack-player button {
@@ -60,9 +60,7 @@
 .soundtrack-player__track span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .soundtrack-player__transport { grid-area: transport; display: flex; align-items: center; gap: 3px; }
 .soundtrack-player__progress { grid-area: progress; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
-.soundtrack-player__volume { grid-area: volume; display: grid; grid-template-columns: 22px 1fr minmax(68px, 1fr) 22px; align-items: center; gap: 5px; }
-.soundtrack-player__volume-meter { display: flex; align-items: stretch; gap: 2px; height: 11px; }
-.soundtrack-player__volume-meter i { flex: 1; min-width: 2px; }
+.soundtrack-player__volume { grid-area: volume; display: grid; grid-template-columns: 22px minmax(0, 1fr) 22px; align-items: center; gap: 7px; }
 
 .soundtrack-player input[type="range"] { width: 100%; margin: 0; cursor: pointer; }
 .soundtrack-player input[type="range"]:disabled { cursor: default; opacity: .45; }
@@ -94,9 +92,70 @@
 .soundtrack-player__icon-button:hover,
 .soundtrack-player__volume button:hover { color: #ffffa0; background: #969696; }
 .soundtrack-player__progress span { color: #fff; font-size: 8px; text-shadow: 1px 1px #3f3f3f; }
-.soundtrack-player__volume-meter i[data-active="true"] { background: #55c955; box-shadow: 1px 1px #174317; }
-.soundtrack-player__volume-meter i[data-active="false"] { background: #404040; box-shadow: inset 1px 1px #222; }
 .soundtrack-player input[type="range"] { accent-color: #55c955; }
 
-@media (prefers-reduced-motion: reduce) { .soundtrack-player { transition: none; } }
-@media (max-width: 420px) { .soundtrack-player { --soundtrack-handle-width: 42px; --soundtrack-panel-width: min(274px, calc(100vw - 56px)); } }
+.soundtrack-player__hint {
+  position: fixed;
+  z-index: 49;
+  right: 66px;
+  bottom: max(83px, calc(env(safe-area-inset-bottom) + 65px));
+  width: min(236px, calc(100vw - 88px));
+  padding: 11px 13px;
+  border: 3px solid #000;
+  background: #c6c6c6;
+  box-shadow: inset 2px 2px #fff, inset -2px -2px #777, 4px 4px 0 rgb(0 0 0 / 55%);
+  color: #202020;
+  font-family: var(--font-pixel), monospace;
+  font-size: 9px;
+  line-height: 1.6;
+  animation: soundtrack-hint-in 280ms ease-out both;
+}
+
+.soundtrack-player__hint::before,
+.soundtrack-player__hint::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 0;
+  height: 0;
+  transform: translateY(-50%);
+}
+
+.soundtrack-player__hint::before {
+  right: -14px;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 14px solid #000;
+}
+
+.soundtrack-player__hint::after {
+  right: -9px;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 10px solid #c6c6c6;
+}
+
+.soundtrack-player[data-hint="true"] .soundtrack-player__handle {
+  animation: soundtrack-handle-nudge 1.1s ease-in-out infinite;
+}
+
+@keyframes soundtrack-hint-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes soundtrack-handle-nudge {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .soundtrack-player { transition: none; }
+  .soundtrack-player__hint,
+  .soundtrack-player[data-hint="true"] .soundtrack-player__handle { animation: none; }
+}
+
+@media (max-width: 420px) {
+  .soundtrack-player { --soundtrack-handle-width: 42px; --soundtrack-panel-width: min(274px, calc(100vw - 56px)); }
+  .soundtrack-player__hint { right: 58px; }
+}

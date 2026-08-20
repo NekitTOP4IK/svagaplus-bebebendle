@@ -54,6 +54,7 @@ function renderPlayer(): ReturnType<typeof render> {
 }
 
 beforeEach(() => {
+  window.localStorage.clear();
   preferences.current = { musicEnabled: true, musicVolume: 0.5 };
   controller.current = createController();
 });
@@ -94,8 +95,11 @@ describe("SoundtrackPlayer", () => {
 
     const dock = screen.getByLabelText("Музыкальный плеер");
     expect(dock).toHaveClass("soundtrack-player--collapsed");
+    expect(screen.getByRole("status")).toHaveTextContent("Нажми сюда");
     fireEvent.click(screen.getByRole("button", { name: "Открыть плеер" }));
     expect(controller.current!.togglePanel).toHaveBeenCalledOnce();
+    expect(window.localStorage.getItem("soundtrackPlayerHintSeen")).toBe("true");
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("exposes accessible playback, seeking and volume controls", () => {
@@ -109,6 +113,8 @@ describe("SoundtrackPlayer", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Увеличить громкость" }));
     expect(controller.current!.setVolume).toHaveBeenCalledWith(0.6);
+    expect(screen.getAllByRole("slider")).toHaveLength(2);
+    expect(document.querySelector(".soundtrack-player__volume-meter")).toBeNull();
     expect(screen.getByText("1:05 / 3:10")).toBeVisible();
   });
 
