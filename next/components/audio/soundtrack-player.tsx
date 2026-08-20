@@ -23,7 +23,20 @@ function PanelIcon({ expanded }: Readonly<{ expanded: boolean }>): ReactElement 
   if (expanded) {
     return <svg aria-hidden="true" viewBox="0 0 16 16"><path d="m5 2 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter" /></svg>;
   }
-  return <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M6 3v8.2a2.4 2.4 0 1 1-1.5-2.23V4.5L13 2v7.2a2.4 2.4 0 1 1-1.5-2.23V3.8Z" fill="currentColor" /></svg>;
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16">
+      <path
+        d="M5.5 3.5 12.5 2v8.25M5.5 3.5v8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="square"
+        strokeLinejoin="miter"
+      />
+      <circle cx="3.5" cy="12" r="2.25" fill="currentColor" />
+      <circle cx="10.5" cy="10.75" r="2.25" fill="currentColor" />
+    </svg>
+  );
 }
 
 function ArrowIcon({ direction }: Readonly<{ direction: "previous" | "next" }>): ReactElement {
