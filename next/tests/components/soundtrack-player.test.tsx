@@ -43,6 +43,7 @@ function createController(overrides: Partial<AudioController["state"]> = {}, tra
     activatePlayback: vi.fn(),
     restorePlaybackVolume: vi.fn(),
     setPlaybackActivationBlocked: vi.fn(),
+    setPanelHovering: vi.fn(),
     togglePanel: vi.fn(),
     togglePlayback: vi.fn(),
     seek: vi.fn(),
@@ -90,6 +91,18 @@ describe("SoundtrackPlayer", () => {
     expect(dock.lastElementChild).toHaveClass("soundtrack-player__panel");
     expect(screen.getByText("Уютный вечер")).toBeVisible();
     expect(screen.getByText("Bebebendle OST")).toBeVisible();
+    expect(screen.getByText("Сейчас играет")).toBeVisible();
+  });
+
+  it("reports pointer presence so automatic collapse can wait", () => {
+    renderPlayer();
+    const dock = screen.getByLabelText("Музыкальный плеер");
+
+    fireEvent.pointerEnter(dock);
+    expect(controller.current!.setPanelHovering).toHaveBeenCalledWith(true);
+
+    fireEvent.pointerLeave(dock);
+    expect(controller.current!.setPanelHovering).toHaveBeenCalledWith(false);
   });
 
   it("uses only a compact handle while visually collapsed and toggles it", () => {
@@ -137,11 +150,12 @@ describe("SoundtrackPlayer", () => {
     expect(controller.current!.nextTrack).toHaveBeenCalledOnce();
   });
 
-  it("uses a mute glyph for zero volume without adding text artefacts", () => {
+  it("shows zero volume without changing the panel handle into a playback control", () => {
     preferences.current = { musicEnabled: true, musicVolume: 0 };
     renderPlayer();
 
     const handle = screen.getByRole("button", { name: "Свернуть плеер" });
-    expect(handle.querySelector("svg path")?.getAttribute("d")).toContain("M2 6");
+    expect(handle.querySelector("svg path")?.getAttribute("d")).toContain("m5 2");
+    expect(screen.getByText("0%")).toBeVisible();
   });
 });

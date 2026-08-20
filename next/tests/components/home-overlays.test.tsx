@@ -8,6 +8,7 @@ const audio = vi.hoisted(() => ({
   activatePlayback: vi.fn(),
   restorePlaybackVolume: vi.fn(),
   setPlaybackActivationBlocked: vi.fn(),
+  setPanelHovering: vi.fn(),
 }));
 
 vi.mock("@/components/audio/audio-provider", () => ({

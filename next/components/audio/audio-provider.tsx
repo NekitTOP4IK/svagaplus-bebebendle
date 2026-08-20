@@ -45,6 +45,7 @@ export type AudioController = Readonly<{
   activatePlayback(silent?: boolean): void;
   restorePlaybackVolume(): void;
   setPlaybackActivationBlocked(blocked: boolean): void;
+  setPanelHovering(hovering: boolean): void;
   togglePanel(): void;
   togglePlayback(): void;
   seek(seconds: number): void;
@@ -73,6 +74,10 @@ type Candidate = Readonly<{ trackIndex: number; sourceIndex: number }>;
 type PlayableTrack = Readonly<{ track: SoundtrackTrack }>;
 
 const AUTO_CLOSE_MS = 3000;
+const AUTO_CLOSE_HOVER_GRACE_MS = 150;
+const TRACK_FADE_OUT_MS = 180;
+const TRACK_FADE_IN_MS = 260;
+const TRACK_FADE_STEP_MS = 16;
 
 export function AudioProvider({
   children,
@@ -105,6 +110,11 @@ export function AudioProvider({
   }> | null>(null);
   const activatedRef = useRef(false);
   const playbackActivationBlockedRef = useRef(false);
+  const panelHoveringRef = useRef(false);
+  const autoClosePendingRef = useRef(false);
+  const hoverCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const volumeFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const volumeFadeTokenRef = useRef(0);
   const suppressMediaEventsRef = useRef(false);
   const playedOutcomeIdsRef = useRef(new Set<string>());
   const pendingSceneRef = useRef<{ scene: AudioScene; generation: number } | null>(null);
@@ -115,7 +125,43 @@ export function AudioProvider({
   const [owners, setOwners] = useState<ReadonlyMap<string, AudioScene>>(new Map());
   const [position, setPosition] = useState({ currentTime: 0, duration: 0 });
 
+  const cancelVolumeFade = useCallback((): void => {
+    volumeFadeTokenRef.current += 1;
+    if (volumeFadeTimerRef.current !== null) {
+      clearTimeout(volumeFadeTimerRef.current);
+      volumeFadeTimerRef.current = null;
+    }
+  }, []);
+
+  const fadeVolume = useCallback((
+    element: HTMLAudioElement,
+    target: number,
+    duration: number,
+    token: number,
+    onComplete?: () => void,
+  ): void => {
+    if (volumeFadeTimerRef.current !== null) {
+      clearTimeout(volumeFadeTimerRef.current);
+      volumeFadeTimerRef.current = null;
+    }
+    const from = element.volume;
+    const startedAt = Date.now();
+    const tick = (): void => {
+      if (volumeFadeTokenRef.current !== token) return;
+      const progress = Math.min(1, (Date.now() - startedAt) / duration);
+      element.volume = from + (target - from) * progress;
+      if (progress < 1) {
+        volumeFadeTimerRef.current = setTimeout(tick, TRACK_FADE_STEP_MS);
+        return;
+      }
+      volumeFadeTimerRef.current = null;
+      onComplete?.();
+    };
+    tick();
+  }, []);
+
   const clearMediaSource = useCallback((element: HTMLAudioElement): void => {
+    cancelVolumeFade();
     suppressMediaEventsRef.current = true;
     element.pause();
     element.currentTime = 0;
@@ -123,7 +169,7 @@ export function AudioProvider({
     suppressMediaEventsRef.current = false;
     mediaGenerationRef.current = null;
     setPosition({ currentTime: 0, duration: 0 });
-  }, []);
+  }, [cancelVolumeFade]);
 
   const getAudio = useCallback((): HTMLAudioElement => {
     if (!audioRef.current) {
@@ -162,26 +208,65 @@ export function AudioProvider({
     const element = getAudio();
     const generation = stateRef.current.generation;
     pendingSceneRef.current = { scene: stateRef.current.scene, generation };
-    suppressMediaEventsRef.current = true;
-    if (element.src !== source.src) {
-      element.src = source.src;
-      element.load();
-    }
-    element.loop = sceneTracksRef.current.length === 1 && !jingleModeRef.current;
-    mediaGenerationRef.current = { generation, jingleRequest: null };
-    suppressMediaEventsRef.current = false;
+    const resolvedSource = new URL(source.src, window.location.href).href;
+    const sourceChanged = element.src !== source.src && element.src !== resolvedSource;
 
-    void element.play().then(
-      () => {
-        if (pendingSceneRef.current?.generation !== generation) return;
-        dispatch({ type: "TRACK_STARTED", generation });
-      },
-      () => {
-        if (pendingSceneRef.current?.generation !== generation) return;
-        dispatch({ type: "PLAYBACK_BLOCKED" });
-      },
-    );
-  }, [dispatch, getAudio]);
+    const playSelectedSource = (fadeToken?: number): void => {
+      if (fadeToken !== undefined && volumeFadeTokenRef.current !== fadeToken) return;
+      if (
+        !activatedRef.current ||
+        !musicEnabledRef.current ||
+        (stateRef.current.sessionPaused && !jingleModeRef.current)
+      ) {
+        return;
+      }
+      suppressMediaEventsRef.current = true;
+      if (sourceChanged) {
+        element.pause();
+        element.currentTime = 0;
+        element.src = source.src;
+        element.load();
+        element.volume = 0;
+        setPosition({ currentTime: 0, duration: 0 });
+      }
+      element.loop = sceneTracksRef.current.length === 1 && !jingleModeRef.current;
+      mediaGenerationRef.current = { generation, jingleRequest: null };
+      suppressMediaEventsRef.current = false;
+
+      void element.play().then(
+        () => {
+          if (pendingSceneRef.current?.generation !== generation) return;
+          dispatch({ type: "TRACK_STARTED", generation });
+          if (sourceChanged && fadeToken !== undefined) {
+            fadeVolume(element, preferences.musicVolume, TRACK_FADE_IN_MS, fadeToken);
+          }
+        },
+        () => {
+          if (pendingSceneRef.current?.generation !== generation) return;
+          dispatch({ type: "PLAYBACK_BLOCKED" });
+        },
+      );
+    };
+
+    if (!sourceChanged) {
+      playSelectedSource();
+      return;
+    }
+
+    cancelVolumeFade();
+    const fadeToken = volumeFadeTokenRef.current;
+    if (!element.paused && element.src && element.volume > 0 && !element.muted) {
+      fadeVolume(
+        element,
+        0,
+        TRACK_FADE_OUT_MS,
+        fadeToken,
+        () => playSelectedSource(fadeToken),
+      );
+      return;
+    }
+    playSelectedSource(fadeToken);
+  }, [cancelVolumeFade, dispatch, fadeVolume, getAudio, preferences.musicVolume]);
 
   const activatePlayback = useCallback((silent = false): void => {
     activatedRef.current = true;
@@ -244,22 +329,44 @@ export function AudioProvider({
       mediaGenerationRef.current = null;
       dispatch({ type: "SCENE_CHANGED", scene, trackCount: playableTracks.length });
 
-      suppressMediaEventsRef.current = true;
-      element.pause();
-      element.currentTime = 0;
       if (queue.length > 0) {
         const first = playableTracks[queue[0]!.trackIndex]!.track.sources[queue[0]!.sourceIndex]!;
-        element.src = first.src;
-        element.load();
+        if (!activatedRef.current) {
+          cancelVolumeFade();
+          suppressMediaEventsRef.current = true;
+          element.pause();
+          element.currentTime = 0;
+          element.src = first.src;
+          element.load();
+          suppressMediaEventsRef.current = false;
+          setPosition({ currentTime: 0, duration: 0 });
+        } else {
+          attemptPlay();
+        }
       } else {
-        element.removeAttribute("src");
+        const clear = (): void => clearMediaSource(element);
+        cancelVolumeFade();
+        const fadeToken = volumeFadeTokenRef.current;
+        if (!element.paused && element.src && element.volume > 0 && !element.muted) {
+          fadeVolume(element, 0, TRACK_FADE_OUT_MS, fadeToken, clear);
+        } else {
+          clear();
+        }
       }
-      suppressMediaEventsRef.current = false;
-      setPosition({ currentTime: 0, duration: 0 });
-      if (queue.length > 0) attemptPlay();
     },
-    [attemptPlay, canPlay, dispatch, getAudio, soundtrackMetadata],
+    [
+      attemptPlay,
+      canPlay,
+      cancelVolumeFade,
+      clearMediaSource,
+      dispatch,
+      fadeVolume,
+      getAudio,
+      soundtrackMetadata,
+    ],
   );
+
+  useEffect(() => () => cancelVolumeFade(), [cancelVolumeFade]);
 
   const attachMediaListeners = (element: HTMLAudioElement): void => {
     element.addEventListener("timeupdate", () => {
@@ -343,19 +450,19 @@ export function AudioProvider({
     const onGesture = (): void => {
       if (playbackActivationBlockedRef.current) return;
 
-      document.removeEventListener("pointerdown", onGesture);
-      document.removeEventListener("keydown", onGesture);
-      document.removeEventListener("click", onGesture);
+      document.removeEventListener("pointerdown", onGesture, true);
+      document.removeEventListener("keydown", onGesture, true);
+      document.removeEventListener("click", onGesture, true);
       if (activatedRef.current) return;
       activatePlayback();
     };
-    document.addEventListener("pointerdown", onGesture);
-    document.addEventListener("keydown", onGesture);
-    document.addEventListener("click", onGesture);
+    document.addEventListener("pointerdown", onGesture, true);
+    document.addEventListener("keydown", onGesture, true);
+    document.addEventListener("click", onGesture, true);
     return () => {
-      document.removeEventListener("pointerdown", onGesture);
-      document.removeEventListener("keydown", onGesture);
-      document.removeEventListener("click", onGesture);
+      document.removeEventListener("pointerdown", onGesture, true);
+      document.removeEventListener("keydown", onGesture, true);
+      document.removeEventListener("click", onGesture, true);
     };
   }, [activatePlayback]);
 
@@ -367,6 +474,7 @@ export function AudioProvider({
   useEffect(() => {
     const element = getAudio();
     if (!preferences.musicEnabled) {
+      cancelVolumeFade();
       suppressMediaEventsRef.current = true;
       element.pause();
       element.currentTime = 0;
@@ -383,16 +491,45 @@ export function AudioProvider({
       applyScene(stateRef.current.scene);
     }
     previousEnabledRef.current = preferences.musicEnabled;
-  }, [preferences.musicEnabled, applyScene, dispatch, getAudio]);
+  }, [preferences.musicEnabled, applyScene, cancelVolumeFade, dispatch, getAudio]);
 
   useEffect(() => {
     if (!preferences.autoCollapsePlayer || state.panelMode !== "auto") return;
+    autoClosePendingRef.current = false;
     const generation = state.generation;
     const timer = setTimeout(() => {
+      if (panelHoveringRef.current) {
+        autoClosePendingRef.current = true;
+        return;
+      }
       dispatch({ type: "AUTO_CLOSE", generation });
     }, AUTO_CLOSE_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      autoClosePendingRef.current = false;
+      if (hoverCloseTimerRef.current !== null) {
+        clearTimeout(hoverCloseTimerRef.current);
+        hoverCloseTimerRef.current = null;
+      }
+    };
   }, [preferences.autoCollapsePlayer, state.panelMode, state.generation, dispatch]);
+
+  const setPanelHovering = useCallback((hovering: boolean): void => {
+    panelHoveringRef.current = hovering;
+    if (hoverCloseTimerRef.current !== null) {
+      clearTimeout(hoverCloseTimerRef.current);
+      hoverCloseTimerRef.current = null;
+    }
+    if (hovering || !autoClosePendingRef.current) return;
+
+    const generation = stateRef.current.generation;
+    hoverCloseTimerRef.current = setTimeout(() => {
+      hoverCloseTimerRef.current = null;
+      if (panelHoveringRef.current || !autoClosePendingRef.current) return;
+      autoClosePendingRef.current = false;
+      dispatch({ type: "AUTO_CLOSE", generation });
+    }, AUTO_CLOSE_HOVER_GRACE_MS);
+  }, [dispatch]);
 
   const setScene = useCallback((scene: AudioScene, ownerId: string): void => {
     setOwners((current) => {
@@ -526,6 +663,7 @@ export function AudioProvider({
     activatePlayback,
     restorePlaybackVolume,
     setPlaybackActivationBlocked,
+    setPanelHovering,
     togglePanel,
     togglePlayback,
     seek,

@@ -329,21 +329,35 @@ describe("source selection", () => {
     expect(audio().loop).toBe(true);
   });
 
-  it("skips by playable tracks rather than by fallback source variants", () => {
+  it("skips by playable tracks rather than by fallback source variants with a soft transition", async () => {
+    vi.useFakeTimers();
     let controller!: AudioController;
     function Grab(): null {
       controller = useAudioController();
       return null;
     }
-    FakeAudio.supportedType = (type: string): CanPlayTypeResult =>
-      type === "audio/mpeg" ? "probably" : "";
-    render(wrap(<Grab />));
-    fireEvent.pointerDown(document.body);
+    try {
+      FakeAudio.supportedType = (type: string): CanPlayTypeResult =>
+        type === "audio/mpeg" ? "probably" : "";
+      render(wrap(<Grab />));
+      fireEvent.pointerDown(document.body);
+      await act(async () => Promise.resolve());
 
-    act(() => controller.nextTrack());
+      act(() => controller.nextTrack());
 
-    expect(controller.trackCount).toBe(2);
-    expect(audio().src).toBe("/soundtrack/casual-menu-b.mp3");
+      expect(controller.trackCount).toBe(2);
+      expect(audio().src).toBe("/soundtrack/casual-menu-a.mp3");
+
+      act(() => vi.advanceTimersByTime(200));
+      await act(async () => Promise.resolve());
+      expect(audio().src).toBe("/soundtrack/casual-menu-b.mp3");
+      expect(audio().volume).toBeLessThan(0.5);
+
+      act(() => vi.advanceTimersByTime(300));
+      expect(audio().volume).toBeCloseTo(0.5);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -423,6 +437,61 @@ describe("preferences", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("waits for hover to end before auto-collapsing, with a short re-entry grace", async () => {
+    vi.useFakeTimers();
+    try {
+      let controller!: AudioController;
+      function Grab(): null {
+        controller = useAudioController();
+        return null;
+      }
+      render(wrap(<Grab />));
+      fireEvent.pointerDown(document.body);
+      await act(async () => Promise.resolve());
+
+      act(() => controller.setPanelHovering(true));
+      act(() => vi.advanceTimersByTime(3000));
+      expect(controller.state.panelMode).toBe("auto");
+
+      act(() => controller.setPanelHovering(false));
+      act(() => vi.advanceTimersByTime(100));
+      act(() => controller.setPanelHovering(true));
+      act(() => vi.advanceTimersByTime(100));
+      expect(controller.state.panelMode).toBe("auto");
+
+      act(() => controller.setPanelHovering(false));
+      act(() => vi.advanceTimersByTime(149));
+      expect(controller.state.panelMode).toBe("auto");
+      act(() => vi.advanceTimersByTime(1));
+      expect(controller.state.panelMode).toBe("collapsed");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("continues the same menu track across home, settings and admin navigation", async () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    const view = render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+    await act(async () => Promise.resolve());
+    audio().currentTime = 23;
+    const playCount = audio().play.mock.calls.length;
+
+    route.value = "/settings";
+    view.rerender(wrap(<Grab />));
+    route.value = "/admin/announcements";
+    view.rerender(wrap(<Grab />));
+
+    expect(controller.state.scene).toBe("casual-menu");
+    expect(audio().src).toBe("/soundtrack/casual-menu-a.ogg");
+    expect(audio().currentTime).toBe(23);
+    expect(audio().play).toHaveBeenCalledTimes(playCount);
   });
 });
 

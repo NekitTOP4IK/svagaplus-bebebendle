@@ -103,6 +103,12 @@ describe("resolveRouteAudioScene", () => {
     expect(resolveRouteAudioScene("/")).toBe("casual-menu");
   });
 
+  it("keeps the casual menu soundtrack on settings and administration routes", () => {
+    expect(resolveRouteAudioScene("/settings")).toBe("casual-menu");
+    expect(resolveRouteAudioScene("/admin")).toBe("casual-menu");
+    expect(resolveRouteAudioScene("/admin/announcements")).toBe("casual-menu");
+  });
+
   it("maps the competitive hub to the ranked menu scene", () => {
     expect(resolveRouteAudioScene("/competitive")).toBe("ranked-menu");
   });
@@ -111,7 +117,6 @@ describe("resolveRouteAudioScene", () => {
     expect(resolveRouteAudioScene("/daily")).toBe("silent");
     expect(resolveRouteAudioScene("/competitive/play")).toBe("silent");
     expect(resolveRouteAudioScene("/profile")).toBe("silent");
-    expect(resolveRouteAudioScene("/admin")).toBe("silent");
     expect(resolveRouteAudioScene("/competitive/seasons")).toBe("silent");
   });
 

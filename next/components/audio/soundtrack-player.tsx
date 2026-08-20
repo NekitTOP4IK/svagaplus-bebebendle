@@ -19,8 +19,11 @@ function PauseIcon(): ReactElement {
   return <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 2h3v12H3zm7 0h3v12h-3z" fill="currentColor" /></svg>;
 }
 
-function MuteIcon(): ReactElement {
-  return <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M2 6h3l4-3v10l-4-3H2zM11 6l3 4m0-4-3 4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="square" /></svg>;
+function PanelIcon({ expanded }: Readonly<{ expanded: boolean }>): ReactElement {
+  if (expanded) {
+    return <svg aria-hidden="true" viewBox="0 0 16 16"><path d="m5 2 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter" /></svg>;
+  }
+  return <svg aria-hidden="true" viewBox="0 0 16 16"><path d="M6 3v8.2a2.4 2.4 0 1 1-1.5-2.23V4.5L13 2v7.2a2.4 2.4 0 1 1-1.5-2.23V3.8Z" fill="currentColor" /></svg>;
 }
 
 function ArrowIcon({ direction }: Readonly<{ direction: "previous" | "next" }>): ReactElement {
@@ -83,11 +86,9 @@ export function SoundtrackPlayer(): ReactElement | null {
 
   const isExpanded = state.panelMode === "auto" || state.panelMode === "manual";
   const isPlaying = state.status === "playing";
-  const isMuted = preferences.musicVolume === 0;
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
   const safeCurrentTime = Math.min(Math.max(0, currentTime), safeDuration || currentTime || 0);
   const volume = Math.min(1, Math.max(0, preferences.musicVolume));
-  const Icon = isMuted ? MuteIcon : isPlaying ? PauseIcon : PlayIcon;
   const showHint = state.panelMode === "collapsed" && !hintSeen && !hintDismissed;
 
   const togglePanel = (): void => {
@@ -111,6 +112,8 @@ export function SoundtrackPlayer(): ReactElement | null {
         data-playback={state.status}
         data-hint={showHint ? "true" : undefined}
         aria-label="Музыкальный плеер"
+        onPointerEnter={() => controller.setPanelHovering(true)}
+        onPointerLeave={() => controller.setPanelHovering(false)}
       >
         <button
           className="soundtrack-player__handle"
@@ -119,11 +122,13 @@ export function SoundtrackPlayer(): ReactElement | null {
           aria-label={isExpanded ? "Свернуть плеер" : "Открыть плеер"}
           aria-expanded={isExpanded}
         >
-          <Icon />
+          <span className="soundtrack-player__handle-icon"><PanelIcon expanded={isExpanded} /></span>
+          <span className="soundtrack-player__handle-status" aria-hidden="true" />
         </button>
 
         <section className="soundtrack-player__panel" aria-hidden={!isExpanded}>
           <div className="soundtrack-player__track">
+            <span className="soundtrack-player__eyebrow">Сейчас играет</span>
             <strong>{currentTrack.title}</strong>
             {currentTrack.artist ? <span>{currentTrack.artist}</span> : null}
           </div>
@@ -165,7 +170,7 @@ export function SoundtrackPlayer(): ReactElement | null {
           </label>
 
           <div className="soundtrack-player__volume">
-            <span>{Math.round(volume * 100)}%</span>
+            <span><span className="soundtrack-player__volume-label">Громкость</span> {Math.round(volume * 100)}%</span>
             <input
               type="range"
               min="0"

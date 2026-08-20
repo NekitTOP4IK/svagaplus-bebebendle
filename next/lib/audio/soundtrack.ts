@@ -25,12 +25,19 @@ export function tracksForScene(
 }
 
 /**
- * Route defaults are intentionally narrow: only the exact home and
- * competitive hub routes are menu scenes. Game routes stay silent until
- * their client game state explicitly claims a scene.
+ * Utility surfaces share the casual menu soundtrack so navigation between
+ * home, settings and administration does not restart the current track.
+ * Game routes stay silent until their client game state explicitly claims a scene.
  */
 export function resolveRouteAudioScene(pathname: string): AudioScene {
-  if (pathname === "/") return "casual-menu";
+  if (
+    pathname === "/" ||
+    pathname === "/settings" ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
+  ) {
+    return "casual-menu";
+  }
   if (pathname === "/competitive") return "ranked-menu";
   return "silent";
 }
