@@ -16,6 +16,11 @@ import { useAudioPreferences } from "@/components/audio/audio-preferences-provid
 import { updateAudioPreferences } from "@/lib/audio/preferences";
 import { SOUNDTRACK_MANIFEST, type AudioScene, type Outcome, type SoundtrackTrack } from "@/lib/audio/soundtrack-manifest";
 import {
+  applySoundtrackMetadata,
+  DEFAULT_SOUNDTRACK_METADATA,
+  type SoundtrackMetadata,
+} from "@/lib/audio/soundtrack-metadata";
+import {
   resolveRouteAudioScene,
   supportedSources,
   tracksForScene,
@@ -66,9 +71,16 @@ type PlayableTrack = Readonly<{ track: SoundtrackTrack }>;
 
 const AUTO_CLOSE_MS = 3000;
 
-export function AudioProvider({ children }: Readonly<{ children: ReactNode }>): ReactElement {
+export function AudioProvider({
+  children,
+  soundtrackMetadata = DEFAULT_SOUNDTRACK_METADATA,
+}: Readonly<{
+  children: ReactNode;
+  soundtrackMetadata?: SoundtrackMetadata;
+}>): ReactElement {
   const pathname = usePathname();
   const preferences = useAudioPreferences();
+  const soundtrackMetadataKey = JSON.stringify(soundtrackMetadata);
 
   const [baseState, dispatchReducer] = useReducer(playerReducer, undefined, createInitialPlayerState);
   const stateRef = useRef<PlayerState>(baseState);
@@ -183,7 +195,8 @@ export function AudioProvider({ children }: Readonly<{ children: ReactNode }>): 
       }
       deferSceneAfterOutcomeRef.current = false;
       const element = getAudio();
-      const tracks = tracksForScene(SOUNDTRACK_MANIFEST, scene);
+      const manifest = applySoundtrackMetadata(SOUNDTRACK_MANIFEST, soundtrackMetadata);
+      const tracks = tracksForScene(manifest, scene);
       const playableTracks: PlayableTrack[] = [];
       const queue: Candidate[] = [];
       tracks.forEach((track) => {
@@ -221,7 +234,7 @@ export function AudioProvider({ children }: Readonly<{ children: ReactNode }>): 
       setPosition({ currentTime: 0, duration: 0 });
       if (queue.length > 0) attemptPlay();
     },
-    [attemptPlay, canPlay, dispatch, getAudio],
+    [attemptPlay, canPlay, dispatch, getAudio, soundtrackMetadata],
   );
 
   const attachMediaListeners = (element: HTMLAudioElement): void => {
@@ -296,11 +309,11 @@ export function AudioProvider({ children }: Readonly<{ children: ReactNode }>): 
 
   const lastSceneKeyRef = useRef<string>("");
   useEffect(() => {
-    const key = `${effectiveScene}|${ownersKey}`;
+    const key = `${effectiveScene}|${ownersKey}|${soundtrackMetadataKey}`;
     if (lastSceneKeyRef.current === key) return;
     lastSceneKeyRef.current = key;
     applyScene(effectiveScene);
-  }, [effectiveScene, ownersKey, applyScene]);
+  }, [effectiveScene, ownersKey, soundtrackMetadataKey, applyScene]);
 
   useEffect(() => {
     const onGesture = (): void => {
@@ -388,7 +401,8 @@ export function AudioProvider({ children }: Readonly<{ children: ReactNode }>): 
       activeJingleRequestRef.current = null;
       jingleRequestCounterRef.current += 1;
 
-      const jingle = outcome === "victory" ? SOUNDTRACK_MANIFEST.victoryJingle : SOUNDTRACK_MANIFEST.defeatJingle;
+      const manifest = applySoundtrackMetadata(SOUNDTRACK_MANIFEST, soundtrackMetadata);
+      const jingle = outcome === "victory" ? manifest.victoryJingle : manifest.defeatJingle;
       const source = jingle ? supportedSources(jingle, canPlay)[0] : undefined;
       if (!jingle || !source || !activatedRef.current || !musicEnabledRef.current) return;
 
@@ -418,7 +432,7 @@ export function AudioProvider({ children }: Readonly<{ children: ReactNode }>): 
         clearMediaSource(element);
       });
     },
-    [canPlay, clearMediaSource, dispatch, getAudio],
+    [canPlay, clearMediaSource, dispatch, getAudio, soundtrackMetadata],
   );
 
   const togglePanel = useCallback((): void => {
