@@ -162,7 +162,15 @@ export function AudioSettingsPanel(): ReactElement {
 
         <section className="audio-settings__category" aria-labelledby="player-settings-title">
           <header className="audio-settings__category-header">
-            <span className="audio-settings__category-icon" aria-hidden="true">▣</span>
+            <span className="audio-settings__category-icon" aria-hidden="true">
+              <Image
+                src="/music-player.png"
+                alt=""
+                width={32}
+                height={32}
+                className="audio-settings__category-image"
+              />
+            </span>
             <div>
               <h2 id="player-settings-title">Плеер</h2>
               <p>Поведение панели с текущим треком.</p>
