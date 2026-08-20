@@ -49,7 +49,7 @@ describe("HomeOverlays", () => {
     });
   });
 
-  it("skips the entrance gate after it was passed in the current tab", () => {
+  it("skips the entrance gate after it was passed in the current document", () => {
     entrance.alreadyEntered = true;
 
     render(<HomeOverlays announcements={[]} />);
