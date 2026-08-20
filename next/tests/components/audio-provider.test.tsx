@@ -180,6 +180,14 @@ describe("single audio element and user activation", () => {
     expect(audio().play).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts a click as an activation gesture", () => {
+    render(wrap(<span>home</span>));
+
+    fireEvent.click(document.body);
+
+    expect(audio().play).toHaveBeenCalledTimes(1);
+  });
+
   it("moves to blocked when autoplay is rejected and does not retry on later gestures", async () => {
     let controller!: AudioController;
     function Grab(): null {

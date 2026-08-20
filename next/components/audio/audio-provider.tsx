@@ -321,13 +321,16 @@ export function AudioProvider({
       activatedRef.current = true;
       document.removeEventListener("pointerdown", onGesture);
       document.removeEventListener("keydown", onGesture);
+      document.removeEventListener("click", onGesture);
       attemptPlay();
     };
     document.addEventListener("pointerdown", onGesture);
     document.addEventListener("keydown", onGesture);
+    document.addEventListener("click", onGesture);
     return () => {
       document.removeEventListener("pointerdown", onGesture);
       document.removeEventListener("keydown", onGesture);
+      document.removeEventListener("click", onGesture);
     };
   }, [attemptPlay]);
 
