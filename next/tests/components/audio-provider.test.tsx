@@ -77,6 +77,7 @@ class FakeAudio {
 
   src = "";
   volume = 1;
+  muted = false;
   currentTime = 0;
   duration = 164;
   paused = true;
@@ -200,10 +201,33 @@ describe("single audio element and user activation", () => {
 
     expect(audio().play).toHaveBeenCalledTimes(1);
     expect(audio().volume).toBe(0);
+    expect(audio().muted).toBe(true);
     await waitFor(() => expect(controller.state.panelMode).toBe("auto"));
 
     act(() => controller.restorePlaybackVolume());
     expect(audio().volume).toBe(0.5);
+    expect(audio().muted).toBe(false);
+  });
+
+  it("ignores global gestures while entrance activation is blocked", () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    render(wrap(<Grab />));
+
+    act(() => controller.setPlaybackActivationBlocked(true));
+    fireEvent.pointerDown(document.body);
+    fireEvent.click(document.body);
+    fireEvent.keyDown(document.body, { key: "Enter" });
+
+    expect(audio().play).not.toHaveBeenCalled();
+
+    act(() => controller.setPlaybackActivationBlocked(false));
+    fireEvent.click(document.body);
+
+    expect(audio().play).toHaveBeenCalledTimes(1);
   });
 
   it("moves to blocked when autoplay is rejected and does not retry on later gestures", async () => {

@@ -64,9 +64,6 @@ export function EntranceGate({ onActivate, onEntered }: Props): ReactElement | n
             exit={{ opacity: 0, y: reduceMotion ? 0 : -10, scale: reduceMotion ? 1 : 1.02 }}
             transition={{ duration: reduceMotion ? 0 : 0.3, ease: "easeOut" }}
           >
-            <p className="pixel-text mb-5 text-[10px] uppercase tracking-[0.2em] text-yellow-300 sm:text-xs">
-              Мир успешно прогружен
-            </p>
             <Image
               src="/бебендл.webp"
               alt="Бебебендл"

@@ -42,6 +42,7 @@ function createController(overrides: Partial<AudioController["state"]> = {}, tra
     playOutcome: vi.fn(),
     activatePlayback: vi.fn(),
     restorePlaybackVolume: vi.fn(),
+    setPlaybackActivationBlocked: vi.fn(),
     togglePanel: vi.fn(),
     togglePlayback: vi.fn(),
     seek: vi.fn(),

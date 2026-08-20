@@ -11,6 +11,7 @@ describe("EntranceGate", () => {
     render(<EntranceGate onActivate={onActivate} onEntered={onEntered} />);
 
     expect(screen.getByRole("dialog", { name: "Нажми сюда, чтобы войти" })).toBeInTheDocument();
+    expect(screen.queryByText("Мир успешно прогружен")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Войти" }));
 

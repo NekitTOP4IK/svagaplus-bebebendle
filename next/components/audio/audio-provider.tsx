@@ -44,6 +44,7 @@ export type AudioController = Readonly<{
   playOutcome(outcome: Outcome, eventId: string): void;
   activatePlayback(silent?: boolean): void;
   restorePlaybackVolume(): void;
+  setPlaybackActivationBlocked(blocked: boolean): void;
   togglePanel(): void;
   togglePlayback(): void;
   seek(seconds: number): void;
@@ -103,6 +104,7 @@ export function AudioProvider({
     jingleRequest: number | null;
   }> | null>(null);
   const activatedRef = useRef(false);
+  const playbackActivationBlockedRef = useRef(false);
   const suppressMediaEventsRef = useRef(false);
   const playedOutcomeIdsRef = useRef(new Set<string>());
   const pendingSceneRef = useRef<{ scene: AudioScene; generation: number } | null>(null);
@@ -184,13 +186,22 @@ export function AudioProvider({
   const activatePlayback = useCallback((silent = false): void => {
     activatedRef.current = true;
     const element = getAudio();
-    if (silent) element.volume = 0;
+    if (silent) {
+      element.muted = true;
+      element.volume = 0;
+    }
     attemptPlay();
   }, [attemptPlay, getAudio]);
 
   const restorePlaybackVolume = useCallback((): void => {
-    getAudio().volume = preferences.musicVolume;
+    const element = getAudio();
+    element.volume = preferences.musicVolume;
+    element.muted = false;
   }, [getAudio, preferences.musicVolume]);
+
+  const setPlaybackActivationBlocked = useCallback((blocked: boolean): void => {
+    playbackActivationBlockedRef.current = blocked;
+  }, []);
 
   const applyScene = useCallback(
     (scene: AudioScene): void => {
@@ -330,6 +341,8 @@ export function AudioProvider({
 
   useEffect(() => {
     const onGesture = (): void => {
+      if (playbackActivationBlockedRef.current) return;
+
       document.removeEventListener("pointerdown", onGesture);
       document.removeEventListener("keydown", onGesture);
       document.removeEventListener("click", onGesture);
@@ -512,6 +525,7 @@ export function AudioProvider({
     playOutcome,
     activatePlayback,
     restorePlaybackVolume,
+    setPlaybackActivationBlocked,
     togglePanel,
     togglePlayback,
     seek,
