@@ -4,7 +4,7 @@ export type Outcome = "victory" | "defeat";
 
 export type AudioSource = Readonly<{
   src: string;
-  type: "audio/ogg; codecs=opus" | "audio/mpeg";
+  type: "audio/ogg" | "audio/mpeg";
 }>;
 
 export type SoundtrackTrack = Readonly<{
@@ -23,13 +23,39 @@ export type SoundtrackManifest = Readonly<{
   defeatJingle?: SoundtrackTrack;
 }>;
 
-/**
- * Audio files are not available yet. The empty manifest is the first-class
- * default: nothing here may resolve to a request for a missing URL.
- */
+function soundtrackTrack(
+  id: string,
+  title: string,
+  fileName: string,
+): SoundtrackTrack {
+  return {
+    id,
+    title,
+    sources: [
+      { src: `/soundtrack/${fileName}.ogg`, type: "audio/ogg" },
+      { src: `/soundtrack/${fileName}.mp3`, type: "audio/mpeg" },
+    ],
+  };
+}
+
+const START_MENU = soundtrackTrack("start-menu", "Главное меню", "start-menu");
+const DAILY_GAME = soundtrackTrack("daily-game", "Дейлик", "daily-game");
+const COMPETITIVE_MENU = soundtrackTrack(
+  "competitive-menu",
+  "Competitive — меню",
+  "competitive-menu",
+);
+const COMPETITIVE_GAME = soundtrackTrack(
+  "competitive-game",
+  "Competitive — игра",
+  "competitive-game",
+);
+
 export const SOUNDTRACK_MANIFEST: SoundtrackManifest = {
-  casualMenu: [],
-  casualGame: [],
-  rankedMenu: [],
-  rankedGame: [],
+  casualMenu: [START_MENU],
+  casualGame: [DAILY_GAME],
+  rankedMenu: [COMPETITIVE_MENU],
+  rankedGame: [COMPETITIVE_GAME],
+  victoryJingle: soundtrackTrack("game-win", "Победа", "game-win"),
+  defeatJingle: soundtrackTrack("game-lose", "Поражение", "game-lose"),
 };

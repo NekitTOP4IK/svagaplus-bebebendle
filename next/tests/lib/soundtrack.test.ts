@@ -24,7 +24,7 @@ const trackA: SoundtrackTrack = {
   id: "casual-menu-a",
   title: "Тема меню A",
   sources: [
-    { src: "/soundtrack/menu-a.ogg", type: "audio/ogg; codecs=opus" },
+    { src: "/soundtrack/menu-a.ogg", type: "audio/ogg" },
     { src: "/soundtrack/menu-a.mp3", type: "audio/mpeg" },
   ],
 };
@@ -33,7 +33,7 @@ const trackB: SoundtrackTrack = {
   id: "casual-menu-b",
   title: "Тема меню B",
   sources: [
-    { src: "/soundtrack/menu-b.ogg", type: "audio/ogg; codecs=opus" },
+    { src: "/soundtrack/menu-b.ogg", type: "audio/ogg" },
     { src: "/soundtrack/menu-b.mp3", type: "audio/mpeg" },
   ],
 };
@@ -42,7 +42,7 @@ const VICTORY_JINGLE: SoundtrackTrack = {
   id: "victory",
   title: "Победа",
   sources: [
-    { src: "/soundtrack/victory.ogg", type: "audio/ogg; codecs=opus" },
+    { src: "/soundtrack/victory.ogg", type: "audio/ogg" },
     { src: "/soundtrack/victory.mp3", type: "audio/mpeg" },
   ],
 };
@@ -58,13 +58,24 @@ function fixtureManifest(): SoundtrackManifest {
 }
 
 describe("SOUNDTRACK_MANIFEST", () => {
-  it("ships empty until audio files are supplied", () => {
-    expect(SOUNDTRACK_MANIFEST.casualMenu).toEqual([]);
-    expect(SOUNDTRACK_MANIFEST.casualGame).toEqual([]);
-    expect(SOUNDTRACK_MANIFEST.rankedMenu).toEqual([]);
-    expect(SOUNDTRACK_MANIFEST.rankedGame).toEqual([]);
-    expect(SOUNDTRACK_MANIFEST.victoryJingle).toBeUndefined();
-    expect(SOUNDTRACK_MANIFEST.defeatJingle).toBeUndefined();
+  it("maps every scene and outcome to an OGG-first MP3-fallback pair", () => {
+    const tracks = [
+      ...SOUNDTRACK_MANIFEST.casualMenu,
+      ...SOUNDTRACK_MANIFEST.casualGame,
+      ...SOUNDTRACK_MANIFEST.rankedMenu,
+      ...SOUNDTRACK_MANIFEST.rankedGame,
+      SOUNDTRACK_MANIFEST.victoryJingle,
+      SOUNDTRACK_MANIFEST.defeatJingle,
+    ];
+
+    expect(tracks).toHaveLength(6);
+    for (const track of tracks) {
+      expect(track).toBeDefined();
+      expect(track!.sources).toEqual([
+        { src: `/soundtrack/${track!.id}.ogg`, type: "audio/ogg" },
+        { src: `/soundtrack/${track!.id}.mp3`, type: "audio/mpeg" },
+      ]);
+    }
   });
 });
 

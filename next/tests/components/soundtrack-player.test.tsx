@@ -32,7 +32,7 @@ function createController(overrides: Partial<AudioController["state"]> = {}, tra
       id: "menu",
       title: "Уютный вечер",
       artist: "Bebebendle OST",
-      sources: [{ src: "/soundtrack/menu.ogg", type: "audio/ogg; codecs=opus" }],
+      sources: [{ src: "/soundtrack/menu.ogg", type: "audio/ogg" }],
     },
     trackCount,
     currentTime: 65,

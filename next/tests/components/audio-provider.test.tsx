@@ -14,7 +14,7 @@ const manifest = vi.hoisted(() => ({
       id: "casual-menu-a",
       title: "Casual Menu A",
       sources: [
-        { src: "/soundtrack/casual-menu-a.ogg", type: "audio/ogg; codecs=opus" },
+        { src: "/soundtrack/casual-menu-a.ogg", type: "audio/ogg" },
         { src: "/soundtrack/casual-menu-a.mp3", type: "audio/mpeg" },
       ],
     },
@@ -22,7 +22,7 @@ const manifest = vi.hoisted(() => ({
       id: "casual-menu-b",
       title: "Casual Menu B",
       sources: [
-        { src: "/soundtrack/casual-menu-b.ogg", type: "audio/ogg; codecs=opus" },
+        { src: "/soundtrack/casual-menu-b.ogg", type: "audio/ogg" },
         { src: "/soundtrack/casual-menu-b.mp3", type: "audio/mpeg" },
       ],
     },
