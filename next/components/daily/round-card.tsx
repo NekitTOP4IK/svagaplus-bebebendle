@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { useOptionalAudioController } from "@/components/audio/audio-provider";
+
 interface RoundCardProps {
   scran: {
     id: number;
@@ -21,15 +24,28 @@ export function RoundCard({
   isVoting,
   position,
 }: RoundCardProps) {
+  const audioController = useOptionalAudioController();
+  const setPlayerObscured = audioController?.setPlayerObscured;
   const borderClass =
     position === "left"
       ? "border-b-4 border-black md:border-b-0 md:border-r-4"
       : "";
   const isSvaga = scran.isSubscriberAtSubmit === true;
+  const obscuresPlayer = position === "right";
+
+  useEffect(() => () => {
+    if (obscuresPlayer) setPlayerObscured?.(false);
+  }, [obscuresPlayer, setPlayerObscured]);
 
   return (
     <button
       onClick={onVote}
+      onPointerEnter={() => {
+        if (obscuresPlayer) setPlayerObscured?.(true);
+      }}
+      onPointerLeave={() => {
+        if (obscuresPlayer) setPlayerObscured?.(false);
+      }}
       disabled={isVoting}
       className={`group relative h-1/2 w-full overflow-hidden ${borderClass} disabled:cursor-default md:h-full md:w-1/2`}
       type="button"

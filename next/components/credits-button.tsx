@@ -4,7 +4,7 @@ import { useEffect, useState, type ComponentType, type ReactElement } from "reac
 import { AnimatePresence, motion } from "framer-motion";
 import { Send, Twitch, Twitter, Users, X, Youtube } from "lucide-react";
 import {
-  CREDIT_GROUPS,
+  type CreditGroup,
   type CreditSocialPlatform,
 } from "@/lib/credits";
 
@@ -21,7 +21,9 @@ const SOCIAL_PRESENTATION: Record<CreditSocialPlatform, SocialPresentation> = {
   youtube: { label: "YouTube", Icon: Youtube, className: "pixel-btn-danger" },
 };
 
-export function CreditsButton(): ReactElement {
+export function CreditsButton({
+  groups = [],
+}: Readonly<{ groups?: readonly CreditGroup[] }>): ReactElement {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -82,13 +84,13 @@ export function CreditsButton(): ReactElement {
                 </button>
               </header>
 
-              {CREDIT_GROUPS.length === 0 ? (
+              {groups.length === 0 ? (
                 <p className="my-8 text-center text-sm text-white/65">
                   Список авторов пока готовится.
                 </p>
               ) : (
                 <div className="mt-5 grid gap-5">
-                  {CREDIT_GROUPS.map((group, groupIndex) => (
+                  {groups.map((group, groupIndex) => (
                     <section key={group.title} aria-labelledby={`credit-group-${groupIndex}`}>
                       <h3
                         id={`credit-group-${groupIndex}`}

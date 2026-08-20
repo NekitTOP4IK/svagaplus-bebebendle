@@ -532,6 +532,31 @@ describe("outcome jingles", () => {
     expect(audio().src).toBe("");
   });
 
+  it("restores the ranked scene after its result jingle when requested", async () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      const setScene = controller.setScene;
+      const clearScene = controller.clearScene;
+      useEffect(() => {
+        setScene("ranked-game", "ranked-result");
+        return () => clearScene("ranked-result");
+      }, [clearScene, setScene]);
+      return null;
+    }
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(audio().src).toBe("/soundtrack/ranked-game-a.mp3"));
+
+    act(() => controller.playOutcome("victory", "ranked-result:first-player", true));
+    expect(audio().src).toBe("/soundtrack/victory.mp3");
+
+    act(() => audio().emit("ended"));
+    await waitFor(() => expect(audio().src).toBe("/soundtrack/ranked-game-a.mp3"));
+    expect(controller.state.scene).toBe("ranked-game");
+    expect(controller.state.outcome).toBeNull();
+  });
+
   it("stops the background and stays silent when a jingle is unavailable", () => {
     let controller!: AudioController;
     function Grab(): null {

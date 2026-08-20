@@ -92,6 +92,7 @@ export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily:
         totalRounds: initialDaily.totalRounds,
       }),
       eventId,
+      true,
     );
   }, [audioController, gameState, initialDaily.date, initialDaily.totalRounds]);
 
@@ -166,12 +167,15 @@ export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily:
 
     case "complete":
       return (
-        <CompletePanel
-          points={gameState.points}
-          hits={gameState.hits}
-          answers={gameState.answers}
-          summary={gameState.summary}
-        />
+        <>
+          <AudioSceneBoundary scene="ranked-game" ownerId={`ranked-game:${initialDaily.date}`} />
+          <CompletePanel
+            points={gameState.points}
+            hits={gameState.hits}
+            answers={gameState.answers}
+            summary={gameState.summary}
+          />
+        </>
       );
 
     case "playing": {

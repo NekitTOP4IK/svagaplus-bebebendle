@@ -39,13 +39,15 @@ export type AudioController = Readonly<{
   trackCount: number;
   currentTime: number;
   duration: number;
+  playerObscured: boolean;
   setScene(scene: AudioScene, ownerId: string): void;
   clearScene(ownerId: string): void;
-  playOutcome(outcome: Outcome, eventId: string): void;
+  playOutcome(outcome: Outcome, eventId: string, resumeSceneAfter?: boolean): void;
   activatePlayback(silent?: boolean): void;
   restorePlaybackVolume(): void;
   setPlaybackActivationBlocked(blocked: boolean): void;
   setPanelHovering(hovering: boolean): void;
+  setPlayerObscured(obscured: boolean): void;
   togglePanel(): void;
   togglePlayback(): void;
   seek(seconds: number): void;
@@ -121,9 +123,11 @@ export function AudioProvider({
   const outcomeSceneRef = useRef<AudioScene | null>(null);
   const pendingSceneAfterOutcomeRef = useRef<AudioScene | null>(null);
   const deferSceneAfterOutcomeRef = useRef(false);
+  const resumeSceneAfterOutcomeRef = useRef(false);
 
   const [owners, setOwners] = useState<ReadonlyMap<string, AudioScene>>(new Map());
   const [position, setPosition] = useState({ currentTime: 0, duration: 0 });
+  const [playerObscured, setPlayerObscured] = useState(false);
 
   const cancelVolumeFade = useCallback((): void => {
     volumeFadeTokenRef.current += 1;
@@ -368,6 +372,24 @@ export function AudioProvider({
 
   useEffect(() => () => cancelVolumeFade(), [cancelVolumeFade]);
 
+  const finishOutcome = useCallback((element: HTMLAudioElement): void => {
+    jingleModeRef.current = false;
+    activeJingleRequestRef.current = null;
+    clearMediaSource(element);
+    const pendingScene = pendingSceneAfterOutcomeRef.current;
+    pendingSceneAfterOutcomeRef.current = null;
+    const outcomeScene = outcomeSceneRef.current;
+    outcomeSceneRef.current = null;
+    const resumeScene = resumeSceneAfterOutcomeRef.current;
+    resumeSceneAfterOutcomeRef.current = false;
+    const nextScene = pendingScene && pendingScene !== outcomeScene
+      ? pendingScene
+      : resumeScene
+        ? outcomeScene
+        : null;
+    if (nextScene) applyScene(nextScene);
+  }, [applyScene, clearMediaSource]);
+
   const attachMediaListeners = (element: HTMLAudioElement): void => {
     element.addEventListener("timeupdate", () => {
       setPosition({ currentTime: element.currentTime, duration: element.duration || 0 });
@@ -382,14 +404,7 @@ export function AudioProvider({
       if (!media || media.generation !== generation) return;
       if (jingleModeRef.current) {
         if (media.jingleRequest !== activeJingleRequestRef.current) return;
-        jingleModeRef.current = false;
-        activeJingleRequestRef.current = null;
-        clearMediaSource(element);
-        const pendingScene = pendingSceneAfterOutcomeRef.current;
-        pendingSceneAfterOutcomeRef.current = null;
-        const outcomeScene = outcomeSceneRef.current;
-        outcomeSceneRef.current = null;
-        if (pendingScene && pendingScene !== outcomeScene) applyScene(pendingScene);
+        finishOutcome(element);
         return;
       }
       dispatch({ type: "TRACK_ENDED", generation, trackCount: sceneTracksRef.current.length });
@@ -408,14 +423,7 @@ export function AudioProvider({
       const fallback = cursor >= 0 && cursor + 1 < queue.length ? queue[cursor + 1]! : null;
       if (jingleModeRef.current) {
         if (media.jingleRequest !== activeJingleRequestRef.current) return;
-        jingleModeRef.current = false;
-        activeJingleRequestRef.current = null;
-        clearMediaSource(element);
-        const pendingScene = pendingSceneAfterOutcomeRef.current;
-        pendingSceneAfterOutcomeRef.current = null;
-        const outcomeScene = outcomeSceneRef.current;
-        outcomeSceneRef.current = null;
-        if (pendingScene && pendingScene !== outcomeScene) applyScene(pendingScene);
+        finishOutcome(element);
         return;
       }
       dispatch({ type: "SOURCE_FAILED", generation, fallback });
@@ -550,13 +558,14 @@ export function AudioProvider({
   }, []);
 
   const playOutcome = useCallback(
-    (outcome: Outcome, eventId: string): void => {
+    (outcome: Outcome, eventId: string, resumeSceneAfter = false): void => {
       if (playedOutcomeIdsRef.current.has(eventId)) return;
       playedOutcomeIdsRef.current.add(eventId);
 
       dispatch({ type: "OUTCOME_REQUESTED", outcome });
       outcomeSceneRef.current = stateRef.current.scene;
       pendingSceneAfterOutcomeRef.current = null;
+      resumeSceneAfterOutcomeRef.current = resumeSceneAfter;
 
       const element = getAudio();
       clearMediaSource(element);
@@ -569,7 +578,15 @@ export function AudioProvider({
       const manifest = applySoundtrackMetadata(SOUNDTRACK_MANIFEST, soundtrackMetadata);
       const jingle = outcome === "victory" ? manifest.victoryJingle : manifest.defeatJingle;
       const source = jingle ? supportedSources(jingle, canPlay)[0] : undefined;
-      if (!jingle || !source || !activatedRef.current || !musicEnabledRef.current) return;
+      if (!jingle || !source || !activatedRef.current || !musicEnabledRef.current) {
+        if (resumeSceneAfter && outcomeSceneRef.current) {
+          const scene = outcomeSceneRef.current;
+          outcomeSceneRef.current = null;
+          resumeSceneAfterOutcomeRef.current = false;
+          applyScene(scene);
+        }
+        return;
+      }
 
       const generation = stateRef.current.generation;
       const request = jingleRequestCounterRef.current + 1;
@@ -592,12 +609,10 @@ export function AudioProvider({
         ) {
           return;
         }
-        jingleModeRef.current = false;
-        activeJingleRequestRef.current = null;
-        clearMediaSource(element);
+        finishOutcome(element);
       });
     },
-    [canPlay, clearMediaSource, dispatch, getAudio, soundtrackMetadata],
+    [applyScene, canPlay, clearMediaSource, dispatch, finishOutcome, getAudio, soundtrackMetadata],
   );
 
   const togglePanel = useCallback((): void => {
@@ -657,6 +672,7 @@ export function AudioProvider({
     trackCount: sceneTracksRef.current.length,
     currentTime: position.currentTime,
     duration: position.duration,
+    playerObscured,
     setScene,
     clearScene,
     playOutcome,
@@ -664,6 +680,7 @@ export function AudioProvider({
     restorePlaybackVolume,
     setPlaybackActivationBlocked,
     setPanelHovering,
+    setPlayerObscured,
     togglePanel,
     togglePlayback,
     seek,

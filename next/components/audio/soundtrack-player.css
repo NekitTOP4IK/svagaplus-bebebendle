@@ -12,8 +12,10 @@
   align-items: stretch;
   width: calc(var(--soundtrack-handle-width) + var(--soundtrack-panel-width));
   min-height: 76px;
-  transition: transform 380ms cubic-bezier(.22, 1, .36, 1);
-  will-change: transform;
+  transition:
+    transform 380ms cubic-bezier(.22, 1, .36, 1),
+    opacity 160ms ease-out;
+  will-change: transform, opacity;
 }
 
 .soundtrack-player--collapsed {
@@ -22,6 +24,10 @@
 
 .soundtrack-player--expanded {
   transform: translate3d(0, 0, 0);
+}
+
+.soundtrack-player--obscured:not(:hover) {
+  opacity: .35;
 }
 
 .soundtrack-player button {
