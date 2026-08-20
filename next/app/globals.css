@@ -826,8 +826,10 @@ body {
 
 .audio-settings__branch {
     display: block;
-    width: 1.15rem;
-    height: 1.15rem;
+    position: relative;
+    z-index: 2;
+    width: calc(100% - 0.35rem + 0.2rem);
+    height: 2.85rem;
     margin-left: 0.35rem;
     border-left: 3px solid #52525b;
     border-bottom: 3px solid #52525b;
