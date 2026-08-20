@@ -352,9 +352,46 @@ describe("preferences", () => {
       musicVolume: 0.25,
     });
   });
+
+  it("keeps the player expanded when auto-collapse is disabled", async () => {
+    vi.useFakeTimers();
+    try {
+      let controller!: AudioController;
+      function Grab(): null {
+        controller = useAudioController();
+        return null;
+      }
+      updateAudioPreferences({ autoCollapsePlayer: false });
+      render(wrap(<Grab />));
+
+      fireEvent.pointerDown(document.body);
+      await act(async () => Promise.resolve());
+      expect(controller.state.panelMode).toBe("auto");
+
+      act(() => vi.advanceTimersByTime(3500));
+      expect(controller.state.panelMode).toBe("auto");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("outcome jingles", () => {
+  it("stays silent when outcome jingles are disabled", () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    updateAudioPreferences({ outcomeJinglesEnabled: false });
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+
+    act(() => controller.playOutcome("victory", "casual-result:no-jingle-preference"));
+
+    expect(audio().src).toBe("");
+  });
+
   it("plays a jingle once for a repeated event id", () => {
     let controller!: AudioController;
     function Grab(): null {

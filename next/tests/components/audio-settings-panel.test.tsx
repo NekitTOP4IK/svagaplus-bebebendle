@@ -27,6 +27,23 @@ describe("AudioSettingsPanel", () => {
     expect(JSON.parse(localStorage.getItem(AUDIO_PREFERENCES_STORAGE_KEY)!)).toEqual({
       musicEnabled: false,
       musicVolume: 0.5,
+      outcomeJinglesEnabled: true,
+      autoCollapsePlayer: true,
+    });
+  });
+
+  it("saves outcome and player behavior settings", () => {
+    renderPanel();
+
+    fireEvent.click(screen.getByRole("switch", { name: /сигналы результата/i }));
+    fireEvent.click(screen.getByRole("switch", { name: /автосворачивание/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+
+    expect(JSON.parse(localStorage.getItem(AUDIO_PREFERENCES_STORAGE_KEY)!)).toEqual({
+      musicEnabled: true,
+      musicVolume: 0.5,
+      outcomeJinglesEnabled: false,
+      autoCollapsePlayer: false,
     });
   });
 
