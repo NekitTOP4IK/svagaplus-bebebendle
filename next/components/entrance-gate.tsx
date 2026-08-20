@@ -4,26 +4,14 @@ import Image from "next/image";
 import { useEffect, useState, type ReactElement } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
-export const ENTRANCE_GATE_SESSION_KEY = "bebebendle.entrance-passed.v1";
-
-let enteredWithoutSessionStorage = false;
+let enteredCurrentDocument = false;
 
 export function hasEnteredCurrentDocument(): boolean {
-  if (typeof window === "undefined") return false;
-
-  try {
-    return window.sessionStorage.getItem(ENTRANCE_GATE_SESSION_KEY) === "true";
-  } catch {
-    return enteredWithoutSessionStorage;
-  }
+  return enteredCurrentDocument;
 }
 
-function rememberEntranceForCurrentTab(): void {
-  try {
-    window.sessionStorage.setItem(ENTRANCE_GATE_SESSION_KEY, "true");
-  } catch {
-    enteredWithoutSessionStorage = true;
-  }
+function rememberEntranceForCurrentDocument(): void {
+  enteredCurrentDocument = true;
 }
 
 type Props = Readonly<{
@@ -46,7 +34,7 @@ export function EntranceGate({ onActivate, onEntered }: Props): ReactElement | n
 
   const enter = (): void => {
     onActivate();
-    rememberEntranceForCurrentTab();
+    rememberEntranceForCurrentDocument();
     setVisible(false);
   };
 
