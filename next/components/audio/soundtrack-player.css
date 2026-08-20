@@ -1,0 +1,102 @@
+/* One physical dock: transforms belong to the containing unit, so its handle
+   remains the left end cap when the panel is open. */
+.soundtrack-player {
+  --soundtrack-handle-width: 48px;
+  --soundtrack-panel-width: min(310px, calc(100vw - 70px));
+  position: fixed;
+  z-index: 48;
+  right: 0;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: var(--soundtrack-handle-width) var(--soundtrack-panel-width);
+  align-items: stretch;
+  width: calc(var(--soundtrack-handle-width) + var(--soundtrack-panel-width));
+  min-height: 62px;
+  transition: transform 220ms steps(3, end);
+  will-change: transform;
+}
+
+.soundtrack-player--collapsed {
+  transform: translateX(var(--soundtrack-panel-width));
+}
+
+.soundtrack-player--expanded {
+  transform: translateX(0);
+}
+
+.soundtrack-player button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.soundtrack-player svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
+.soundtrack-player__handle {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border: 0;
+  border-right: 0;
+}
+
+.soundtrack-player__panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "track transport"
+    "progress progress"
+    "volume volume";
+  gap: 7px 10px;
+  min-width: 0;
+  padding: 9px 11px 10px;
+}
+
+.soundtrack-player__track { grid-area: track; min-width: 0; }
+.soundtrack-player__track strong,
+.soundtrack-player__track span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.soundtrack-player__transport { grid-area: transport; display: flex; align-items: center; gap: 3px; }
+.soundtrack-player__progress { grid-area: progress; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.soundtrack-player__volume { grid-area: volume; display: grid; grid-template-columns: 22px 1fr minmax(68px, 1fr) 22px; align-items: center; gap: 5px; }
+.soundtrack-player__volume-meter { display: flex; align-items: stretch; gap: 2px; height: 11px; }
+.soundtrack-player__volume-meter i { flex: 1; min-width: 2px; }
+
+.soundtrack-player input[type="range"] { width: 100%; margin: 0; cursor: pointer; }
+.soundtrack-player input[type="range"]:disabled { cursor: default; opacity: .45; }
+
+/* Minecraft-style shell shared by the casual and competitive routes. */
+.soundtrack-player {
+  font-family: var(--font-pixel), monospace;
+  color: #fff;
+}
+
+.soundtrack-player__handle {
+  border: 4px solid #000;
+  background: #777;
+  box-shadow: inset 3px 3px #c6c6c6, inset -3px -3px #3f3f3f;
+  color: #fff;
+}
+
+.soundtrack-player__panel {
+  border: 4px solid #000;
+  border-left: 0;
+  background: #777;
+  box-shadow: inset 3px 3px #c6c6c6, inset -3px -3px #3f3f3f;
+}
+
+.soundtrack-player__track strong { color: #ffffa0; font-size: 10px; line-height: 1.35; text-shadow: 2px 2px #3f3f3f; }
+.soundtrack-player__track span { color: #dedede; font-size: 8px; line-height: 1.35; text-shadow: 1px 1px #3f3f3f; }
+.soundtrack-player__icon-button,
+.soundtrack-player__volume button { display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 2px solid #000; background: #8b8b8b; box-shadow: inset 1px 1px #c6c6c6, inset -1px -1px #555; color: #fff; }
+.soundtrack-player__icon-button:hover,
+.soundtrack-player__volume button:hover { color: #ffffa0; background: #969696; }
+.soundtrack-player__progress span { color: #fff; font-size: 8px; text-shadow: 1px 1px #3f3f3f; }
+.soundtrack-player__volume-meter i[data-active="true"] { background: #55c955; box-shadow: 1px 1px #174317; }
+.soundtrack-player__volume-meter i[data-active="false"] { background: #404040; box-shadow: inset 1px 1px #222; }
+.soundtrack-player input[type="range"] { accent-color: #55c955; }
+
+@media (prefers-reduced-motion: reduce) { .soundtrack-player { transition: none; } }
+@media (max-width: 420px) { .soundtrack-player { --soundtrack-handle-width: 42px; --soundtrack-panel-width: min(274px, calc(100vw - 56px)); } }

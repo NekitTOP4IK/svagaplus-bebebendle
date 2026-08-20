@@ -1,6 +1,7 @@
 "use client";
 
-import { Send } from "lucide-react";
+import Link from "next/link";
+import { Send, Settings } from "lucide-react";
 import { InfoButton } from "@/components/info-button";
 
 function telegramBotUrl(): string {
@@ -23,7 +24,14 @@ export function SocialLinks() {
         <span className="hidden sm:inline">Предложить свой слоп</span>
         <span className="sm:hidden">слоп</span>
       </a>
-      <div className="flex w-full justify-end">
+      <div className="flex w-full items-center justify-between gap-2">
+        <Link
+          href="/settings"
+          className="pixel-btn inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2 text-xs sm:text-sm"
+        >
+          <Settings className="h-4 w-4" aria-hidden />
+          Настройки
+        </Link>
         <InfoButton />
       </div>
     </div>

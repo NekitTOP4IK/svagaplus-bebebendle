@@ -629,6 +629,97 @@ body {
     background: rgba(0, 0, 0, 0.5);
 }
 
+.audio-settings {
+    overflow: hidden;
+    background-color: rgba(24, 24, 27, 0.95);
+    color: #fff;
+}
+
+.audio-settings__header {
+    border-bottom: 4px solid #000;
+    background: #3f3f46;
+    padding: 1.25rem;
+}
+
+.audio-settings__header h1 {
+    font-size: clamp(1.25rem, 4vw, 1.75rem);
+    font-weight: 700;
+}
+
+.audio-settings__header p {
+    margin-top: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.875rem;
+}
+
+.audio-settings__controls {
+    display: grid;
+    gap: 1rem;
+    padding: 1.25rem;
+}
+
+.audio-settings__switch {
+    display: flex;
+    min-height: 3.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    text-align: left;
+}
+
+.audio-settings__switch strong {
+    color: #ffffa0;
+}
+
+.audio-settings__volume {
+    display: grid;
+    gap: 0.75rem;
+    border: 2px solid #000;
+    background: #52525b;
+    box-shadow: inset 2px 2px 0 #71717a, inset -2px -2px 0 #27272a;
+    padding: 1rem;
+    font-family: var(--font-pixel), monospace;
+    font-size: 0.75rem;
+    text-shadow: 1px 1px 0 #18181b;
+}
+
+.audio-settings__volume > span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.audio-settings__volume output {
+    color: #ffffa0;
+}
+
+.audio-settings__volume input {
+    width: 100%;
+    accent-color: #55c955;
+}
+
+.audio-settings__volume input:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.audio-settings__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    border-top: 4px solid #000;
+    background: #27272a;
+    padding: 1rem 1.25rem;
+}
+
+.audio-settings__actions .pixel-btn {
+    min-height: 2.75rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+}
+
 /*
  * Minecraft dark-inventory style for announcement overlay.
  * Inspired by Java Edition inventory: deepslate outer frame with beveled edges,
