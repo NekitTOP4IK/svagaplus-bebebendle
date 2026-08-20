@@ -127,8 +127,6 @@ export function AudioProvider({ children }: Readonly<{ children: ReactNode }>): 
 
   const musicEnabledRef = useRef(preferences.musicEnabled);
   musicEnabledRef.current = preferences.musicEnabled;
-  const outcomeJinglesEnabledRef = useRef(preferences.outcomeJinglesEnabled);
-  outcomeJinglesEnabledRef.current = preferences.outcomeJinglesEnabled;
 
   const attemptPlay = useCallback((): void => {
     if (!activatedRef.current || !musicEnabledRef.current) return;
@@ -392,15 +390,7 @@ export function AudioProvider({ children }: Readonly<{ children: ReactNode }>): 
 
       const jingle = outcome === "victory" ? SOUNDTRACK_MANIFEST.victoryJingle : SOUNDTRACK_MANIFEST.defeatJingle;
       const source = jingle ? supportedSources(jingle, canPlay)[0] : undefined;
-      if (
-        !jingle ||
-        !source ||
-        !activatedRef.current ||
-        !musicEnabledRef.current ||
-        !outcomeJinglesEnabledRef.current
-      ) {
-        return;
-      }
+      if (!jingle || !source || !activatedRef.current || !musicEnabledRef.current) return;
 
       const generation = stateRef.current.generation;
       const request = jingleRequestCounterRef.current + 1;

@@ -377,21 +377,6 @@ describe("preferences", () => {
 });
 
 describe("outcome jingles", () => {
-  it("stays silent when outcome jingles are disabled", () => {
-    let controller!: AudioController;
-    function Grab(): null {
-      controller = useAudioController();
-      return null;
-    }
-    updateAudioPreferences({ outcomeJinglesEnabled: false });
-    render(wrap(<Grab />));
-    fireEvent.pointerDown(document.body);
-
-    act(() => controller.playOutcome("victory", "casual-result:no-jingle-preference"));
-
-    expect(audio().src).toBe("");
-  });
-
   it("plays a jingle once for a repeated event id", () => {
     let controller!: AudioController;
     function Grab(): null {

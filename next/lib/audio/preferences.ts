@@ -1,14 +1,12 @@
 export type AudioPreferences = Readonly<{
   musicEnabled: boolean;
   musicVolume: number;
-  outcomeJinglesEnabled: boolean;
   autoCollapsePlayer: boolean;
 }>;
 
 export const DEFAULT_AUDIO_PREFERENCES: AudioPreferences = {
   musicEnabled: true,
   musicVolume: 0.5,
-  outcomeJinglesEnabled: true,
   autoCollapsePlayer: true,
 };
 
@@ -29,8 +27,6 @@ export function normalizeAudioPreferences(value: unknown): AudioPreferences {
   return {
     musicEnabled: typeof record.musicEnabled === "boolean" ? record.musicEnabled : true,
     musicVolume: normalizeVolume(record.musicVolume),
-    outcomeJinglesEnabled:
-      typeof record.outcomeJinglesEnabled === "boolean" ? record.outcomeJinglesEnabled : true,
     autoCollapsePlayer:
       typeof record.autoCollapsePlayer === "boolean" ? record.autoCollapsePlayer : true,
   };

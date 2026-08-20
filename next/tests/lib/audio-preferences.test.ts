@@ -21,13 +21,11 @@ describe("audio preferences", () => {
     expect(normalizeAudioPreferences({ musicEnabled: false, musicVolume: 5 })).toEqual({
       musicEnabled: false,
       musicVolume: 1,
-      outcomeJinglesEnabled: true,
       autoCollapsePlayer: true,
     });
     expect(normalizeAudioPreferences({ musicVolume: -1 })).toEqual({
       musicEnabled: true,
       musicVolume: 0,
-      outcomeJinglesEnabled: true,
       autoCollapsePlayer: true,
     });
   });
@@ -36,7 +34,6 @@ describe("audio preferences", () => {
     writeAudioPreferences({
       musicEnabled: false,
       musicVolume: 0.8,
-      outcomeJinglesEnabled: false,
       autoCollapsePlayer: false,
     });
     updateAudioPreferences({ musicEnabled: true });
@@ -44,7 +41,6 @@ describe("audio preferences", () => {
     expect(readAudioPreferences()).toEqual({
       musicEnabled: true,
       musicVolume: 0.8,
-      outcomeJinglesEnabled: false,
       autoCollapsePlayer: false,
     });
     expect(localStorage.getItem(AUDIO_PREFERENCES_STORAGE_KEY)).not.toBeNull();

@@ -3,6 +3,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactElement,
@@ -49,6 +50,8 @@ function SettingSwitch({
 export function AudioSettingsPanel(): ReactElement {
   const preferences = useAudioPreferences();
   const [draft, setDraft] = useState<AudioPreferences>(preferences);
+  const [saveNoticeVisible, setSaveNoticeVisible] = useState(false);
+  const saveNoticeTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setDraft(preferences);
@@ -59,10 +62,36 @@ export function AudioSettingsPanel(): ReactElement {
     () =>
       preferences.musicEnabled !== draft.musicEnabled ||
       preferences.musicVolume !== draft.musicVolume ||
-      preferences.outcomeJinglesEnabled !== draft.outcomeJinglesEnabled ||
       preferences.autoCollapsePlayer !== draft.autoCollapsePlayer,
     [draft, preferences],
   );
+
+  useEffect(() => () => {
+    if (saveNoticeTimerRef.current !== null) {
+      window.clearTimeout(saveNoticeTimerRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    setSaveNoticeVisible(false);
+    if (saveNoticeTimerRef.current !== null) {
+      window.clearTimeout(saveNoticeTimerRef.current);
+      saveNoticeTimerRef.current = null;
+    }
+  }, [isDirty]);
+
+  const savePreferences = (): void => {
+    writeAudioPreferences(draft);
+    setSaveNoticeVisible(true);
+    if (saveNoticeTimerRef.current !== null) {
+      window.clearTimeout(saveNoticeTimerRef.current);
+    }
+    saveNoticeTimerRef.current = window.setTimeout(() => {
+      setSaveNoticeVisible(false);
+      saveNoticeTimerRef.current = null;
+    }, 5000);
+  };
 
   return (
     <section className="audio-settings pixel-container" aria-labelledby="settings-title">
@@ -122,27 +151,6 @@ export function AudioSettingsPanel(): ReactElement {
           </div>
         </section>
 
-        <section className="audio-settings__category" aria-labelledby="game-audio-settings-title">
-          <header className="audio-settings__category-header">
-            <span className="audio-settings__category-icon" aria-hidden="true">★</span>
-            <div>
-              <h2 id="game-audio-settings-title">Игровые события</h2>
-              <p>Звуковая обратная связь во время игры.</p>
-            </div>
-          </header>
-          <div className="audio-settings__group">
-            <SettingSwitch
-              title="Сигналы результата"
-              description="Короткая отбивка после победы или поражения."
-              checked={draft.outcomeJinglesEnabled}
-              onToggle={() => setDraft((current) => ({
-                ...current,
-                outcomeJinglesEnabled: !current.outcomeJinglesEnabled,
-              }))}
-            />
-          </div>
-        </section>
-
         <section className="audio-settings__category" aria-labelledby="player-settings-title">
           <header className="audio-settings__category-header">
             <span className="audio-settings__category-icon" aria-hidden="true">▣</span>
@@ -166,22 +174,39 @@ export function AudioSettingsPanel(): ReactElement {
       </div>
 
       <footer className="audio-settings__actions">
-        <span className="audio-settings__save-state" data-dirty={isDirty ? "true" : "false"}>
-          {isDirty ? "Есть несохранённые изменения" : "Все изменения сохранены"}
-        </span>
-        {isDirty ? (
-          <button type="button" className="pixel-btn" onClick={() => setDraft(preferences)}>
-            Отменить
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="pixel-btn pixel-btn-ok"
-          disabled={!isDirty}
-          onClick={() => writeAudioPreferences(draft)}
+        <span
+          className="audio-settings__save-state"
+          role="status"
+          aria-hidden={!saveNoticeVisible}
+          data-visible={saveNoticeVisible ? "true" : "false"}
         >
-          Сохранить
-        </button>
+          Изменения сохранены
+        </span>
+        <div className="audio-settings__action-buttons">
+          <button
+            type="button"
+            className="audio-settings__save pixel-btn pixel-btn-ok"
+            disabled={!isDirty}
+            onClick={savePreferences}
+          >
+            Сохранить
+          </button>
+          <span
+            className="audio-settings__cancel-slot"
+            data-visible={isDirty ? "true" : "false"}
+          >
+            <button
+              type="button"
+              className="pixel-btn pixel-btn-danger"
+              disabled={!isDirty}
+              aria-hidden={!isDirty}
+              tabIndex={isDirty ? 0 : -1}
+              onClick={() => setDraft(preferences)}
+            >
+              Отменить
+            </button>
+          </span>
+        </div>
       </footer>
     </section>
   );
