@@ -13,6 +13,7 @@ export const AUDIT_ACTIONS = {
   SETTINGS_DAILY_ROTATION_NOTIFY: "settings.daily_rotation_notify",
   SETTINGS_DAILY_GENERATION: "settings.daily_generation",
   SETTINGS_SOUNDTRACK_METADATA: "settings.soundtrack_metadata",
+  SETTINGS_CREDITS: "settings.credits",
   ANNOUNCEMENTS_CREATE: "announcements.create",
   ANNOUNCEMENTS_UPDATE: "announcements.update",
   ANNOUNCEMENTS_DELETE: "announcements.delete",

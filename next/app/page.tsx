@@ -10,6 +10,7 @@ import { getDailyPublicStatus } from "@/lib/app-settings";
 import { getActiveAnnouncements } from "@/lib/announcements";
 import { HomeOverlays } from "@/components/home-overlays";
 import { getCurrentUser } from "@/lib/auth-server";
+import { getCreditGroups } from "@/lib/credits-settings";
 export const dynamic = "force-dynamic";
 
 const splashTexts = [
@@ -63,7 +64,11 @@ const splashTexts = [
 export default async function HomePage() {
   const hasDaily = await hasDailyForToday();
   const dailyStatus = await getDailyPublicStatus(hasDaily);
-  const [announcements, user] = await Promise.all([getActiveAnnouncements(), getCurrentUser()]);
+  const [announcements, user, creditGroups] = await Promise.all([
+    getActiveAnnouncements(),
+    getCurrentUser(),
+    getCreditGroups(),
+  ]);
 
   return (
     <div
@@ -116,7 +121,7 @@ export default async function HomePage() {
             />
           </Link>
 
-          <SocialLinks />
+          <SocialLinks creditGroups={creditGroups} />
         </div>
       </main>
 

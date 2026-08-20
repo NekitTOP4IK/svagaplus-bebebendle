@@ -37,6 +37,7 @@ function createController(overrides: Partial<AudioController["state"]> = {}, tra
     trackCount,
     currentTime: 65,
     duration: 190,
+    playerObscured: false,
     setScene: vi.fn(),
     clearScene: vi.fn(),
     playOutcome: vi.fn(),
@@ -44,6 +45,7 @@ function createController(overrides: Partial<AudioController["state"]> = {}, tra
     restorePlaybackVolume: vi.fn(),
     setPlaybackActivationBlocked: vi.fn(),
     setPanelHovering: vi.fn(),
+    setPlayerObscured: vi.fn(),
     togglePanel: vi.fn(),
     togglePlayback: vi.fn(),
     seek: vi.fn(),
@@ -103,6 +105,16 @@ describe("SoundtrackPlayer", () => {
 
     fireEvent.pointerLeave(dock);
     expect(controller.current!.setPanelHovering).toHaveBeenCalledWith(false);
+  });
+
+  it("marks the dock for contextual dimming while keeping pointer interaction available", () => {
+    controller.current = { ...createController(), playerObscured: true };
+    renderPlayer();
+
+    const dock = screen.getByLabelText("Музыкальный плеер");
+    expect(dock).toHaveClass("soundtrack-player--obscured");
+    fireEvent.pointerEnter(dock);
+    expect(controller.current!.setPanelHovering).toHaveBeenCalledWith(true);
   });
 
   it("uses only a compact handle while visually collapsed and toggles it", () => {

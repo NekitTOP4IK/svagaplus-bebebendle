@@ -26,6 +26,7 @@ interface UseScransDataParams {
     | "rejected"
     | "daily"
     | "soundtrack"
+    | "credits"
     | "stats"
     | "audit"
     | "duplicates"

@@ -107,7 +107,7 @@ export function SoundtrackPlayer(): ReactElement | null {
         </div>
       )}
       <aside
-        className={`soundtrack-player${isExpanded ? " soundtrack-player--expanded" : " soundtrack-player--collapsed"}`}
+        className={`soundtrack-player${isExpanded ? " soundtrack-player--expanded" : " soundtrack-player--collapsed"}${controller.playerObscured ? " soundtrack-player--obscured" : ""}`}
         data-panel-mode={state.panelMode}
         data-playback={state.status}
         data-hint={showHint ? "true" : undefined}

@@ -17,6 +17,7 @@ import { AuthorCardModal } from "@/components/admin/author-card-modal";
 import { EditScranModal } from "@/components/admin/edit-scran-modal";
 import { DailyPanel } from "@/components/admin/daily-panel";
 import { SoundtrackPanel } from "@/components/admin/soundtrack-panel";
+import { CreditsPanel } from "@/components/admin/credits-panel";
 import {
   StatsPanel,
   AuditPanel,
@@ -95,6 +96,7 @@ const MOD_TABS: { id: ViewMode; label: string; adminOnly?: boolean }[] = [
   { id: "rejected", label: "Отклонённые" },
   { id: "daily", label: "Daily" },
   { id: "soundtrack", label: "Музыка", adminOnly: true },
+  { id: "credits", label: "Авторы", adminOnly: true },
   { id: "stats", label: "Статистика" },
   { id: "duplicates", label: "Дубликаты" },
   { id: "users", label: "Пользователи", adminOnly: true },
@@ -480,6 +482,10 @@ export function AdminDashboard({
         ) : view === "soundtrack" ? (
           <div className="pixel-container border-4 border-black bg-zinc-900/80 p-4">
             <SoundtrackPanel />
+          </div>
+        ) : view === "credits" ? (
+          <div className="pixel-container border-4 border-black bg-zinc-900/80 p-4">
+            <CreditsPanel />
           </div>
         ) : view === "stats" ? (
           <div className="pixel-container border-4 border-black bg-zinc-900/80 p-4">
