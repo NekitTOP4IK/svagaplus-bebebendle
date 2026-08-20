@@ -1,6 +1,8 @@
 const path = require("node:path");
 
 const root = __dirname;
+const deployRoot = process.env.BEBEBENDLE_DEPLOY_ROOT || root;
+const sharedLogs = path.join(deployRoot, "shared", "logs");
 
 module.exports = {
   apps: [
@@ -18,6 +20,8 @@ module.exports = {
       max_restarts: 10,
       min_uptime: "10s",
       time: true,
+      out_file: path.join(sharedLogs, "next", "out.log"),
+      error_file: path.join(sharedLogs, "next", "error.log"),
     },
     {
       name: "bebebendle-bot",
@@ -33,6 +37,8 @@ module.exports = {
       max_restarts: 10,
       min_uptime: "10s",
       time: true,
+      out_file: path.join(sharedLogs, "bot", "out.log"),
+      error_file: path.join(sharedLogs, "bot", "error.log"),
     },
   ],
 };
