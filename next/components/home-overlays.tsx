@@ -1,6 +1,11 @@
 "use client";
 
-import { useLayoutEffect, useState, type ReactElement } from "react";
+import {
+  useLayoutEffect,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+} from "react";
 import type { Announcement } from "@/db/schema";
 import { AnnouncementOverlay } from "@/components/announcements/announcement-overlay";
 import {
@@ -13,8 +18,23 @@ type Props = Readonly<{
   announcements: Announcement[];
 }>;
 
+const subscribeToNothing = (): (() => void) => () => undefined;
+const getClientMounted = (): boolean => true;
+const getServerNotMounted = (): boolean => false;
+
 export function HomeOverlays({ announcements }: Props): ReactElement {
-  const [entered, setEntered] = useState(hasEnteredCurrentDocument);
+  const mounted = useSyncExternalStore(
+    subscribeToNothing,
+    getClientMounted,
+    getServerNotMounted,
+  );
+  const enteredBeforeMount = useSyncExternalStore(
+    subscribeToNothing,
+    hasEnteredCurrentDocument,
+    getServerNotMounted,
+  );
+  const [enteredThisMount, setEnteredThisMount] = useState(false);
+  const entered = enteredBeforeMount || enteredThisMount;
   const {
     activatePlayback,
     restorePlaybackVolume,
@@ -22,25 +42,27 @@ export function HomeOverlays({ announcements }: Props): ReactElement {
   } = useAudioController();
 
   useLayoutEffect(() => {
-    if (entered) return;
+    if (!mounted) return;
 
-    setPlaybackActivationBlocked(true);
+    setPlaybackActivationBlocked(!entered);
     return () => setPlaybackActivationBlocked(false);
-  }, [entered, setPlaybackActivationBlocked]);
+  }, [entered, mounted, setPlaybackActivationBlocked]);
 
   return (
     <>
-      <EntranceGate
-        onActivate={() => {
-          setPlaybackActivationBlocked(false);
-          activatePlayback(true);
-        }}
-        onEntered={() => {
-          setEntered(true);
-          requestAnimationFrame(() => restorePlaybackVolume());
-        }}
-      />
-      {entered && <AnnouncementOverlay active={announcements} />}
+      {mounted && !entered && (
+        <EntranceGate
+          onActivate={() => {
+            setPlaybackActivationBlocked(false);
+            activatePlayback(true);
+          }}
+          onEntered={() => {
+            setEnteredThisMount(true);
+            requestAnimationFrame(() => restorePlaybackVolume());
+          }}
+        />
+      )}
+      {mounted && entered && <AnnouncementOverlay active={announcements} />}
     </>
   );
 }

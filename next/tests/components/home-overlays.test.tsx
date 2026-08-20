@@ -11,12 +11,16 @@ const audio = vi.hoisted(() => ({
   setPanelHovering: vi.fn(),
 }));
 
+const entrance = vi.hoisted(() => ({
+  alreadyEntered: false,
+}));
+
 vi.mock("@/components/audio/audio-provider", () => ({
   useAudioController: () => audio,
 }));
 
 vi.mock("@/components/entrance-gate", () => ({
-  hasEnteredCurrentDocument: () => false,
+  hasEnteredCurrentDocument: () => entrance.alreadyEntered,
   EntranceGate: ({
     onActivate,
     onEntered,
@@ -38,10 +42,22 @@ vi.mock("@/components/announcements/announcement-overlay", () => ({
 describe("HomeOverlays", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    entrance.alreadyEntered = false;
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
     });
+  });
+
+  it("skips the entrance gate after it was passed in the current tab", () => {
+    entrance.alreadyEntered = true;
+
+    render(<HomeOverlays announcements={[]} />);
+
+    expect(screen.queryByTestId("entrance-gate")).not.toBeInTheDocument();
+    expect(screen.getByTestId("announcements")).toBeVisible();
+    expect(audio.setPlaybackActivationBlocked).toHaveBeenCalledWith(false);
+    expect(audio.activatePlayback).not.toHaveBeenCalled();
   });
 
   it("blocks background activation and mounts announcements only after the gate exits", () => {

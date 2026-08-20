@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { EntranceGate } from "@/components/entrance-gate";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ENTRANCE_GATE_SESSION_KEY,
+  EntranceGate,
+  hasEnteredCurrentDocument,
+} from "@/components/entrance-gate";
 
 describe("EntranceGate", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
   it("requires an explicit interaction before revealing the home overlays", async () => {
     const onEntered = vi.fn();
     const onActivate = vi.fn();
@@ -18,6 +26,8 @@ describe("EntranceGate", () => {
     fireEvent.click(screen.getByRole("button", { name: "Войти" }));
 
     expect(onActivate).toHaveBeenCalledTimes(1);
+    expect(window.sessionStorage.getItem(ENTRANCE_GATE_SESSION_KEY)).toBe("true");
+    expect(hasEnteredCurrentDocument()).toBe(true);
     await waitFor(() => expect(onEntered).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("dialog", { name: title })).not.toBeInTheDocument();
   });
