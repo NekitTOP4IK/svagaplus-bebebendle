@@ -67,10 +67,14 @@ export function AudioSettingsPanel(): ReactElement {
             step={1}
             value={volumePercent}
             disabled={!draft.musicEnabled}
-            onChange={(event) => setDraft((current) => ({
-              ...current,
-              musicVolume: Number(event.currentTarget.value) / 100,
-            }))}
+            onChange={(event) => {
+              const musicVolume = Number(event.currentTarget.value) / 100;
+
+              setDraft((current) => ({
+                ...current,
+                musicVolume,
+              }));
+            }}
           />
         </label>
       </div>
