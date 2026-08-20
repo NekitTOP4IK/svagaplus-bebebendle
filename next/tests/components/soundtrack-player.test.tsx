@@ -40,6 +40,8 @@ function createController(overrides: Partial<AudioController["state"]> = {}, tra
     setScene: vi.fn(),
     clearScene: vi.fn(),
     playOutcome: vi.fn(),
+    activatePlayback: vi.fn(),
+    restorePlaybackVolume: vi.fn(),
     togglePanel: vi.fn(),
     togglePlayback: vi.fn(),
     seek: vi.fn(),
@@ -111,8 +113,10 @@ describe("SoundtrackPlayer", () => {
     fireEvent.change(screen.getByLabelText("Позиция трека"), { target: { value: "90" } });
     expect(controller.current!.seek).toHaveBeenCalledWith(90);
 
-    fireEvent.click(screen.getByRole("button", { name: "Увеличить громкость" }));
-    expect(controller.current!.setVolume).toHaveBeenCalledWith(0.6);
+    fireEvent.change(screen.getByLabelText("Громкость: 50%"), { target: { value: "0.7" } });
+    expect(controller.current!.setVolume).toHaveBeenCalledWith(0.7);
+    expect(screen.getByText("50%")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Увеличить громкость" })).toBeNull();
     expect(screen.getAllByRole("slider")).toHaveLength(2);
     expect(document.querySelector(".soundtrack-player__volume-meter")).toBeNull();
     expect(screen.getByText("1:05 / 3:10")).toBeVisible();

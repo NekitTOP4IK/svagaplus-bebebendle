@@ -90,10 +90,6 @@ export function SoundtrackPlayer(): ReactElement | null {
   const Icon = isMuted ? MuteIcon : isPlaying ? PauseIcon : PlayIcon;
   const showHint = state.panelMode === "collapsed" && !hintSeen && !hintDismissed;
 
-  const changeVolume = (delta: number): void => {
-    controller.setVolume(Math.min(1, Math.max(0, volume + delta)));
-  };
-
   const togglePanel = (): void => {
     if (showHint) {
       setHintDismissed(true);
@@ -168,10 +164,8 @@ export function SoundtrackPlayer(): ReactElement | null {
             <span aria-hidden="true">{formatTime(safeCurrentTime)} / {formatTime(safeDuration)}</span>
           </label>
 
-          <div className="soundtrack-player__volume" aria-label={volumeLabel(volume)}>
-            <button type="button" onClick={() => changeVolume(-0.1)} aria-label="Уменьшить громкость">
-              <ArrowIcon direction="previous" />
-            </button>
+          <div className="soundtrack-player__volume">
+            <span>{Math.round(volume * 100)}%</span>
             <input
               type="range"
               min="0"
@@ -181,9 +175,6 @@ export function SoundtrackPlayer(): ReactElement | null {
               onChange={(event) => controller.setVolume(Number(event.currentTarget.value))}
               aria-label={volumeLabel(volume)}
             />
-            <button type="button" onClick={() => changeVolume(0.1)} aria-label="Увеличить громкость">
-              <ArrowIcon direction="next" />
-            </button>
           </div>
         </section>
       </aside>

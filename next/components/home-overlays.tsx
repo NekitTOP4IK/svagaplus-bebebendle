@@ -7,6 +7,7 @@ import {
   EntranceGate,
   hasEnteredCurrentDocument,
 } from "@/components/entrance-gate";
+import { useAudioController } from "@/components/audio/audio-provider";
 
 type Props = Readonly<{
   announcements: Announcement[];
@@ -14,10 +15,17 @@ type Props = Readonly<{
 
 export function HomeOverlays({ announcements }: Props): ReactElement {
   const [entered, setEntered] = useState(hasEnteredCurrentDocument);
+  const audio = useAudioController();
 
   return (
     <>
-      <EntranceGate onEntered={() => setEntered(true)} />
+      <EntranceGate
+        onActivate={() => audio.activatePlayback(true)}
+        onEntered={() => {
+          audio.restorePlaybackVolume();
+          setEntered(true);
+        }}
+      />
       {entered && <AnnouncementOverlay active={announcements} />}
     </>
   );

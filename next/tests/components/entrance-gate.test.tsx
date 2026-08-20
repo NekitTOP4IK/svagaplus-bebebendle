@@ -7,13 +7,15 @@ import { EntranceGate } from "@/components/entrance-gate";
 describe("EntranceGate", () => {
   it("requires an explicit interaction before revealing the home overlays", async () => {
     const onEntered = vi.fn();
-    render(<EntranceGate onEntered={onEntered} />);
+    const onActivate = vi.fn();
+    render(<EntranceGate onActivate={onActivate} onEntered={onEntered} />);
 
-    expect(screen.getByRole("dialog", { name: "Всё готово!" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Нажми сюда, чтобы войти" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Войти в игру" }));
+    fireEvent.click(screen.getByRole("button", { name: "Войти" }));
 
+    expect(onActivate).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(onEntered).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole("dialog", { name: "Всё готово!" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Нажми сюда, чтобы войти" })).not.toBeInTheDocument();
   });
 });

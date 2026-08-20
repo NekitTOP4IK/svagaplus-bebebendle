@@ -188,6 +188,24 @@ describe("single audio element and user activation", () => {
     expect(audio().play).toHaveBeenCalledTimes(1);
   });
 
+  it("starts silently from the entrance and reveals the configured volume afterwards", async () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    render(wrap(<Grab />));
+
+    act(() => controller.activatePlayback(true));
+
+    expect(audio().play).toHaveBeenCalledTimes(1);
+    expect(audio().volume).toBe(0);
+    await waitFor(() => expect(controller.state.panelMode).toBe("auto"));
+
+    act(() => controller.restorePlaybackVolume());
+    expect(audio().volume).toBe(0.5);
+  });
+
   it("moves to blocked when autoplay is rejected and does not retry on later gestures", async () => {
     let controller!: AudioController;
     function Grab(): null {

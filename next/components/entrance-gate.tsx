@@ -11,10 +11,11 @@ export function hasEnteredCurrentDocument(): boolean {
 }
 
 type Props = Readonly<{
+  onActivate(): void;
   onEntered(): void;
 }>;
 
-export function EntranceGate({ onEntered }: Props): ReactElement | null {
+export function EntranceGate({ onActivate, onEntered }: Props): ReactElement | null {
   const [visible, setVisible] = useState(() => !enteredCurrentDocument);
   const reduceMotion = useReducedMotion();
 
@@ -28,6 +29,7 @@ export function EntranceGate({ onEntered }: Props): ReactElement | null {
   }, [visible]);
 
   const enter = (): void => {
+    onActivate();
     enteredCurrentDocument = true;
     setVisible(false);
   };
@@ -44,6 +46,9 @@ export function EntranceGate({ onEntered }: Props): ReactElement | null {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.35 }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
         >
           <div
             className="absolute inset-[-24px] scale-105 bg-cover bg-center blur-[3px]"
@@ -71,10 +76,10 @@ export function EntranceGate({ onEntered }: Props): ReactElement | null {
               priority
             />
             <h1 id="entrance-title" className="pixel-text mt-7 text-lg font-bold text-white sm:text-2xl">
-              Всё готово!
+              Нажми сюда, чтобы войти
             </h1>
             <p className="mx-auto mt-2 max-w-md text-sm text-white/75 sm:text-base">
-              Остался последний шаг. Заходи — тебя уже ждут.
+              Один клик — и можно начинать.
             </p>
 
             <motion.button
@@ -85,7 +90,7 @@ export function EntranceGate({ onEntered }: Props): ReactElement | null {
               whileHover={reduceMotion ? undefined : { scale: 1.015 }}
               whileTap={reduceMotion ? undefined : { scale: 0.985 }}
             >
-              Войти в игру
+              Войти
             </motion.button>
             <p className="mt-3 text-xs text-white/45">Нажми кнопку или Enter</p>
           </motion.div>

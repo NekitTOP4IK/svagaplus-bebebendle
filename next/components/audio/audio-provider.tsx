@@ -42,6 +42,8 @@ export type AudioController = Readonly<{
   setScene(scene: AudioScene, ownerId: string): void;
   clearScene(ownerId: string): void;
   playOutcome(outcome: Outcome, eventId: string): void;
+  activatePlayback(silent?: boolean): void;
+  restorePlaybackVolume(): void;
   togglePanel(): void;
   togglePlayback(): void;
   seek(seconds: number): void;
@@ -178,6 +180,17 @@ export function AudioProvider({
       },
     );
   }, [dispatch, getAudio]);
+
+  const activatePlayback = useCallback((silent = false): void => {
+    activatedRef.current = true;
+    const element = getAudio();
+    if (silent) element.volume = 0;
+    attemptPlay();
+  }, [attemptPlay, getAudio]);
+
+  const restorePlaybackVolume = useCallback((): void => {
+    getAudio().volume = preferences.musicVolume;
+  }, [getAudio, preferences.musicVolume]);
 
   const applyScene = useCallback(
     (scene: AudioScene): void => {
@@ -317,12 +330,11 @@ export function AudioProvider({
 
   useEffect(() => {
     const onGesture = (): void => {
-      if (activatedRef.current) return;
-      activatedRef.current = true;
       document.removeEventListener("pointerdown", onGesture);
       document.removeEventListener("keydown", onGesture);
       document.removeEventListener("click", onGesture);
-      attemptPlay();
+      if (activatedRef.current) return;
+      activatePlayback();
     };
     document.addEventListener("pointerdown", onGesture);
     document.addEventListener("keydown", onGesture);
@@ -332,7 +344,7 @@ export function AudioProvider({
       document.removeEventListener("keydown", onGesture);
       document.removeEventListener("click", onGesture);
     };
-  }, [attemptPlay]);
+  }, [activatePlayback]);
 
   useEffect(() => {
     getAudio().volume = preferences.musicVolume;
@@ -498,6 +510,8 @@ export function AudioProvider({
     setScene,
     clearScene,
     playOutcome,
+    activatePlayback,
+    restorePlaybackVolume,
     togglePanel,
     togglePlayback,
     seek,
