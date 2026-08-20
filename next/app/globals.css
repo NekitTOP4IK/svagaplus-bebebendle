@@ -673,34 +673,68 @@ body {
 }
 
 .audio-settings__volume {
-    display: grid;
-    gap: 0.75rem;
-    border: 2px solid #000;
-    background: #52525b;
-    box-shadow: inset 2px 2px 0 #71717a, inset -2px -2px 0 #27272a;
-    padding: 1rem;
+    position: relative;
+    display: block;
+    min-height: 3.5rem;
+    overflow: hidden;
+    border: 3px solid #080808;
+    background:
+        linear-gradient(rgb(255 255 255 / 3%), rgb(0 0 0 / 8%)),
+        #4b4b4f;
+    box-shadow:
+        inset 2px 2px 0 #747478,
+        inset -2px -2px 0 #252527;
     font-family: var(--font-pixel), monospace;
-    font-size: 0.75rem;
-    text-shadow: 1px 1px 0 #18181b;
+    font-size: 0.8rem;
+    color: #fff;
+    text-shadow: 2px 2px 0 #262626;
+    cursor: pointer;
 }
 
-.audio-settings__volume > span {
-    display: flex;
+.audio-settings__volume-copy {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: grid;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    justify-items: center;
+    padding: 0.5rem 2rem;
+    pointer-events: none;
 }
 
-.audio-settings__volume output {
-    color: #ffffa0;
+.audio-settings__volume-thumb {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    bottom: 0;
+    left: clamp(0px, calc(var(--audio-volume-position) - 0.5rem), calc(100% - 1rem));
+    width: 1rem;
+    border-left: 2px solid #d0d0d0;
+    border-right: 2px solid #393939;
+    background: #929292;
+    box-shadow:
+        inset 2px 0 0 #b7b7b7,
+        inset -2px 0 0 #5d5d5d;
+    pointer-events: none;
 }
 
 .audio-settings__volume input {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
     width: 100%;
-    accent-color: #55c955;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: inherit;
 }
 
-.audio-settings__volume input:disabled {
+.audio-settings__volume:has(input:focus-visible) {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+}
+
+.audio-settings__volume:has(input:disabled) {
     cursor: not-allowed;
     opacity: 0.45;
 }

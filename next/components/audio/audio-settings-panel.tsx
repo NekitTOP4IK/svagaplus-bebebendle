@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactElement,
+} from "react";
 import { useAudioPreferences } from "@/components/audio/audio-preferences-provider";
 import {
   writeAudioPreferences,
@@ -45,10 +51,13 @@ export function AudioSettingsPanel(): ReactElement {
           <strong>{draft.musicEnabled ? "Вкл" : "Выкл"}</strong>
         </button>
 
-        <label className="audio-settings__volume">
-          <span>
-            <strong>Громкость</strong>
-            <output>{volumePercent}%</output>
+        <label
+          className="audio-settings__volume"
+          style={{ "--audio-volume-position": `${volumePercent}%` } as CSSProperties}
+        >
+          <span className="audio-settings__volume-thumb" aria-hidden="true" />
+          <span className="audio-settings__volume-copy" aria-hidden="true">
+            Громкость: {volumePercent}%
           </span>
           <input
             type="range"

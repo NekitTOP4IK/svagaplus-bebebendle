@@ -35,9 +35,11 @@ describe("AudioSettingsPanel", () => {
     const volume = screen.getByRole("slider", { name: "Громкость" });
 
     fireEvent.change(volume, { target: { value: "20" } });
+    expect(screen.getByText("Громкость: 20%")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Отменить" }));
 
     expect(volume).toHaveValue("50");
+    expect(screen.getByText("Громкость: 50%")).toBeInTheDocument();
     expect(localStorage.getItem(AUDIO_PREFERENCES_STORAGE_KEY)).toBeNull();
   });
 });
