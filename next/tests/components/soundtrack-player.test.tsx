@@ -170,4 +170,13 @@ describe("SoundtrackPlayer", () => {
     expect(handle.querySelector("svg path")?.getAttribute("d")).toContain("m5 2");
     expect(screen.getByText("0%")).toBeVisible();
   });
+
+  it("renders the collapsed music icon as separate stems and note heads", () => {
+    controller.current = createController({ panelMode: "collapsed" });
+    renderPlayer();
+
+    const handle = screen.getByRole("button", { name: "Открыть плеер" });
+    expect(handle.querySelector("svg path")?.getAttribute("d")).toContain("M5.5 3.5");
+    expect(handle.querySelectorAll("svg circle")).toHaveLength(2);
+  });
 });
