@@ -8,7 +8,7 @@ import { HomeUserMenu } from "@/components/home-user-menu";
 import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
 import { getDailyPublicStatus } from "@/lib/app-settings";
 import { getActiveAnnouncements } from "@/lib/announcements";
-import { AnnouncementOverlay } from "@/components/announcements/announcement-overlay";
+import { HomeOverlays } from "@/components/home-overlays";
 import { getCurrentUser } from "@/lib/auth-server";
 export const dynamic = "force-dynamic";
 
@@ -130,7 +130,7 @@ export default async function HomePage() {
         </div>
       </footer>
 
-      <AnnouncementOverlay active={announcements} />
+      <HomeOverlays announcements={announcements} />
     </div>
   );
 }

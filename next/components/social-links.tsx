@@ -1,6 +1,8 @@
 "use client";
 
-import { Send } from "lucide-react";
+import Link from "next/link";
+import { Send, Settings } from "lucide-react";
+import { CreditsButton } from "@/components/credits-button";
 import { InfoButton } from "@/components/info-button";
 
 function telegramBotUrl(): string {
@@ -23,7 +25,16 @@ export function SocialLinks() {
         <span className="hidden sm:inline">Предложить свой слоп</span>
         <span className="sm:hidden">слоп</span>
       </a>
-      <div className="flex w-full justify-end">
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_2.5rem_2.5rem] items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_3rem_3rem]">
+        <CreditsButton />
+        <Link
+          href="/settings"
+          className="pixel-btn grid h-10 w-10 place-items-center p-0 sm:h-12 sm:w-12"
+          aria-label="Настройки"
+          title="Настройки"
+        >
+          <Settings className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+        </Link>
         <InfoButton />
       </div>
     </div>
