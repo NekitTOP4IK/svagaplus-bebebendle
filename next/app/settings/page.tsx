@@ -11,7 +11,7 @@ export default function SettingsPage(): ReactElement {
           <div className="settings-page__heading">
             <span>Параметры игры</span>
             <h1 id="settings-title" className="pixel-text">Настройки</h1>
-            <p>Управляй музыкой и поведением плеера.</p>
+            <p>Настройки. А что ты тут ещё хотел увидеть?</p>
           </div>
           <Link href="/" className="settings-page__back pixel-btn">
             ← На главную

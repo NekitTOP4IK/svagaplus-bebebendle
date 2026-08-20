@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type ReactElement,
 } from "react";
+import Image from "next/image";
 import { useAudioPreferences } from "@/components/audio/audio-preferences-provider";
 import {
   writeAudioPreferences,
@@ -98,7 +99,15 @@ export function AudioSettingsPanel(): ReactElement {
       <div className="audio-settings__categories">
         <section className="audio-settings__category" aria-labelledby="music-settings-title">
           <header className="audio-settings__category-header">
-            <span className="audio-settings__category-icon" aria-hidden="true">♫</span>
+            <span className="audio-settings__category-icon" aria-hidden="true">
+              <Image
+                src="/music-disc-precipice.webp"
+                alt=""
+                width={32}
+                height={32}
+                className="audio-settings__category-image"
+              />
+            </span>
             <div>
               <h2 id="music-settings-title">Музыка</h2>
               <p>Саундтрек меню и игровых режимов.</p>

@@ -719,6 +719,13 @@ body {
     text-shadow: 1px 1px #18181b;
 }
 
+.audio-settings__category-image {
+    width: 2.5rem;
+    height: 2.5rem;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+
 .audio-settings__category-header h2 {
     font-family: var(--font-pixel), monospace;
     font-size: 0.78rem;
@@ -828,8 +835,8 @@ body {
     display: block;
     position: relative;
     z-index: 2;
-    width: calc(100% - 0.35rem + 0.2rem);
-    height: 2.85rem;
+    width: calc(100% - 0.35rem + 0.8rem);
+    height: 3.1rem;
     margin-left: 0.35rem;
     border-left: 3px solid #52525b;
     border-bottom: 3px solid #52525b;
