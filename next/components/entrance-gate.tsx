@@ -72,12 +72,9 @@ export function EntranceGate({ onActivate, onEntered }: Props): ReactElement | n
               className="mx-auto h-auto w-full max-w-[430px]"
               priority
             />
-            <h1 id="entrance-title" className="pixel-text mt-7 text-lg font-bold text-white sm:text-2xl">
-              Нажми сюда, чтобы войти
+            <h1 id="entrance-title" className="pixel-text mx-auto mt-7 max-w-lg text-base leading-relaxed font-bold text-white sm:text-xl">
+              Я думаю тебе определённо стоит нажать кнопочку ниже
             </h1>
-            <p className="mx-auto mt-2 max-w-md text-sm text-white/75 sm:text-base">
-              Один клик — и можно начинать.
-            </p>
 
             <motion.button
               type="button"
