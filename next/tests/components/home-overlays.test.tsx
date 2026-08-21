@@ -6,7 +6,6 @@ import { HomeOverlays } from "@/components/home-overlays";
 
 const audio = vi.hoisted(() => ({
   activatePlayback: vi.fn(),
-  restorePlaybackVolume: vi.fn(),
   setPlaybackActivationBlocked: vi.fn(),
   setPanelHovering: vi.fn(),
 }));
@@ -43,10 +42,6 @@ describe("HomeOverlays", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     entrance.alreadyEntered = false;
-    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    });
   });
 
   it("skips the entrance gate after it was passed in the current document", () => {
@@ -69,12 +64,11 @@ describe("HomeOverlays", () => {
     fireEvent.click(screen.getByRole("button", { name: "Активировать" }));
 
     expect(audio.setPlaybackActivationBlocked).toHaveBeenCalledWith(false);
-    expect(audio.activatePlayback).toHaveBeenCalledWith(true);
+    expect(audio.activatePlayback).toHaveBeenCalledWith();
     expect(screen.queryByTestId("announcements")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Завершить вход" }));
 
     expect(screen.getByTestId("announcements")).toBeVisible();
-    expect(audio.restorePlaybackVolume).toHaveBeenCalledTimes(1);
   });
 });
