@@ -515,6 +515,26 @@ describe("outcome jingles", () => {
     expect(audio().play.mock.calls.length).toBe(jinglePlays);
   });
 
+  it("restores the configured volume before playing a jingle after a scene fade", () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+
+    audio().volume = 0;
+    audio().muted = true;
+
+    act(() => controller.playOutcome("victory", "casual-result:after-fade"));
+
+    expect(audio().volume).toBe(0.5);
+    expect(audio().muted).toBe(false);
+    expect(audio().src).toBe("/soundtrack/victory.mp3");
+    expect(audio().play).toHaveBeenCalled();
+  });
+
   it("stays silent after the jingle ends", () => {
     let controller!: AudioController;
     function Grab(): null {
@@ -555,6 +575,32 @@ describe("outcome jingles", () => {
     await waitFor(() => expect(audio().src).toBe("/soundtrack/ranked-game-a.mp3"));
     expect(controller.state.scene).toBe("ranked-game");
     expect(controller.state.outcome).toBeNull();
+  });
+
+  it("keeps a casual result jingle when the game scene is cleared after completion", async () => {
+    let controller!: AudioController;
+    route.value = "/daily";
+    function Grab(): null {
+      controller = useAudioController();
+      const setScene = controller.setScene;
+      const clearScene = controller.clearScene;
+      useEffect(() => {
+        setScene("casual-game", "casual-result");
+        return () => clearScene("casual-result");
+      }, [clearScene, setScene]);
+      return null;
+    }
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(audio().src).toBe("/soundtrack/casual-game-a.mp3"));
+
+    act(() => {
+      controller.clearScene("casual-result");
+      controller.playOutcome("victory", "casual-result:scene-cleared");
+    });
+
+    expect(audio().src).toBe("/soundtrack/victory.mp3");
+    expect(audio().play).toHaveBeenCalled();
   });
 
   it("stops the background and stays silent when a jingle is unavailable", () => {
