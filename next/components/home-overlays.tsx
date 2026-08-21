@@ -37,7 +37,6 @@ export function HomeOverlays({ announcements }: Props): ReactElement {
   const entered = enteredBeforeMount || enteredThisMount;
   const {
     activatePlayback,
-    restorePlaybackVolume,
     setPlaybackActivationBlocked,
   } = useAudioController();
 
@@ -54,11 +53,10 @@ export function HomeOverlays({ announcements }: Props): ReactElement {
         <EntranceGate
           onActivate={() => {
             setPlaybackActivationBlocked(false);
-            activatePlayback(true);
+            activatePlayback();
           }}
           onEntered={() => {
             setEnteredThisMount(true);
-            requestAnimationFrame(() => restorePlaybackVolume());
           }}
         />
       )}

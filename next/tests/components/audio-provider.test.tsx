@@ -189,7 +189,7 @@ describe("single audio element and user activation", () => {
     expect(audio().play).toHaveBeenCalledTimes(1);
   });
 
-  it("starts silently from the entrance and reveals the configured volume afterwards", async () => {
+  it("restores the configured volume when normal activation follows a silent one", async () => {
     let controller!: AudioController;
     function Grab(): null {
       controller = useAudioController();
@@ -204,7 +204,7 @@ describe("single audio element and user activation", () => {
     expect(audio().muted).toBe(true);
     await waitFor(() => expect(controller.state.panelMode).toBe("auto"));
 
-    act(() => controller.restorePlaybackVolume());
+    act(() => controller.activatePlayback());
     expect(audio().volume).toBe(0.5);
     expect(audio().muted).toBe(false);
   });

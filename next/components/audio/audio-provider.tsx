@@ -278,9 +278,12 @@ export function AudioProvider({
     if (silent) {
       element.muted = true;
       element.volume = 0;
+    } else {
+      element.volume = preferences.musicVolume;
+      element.muted = false;
     }
     attemptPlay();
-  }, [attemptPlay, getAudio]);
+  }, [attemptPlay, getAudio, preferences.musicVolume]);
 
   const restorePlaybackVolume = useCallback((): void => {
     const element = getAudio();
