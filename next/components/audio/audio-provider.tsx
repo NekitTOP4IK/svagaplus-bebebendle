@@ -597,6 +597,8 @@ export function AudioProvider({
       jingleModeRef.current = true;
       activeJingleRequestRef.current = request;
       suppressMediaEventsRef.current = true;
+      element.volume = preferences.musicVolume;
+      element.muted = false;
       element.loop = false;
       element.src = source.src;
       element.load();
@@ -615,7 +617,16 @@ export function AudioProvider({
         finishOutcome(element);
       });
     },
-    [applyScene, canPlay, clearMediaSource, dispatch, finishOutcome, getAudio, soundtrackMetadata],
+    [
+      applyScene,
+      canPlay,
+      clearMediaSource,
+      dispatch,
+      finishOutcome,
+      getAudio,
+      preferences.musicVolume,
+      soundtrackMetadata,
+    ],
   );
 
   const togglePanel = useCallback((): void => {
