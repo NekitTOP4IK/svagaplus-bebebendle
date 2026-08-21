@@ -301,9 +301,9 @@ export function AudioProvider({
       // jingle while that owner is cleared; an explicit newer owner still
       // wins immediately (the provider marks only clearScene as deferred).
       if (
-        deferSceneAfterOutcomeRef.current &&
         stateRef.current.outcome !== null &&
-        jingleModeRef.current
+        jingleModeRef.current &&
+        (deferSceneAfterOutcomeRef.current || scene === "silent")
       ) {
         pendingSceneAfterOutcomeRef.current = scene;
         deferSceneAfterOutcomeRef.current = false;

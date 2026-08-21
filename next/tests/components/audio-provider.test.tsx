@@ -577,6 +577,32 @@ describe("outcome jingles", () => {
     expect(controller.state.outcome).toBeNull();
   });
 
+  it("keeps a casual result jingle when the game scene is cleared after completion", async () => {
+    let controller!: AudioController;
+    route.value = "/daily";
+    function Grab(): null {
+      controller = useAudioController();
+      const setScene = controller.setScene;
+      const clearScene = controller.clearScene;
+      useEffect(() => {
+        setScene("casual-game", "casual-result");
+        return () => clearScene("casual-result");
+      }, [clearScene, setScene]);
+      return null;
+    }
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(audio().src).toBe("/soundtrack/casual-game-a.mp3"));
+
+    act(() => {
+      controller.clearScene("casual-result");
+      controller.playOutcome("victory", "casual-result:scene-cleared");
+    });
+
+    expect(audio().src).toBe("/soundtrack/victory.mp3");
+    expect(audio().play).toHaveBeenCalled();
+  });
+
   it("stops the background and stays silent when a jingle is unavailable", () => {
     let controller!: AudioController;
     function Grab(): null {
