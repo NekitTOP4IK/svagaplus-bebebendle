@@ -515,6 +515,26 @@ describe("outcome jingles", () => {
     expect(audio().play.mock.calls.length).toBe(jinglePlays);
   });
 
+  it("restores the configured volume before playing a jingle after a scene fade", () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+
+    audio().volume = 0;
+    audio().muted = true;
+
+    act(() => controller.playOutcome("victory", "casual-result:after-fade"));
+
+    expect(audio().volume).toBe(0.5);
+    expect(audio().muted).toBe(false);
+    expect(audio().src).toBe("/soundtrack/victory.mp3");
+    expect(audio().play).toHaveBeenCalled();
+  });
+
   it("stays silent after the jingle ends", () => {
     let controller!: AudioController;
     function Grab(): null {
