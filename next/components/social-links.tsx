@@ -1,7 +1,10 @@
 "use client";
 
-import { Send } from "lucide-react";
+import Link from "next/link";
+import { Send, Settings } from "lucide-react";
+import { CreditsButton } from "@/components/credits-button";
 import { InfoButton } from "@/components/info-button";
+import type { CreditGroup } from "@/lib/credits";
 
 function telegramBotUrl(): string {
   const username = (process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "")
@@ -10,7 +13,9 @@ function telegramBotUrl(): string {
   return username ? `https://t.me/${username}` : "https://t.me/bebebendle_bot";
 }
 
-export function SocialLinks() {
+export function SocialLinks({
+  creditGroups = [],
+}: Readonly<{ creditGroups?: readonly CreditGroup[] }>) {
   return (
     <div className="flex w-full flex-col gap-2 sm:gap-3 2xl:gap-4 4xl:gap-5">
       <a
@@ -23,7 +28,16 @@ export function SocialLinks() {
         <span className="hidden sm:inline">Предложить свой слоп</span>
         <span className="sm:hidden">слоп</span>
       </a>
-      <div className="flex w-full justify-end">
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_2.5rem_2.5rem] items-stretch gap-2 sm:grid-cols-[minmax(0,1fr)_3rem_3rem]">
+        <CreditsButton groups={creditGroups} />
+        <Link
+          href="/settings"
+          className="pixel-btn grid h-10 w-10 place-items-center p-0 sm:h-12 sm:w-12"
+          aria-label="Настройки"
+          title="Настройки"
+        >
+          <Settings className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
+        </Link>
         <InfoButton />
       </div>
     </div>

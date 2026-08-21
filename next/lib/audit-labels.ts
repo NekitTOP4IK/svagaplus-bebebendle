@@ -17,6 +17,8 @@ export const AUDIT_ACTION_LABELS: Record<(typeof PRODUCTION_AUDIT_ACTIONS)[numbe
   "daily.generate": "Daily сгенерирован",
   "settings.daily_rotation_notify": "Настройка: уведомления о ротации",
   "settings.daily_generation": "Настройка: генерация daily",
+  "settings.soundtrack_metadata": "Метаданные саундтрека обновлены",
+  "settings.credits": "Список авторов обновлён",
   "announcements.create": "Объявление создано",
   "announcements.update": "Объявление обновлено",
   "announcements.delete": "Объявление удалено",
