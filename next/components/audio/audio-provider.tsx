@@ -103,6 +103,7 @@ export function AudioProvider({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const queueRef = useRef<readonly Candidate[]>([]);
   const sceneTracksRef = useRef<readonly PlayableTrack[]>([]);
+  const jingleTrackRef = useRef<SoundtrackTrack | null>(null);
   const jingleModeRef = useRef(false);
   const activeJingleRequestRef = useRef<number | null>(null);
   const jingleRequestCounterRef = useRef(0);
@@ -377,6 +378,7 @@ export function AudioProvider({
 
   const finishOutcome = useCallback((element: HTMLAudioElement): void => {
     jingleModeRef.current = false;
+    jingleTrackRef.current = null;
     activeJingleRequestRef.current = null;
     clearMediaSource(element);
     const pendingScene = pendingSceneAfterOutcomeRef.current;
@@ -390,8 +392,12 @@ export function AudioProvider({
       : resumeScene
         ? outcomeScene
         : null;
-    if (nextScene) applyScene(nextScene);
-  }, [applyScene, clearMediaSource]);
+    if (nextScene) {
+      applyScene(nextScene);
+    } else {
+      dispatch({ type: "SCENE_CHANGED", scene: "silent", trackCount: 0 });
+    }
+  }, [applyScene, clearMediaSource, dispatch]);
 
   const attachMediaListeners = (element: HTMLAudioElement): void => {
     element.addEventListener("timeupdate", () => {
@@ -581,7 +587,9 @@ export function AudioProvider({
       const manifest = applySoundtrackMetadata(SOUNDTRACK_MANIFEST, soundtrackMetadata);
       const jingle = outcome === "victory" ? manifest.victoryJingle : manifest.defeatJingle;
       const source = jingle ? supportedSources(jingle, canPlay)[0] : undefined;
+      jingleTrackRef.current = jingle ?? null;
       if (!jingle || !source || !activatedRef.current || !musicEnabledRef.current) {
+        jingleTrackRef.current = null;
         if (resumeSceneAfter && outcomeSceneRef.current) {
           const scene = outcomeSceneRef.current;
           outcomeSceneRef.current = null;
@@ -682,8 +690,10 @@ export function AudioProvider({
 
   const controller: AudioController = {
     state,
-    currentTrack: sceneTracksRef.current[state.trackIndex]?.track ?? null,
-    trackCount: sceneTracksRef.current.length,
+    currentTrack: jingleModeRef.current
+      ? jingleTrackRef.current
+      : sceneTracksRef.current[state.trackIndex]?.track ?? null,
+    trackCount: jingleModeRef.current ? (jingleTrackRef.current ? 1 : 0) : sceneTracksRef.current.length,
     currentTime: position.currentTime,
     duration: position.duration,
     playerObscured,

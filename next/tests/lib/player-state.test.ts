@@ -253,11 +253,11 @@ describe("NEXT_TRACK / PREVIOUS_TRACK", () => {
 });
 
 describe("OUTCOME_REQUESTED", () => {
-  it("hides the panel, stores the outcome, clears indices and bumps generation", () => {
+  it("opens the panel for the jingle, stores the outcome, clears indices and bumps generation", () => {
     const base = playing();
     const state = reduce([{ type: "OUTCOME_REQUESTED", outcome: "defeat" }], base);
 
-    expect(state.panelMode).toBe("hidden");
+    expect(state.panelMode).toBe("auto");
     expect(state.outcome).toBe("defeat");
     expect(state.trackIndex).toBe(0);
     expect(state.sourceIndex).toBe(0);

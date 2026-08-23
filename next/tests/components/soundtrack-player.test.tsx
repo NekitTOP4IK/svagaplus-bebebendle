@@ -70,7 +70,6 @@ describe("SoundtrackPlayer", () => {
     const inactive = [
       { scene: "silent" as const },
       { panelMode: "hidden" as const },
-      { outcome: "victory" as const },
     ];
 
     for (const patch of inactive) {
@@ -82,6 +81,15 @@ describe("SoundtrackPlayer", () => {
 
     preferences.current = { musicEnabled: false, musicVolume: 0.5 };
     expect(renderPlayer().queryByLabelText("Музыкальный плеер")).toBeNull();
+  });
+
+  it("keeps the player visible while an outcome jingle is playing", () => {
+    controller.current = createController({ outcome: "victory", panelMode: "auto" });
+
+    renderPlayer();
+
+    expect(screen.getByLabelText("Музыкальный плеер")).toBeVisible();
+    expect(screen.getByText("Сейчас играет")).toBeVisible();
   });
 
   it("renders an expanded unified dock with the handle before its panel", () => {

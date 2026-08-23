@@ -134,7 +134,7 @@ export function playerReducer(state: PlayerState, event: PlayerEvent): PlayerSta
     case "OUTCOME_REQUESTED":
       return {
         ...state,
-        panelMode: "hidden",
+        panelMode: "auto",
         outcome: event.outcome,
         trackIndex: 0,
         sourceIndex: 0,
