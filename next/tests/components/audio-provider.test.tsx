@@ -241,8 +241,10 @@ describe("single audio element and user activation", () => {
 
     fireEvent.pointerDown(document.body);
 
-    await waitFor(() => expect(audio().paused).toBe(true));
-    expect(controller.state.status).toBe("blocked");
+    // Wait for the rejection to propagate through the play promise; paused flips
+    // synchronously inside playSelectedSource, so it cannot gate the dispatch.
+    await waitFor(() => expect(controller.state.status).toBe("blocked"));
+    expect(audio().paused).toBe(true);
     expect(controller.state.panelMode).toBe("hidden");
 
     fireEvent.pointerDown(document.body);
