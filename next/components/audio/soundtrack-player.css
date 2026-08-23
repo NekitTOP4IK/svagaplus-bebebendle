@@ -37,10 +37,11 @@
 
 .soundtrack-player--dragging,
 .soundtrack-player--dragging button {
-  cursor: grabbing;
+  cursor: ns-resize;
 }
 
 .soundtrack-player__handle {
+  cursor: ns-resize;
   touch-action: none;
 }
 
