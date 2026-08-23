@@ -187,4 +187,88 @@ describe("SoundtrackPlayer", () => {
     expect(handle.querySelector("svg path")?.getAttribute("d")).toContain("M5.5 3.5");
     expect(handle.querySelectorAll("svg circle")).toHaveLength(2);
   });
+
+  describe("dragging", () => {
+    it("moves the dock with the handle and persists the dropped position", () => {
+      renderPlayer();
+
+      const dock = screen.getByLabelText("Музыкальный плеер");
+      const handle = screen.getByRole("button", { name: "Свернуть плеер" });
+
+      fireEvent.pointerDown(handle, { pointerId: 1, clientX: 100, clientY: 100 });
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 160, clientY: 140 });
+      fireEvent.pointerUp(handle, { pointerId: 1, clientX: 160, clientY: 140 });
+
+      expect(dock.style.left).toBe("60px");
+      expect(dock.style.top).toBe("40px");
+      expect(dock.style.right).toBe("auto");
+      expect(dock.style.bottom).toBe("auto");
+      expect(JSON.parse(window.localStorage.getItem("soundtrackPlayerPosition.v1") ?? "")).toEqual({
+        x: 60,
+        y: 40,
+      });
+    });
+
+    it("restores a stored position after mount", () => {
+      window.localStorage.setItem(
+        "soundtrackPlayerPosition.v1",
+        JSON.stringify({ x: 24, y: 48 }),
+      );
+
+      renderPlayer();
+
+      const dock = screen.getByLabelText("Музыкальный плеер");
+      expect(dock.style.left).toBe("24px");
+      expect(dock.style.top).toBe("48px");
+    });
+
+    it("keeps the handle click as a toggle for taps without movement", () => {
+      renderPlayer();
+
+      const handle = screen.getByRole("button", { name: "Свернуть плеер" });
+      fireEvent.pointerDown(handle, { pointerId: 1, clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 11, clientY: 11 });
+      fireEvent.pointerUp(handle, { pointerId: 1, clientX: 11, clientY: 11 });
+      fireEvent.click(handle);
+
+      expect(controller.current!.togglePanel).toHaveBeenCalledOnce();
+      expect(screen.getByLabelText("Музыкальный плеер").style.left).toBe("");
+    });
+
+    it("never toggles the panel because of a completed drag", () => {
+      renderPlayer();
+
+      const handle = screen.getByRole("button", { name: "Свернуть плеер" });
+      fireEvent.pointerDown(handle, { pointerId: 1, clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 80, clientY: 60 });
+      fireEvent.pointerUp(handle, { pointerId: 1, clientX: 80, clientY: 60 });
+      fireEvent.click(handle);
+
+      expect(controller.current!.togglePanel).not.toHaveBeenCalled();
+    });
+
+    it("clamps the dragged position to the viewport", () => {
+      const setViewport = (width: number, height: number): void => {
+        Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
+        Object.defineProperty(window, "innerHeight", { value: height, configurable: true });
+      };
+      try {
+        setViewport(500, 400);
+        renderPlayer();
+        const dock = screen.getByLabelText("Музыкальный плеер");
+        Object.defineProperty(dock, "offsetWidth", { value: 382, configurable: true });
+        Object.defineProperty(dock, "offsetHeight", { value: 76, configurable: true });
+
+        const handle = screen.getByRole("button", { name: "Свернуть плеер" });
+        fireEvent.pointerDown(handle, { pointerId: 1, clientX: 0, clientY: 0 });
+        fireEvent.pointerMove(handle, { pointerId: 1, clientX: 9000, clientY: -9000 });
+        fireEvent.pointerUp(handle, { pointerId: 1, clientX: 9000, clientY: -9000 });
+
+        expect(dock.style.left).toBe(`${500 - 382 - 8}px`);
+        expect(dock.style.top).toBe("8px");
+      } finally {
+        setViewport(1024, 768);
+      }
+    });
+  });
 });

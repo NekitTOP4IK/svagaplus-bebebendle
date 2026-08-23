@@ -290,6 +290,86 @@ describe("scene ownership", () => {
   });
 });
 
+describe("session pause", () => {
+  it("keeps playback paused across scene changes and resumes the new scene on demand", async () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+    await act(async () => Promise.resolve());
+    act(() => controller.togglePlayback());
+    expect(audio().paused).toBe(true);
+    const playCalls = audio().play.mock.calls.length;
+
+    act(() => controller.setScene("casual-game", "probe"));
+    await waitFor(() => expect(audio().src).toBe("/soundtrack/casual-game-a.mp3"));
+
+    expect(audio().play.mock.calls.length).toBe(playCalls);
+    expect(audio().paused).toBe(true);
+    expect(controller.state.status).toBe("paused");
+
+    act(() => controller.togglePlayback());
+    expect(audio().play.mock.calls.length).toBe(playCalls + 1);
+  });
+
+  it("swaps to the selected track without autoplay when skipping while paused", async () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+    await act(async () => Promise.resolve());
+    act(() => controller.setVolume(0.8));
+    act(() => controller.togglePlayback());
+    const playCalls = audio().play.mock.calls.length;
+
+    act(() => controller.nextTrack());
+
+    expect(audio().src).toBe("/soundtrack/casual-menu-b.ogg");
+    expect(audio().volume).toBe(0.8);
+    expect(audio().paused).toBe(true);
+    expect(audio().play.mock.calls.length).toBe(playCalls);
+    expect(controller.state.status).toBe("paused");
+
+    act(() => controller.togglePlayback());
+    expect(audio().play.mock.calls.length).toBe(playCalls + 1);
+  });
+
+  it("fades auto-advanced tracks back to the saved volume instead of the default", async () => {
+    vi.useFakeTimers();
+    try {
+      let controller!: AudioController;
+      function Grab(): null {
+        controller = useAudioController();
+        return null;
+      }
+      render(wrap(<Grab />));
+      fireEvent.pointerDown(document.body);
+      await act(async () => Promise.resolve());
+      act(() => controller.setVolume(0.9));
+
+      act(() => audio().emit("ended"));
+      expect(controller.state.trackIndex).toBe(1);
+
+      act(() => vi.advanceTimersByTime(200));
+      await act(async () => Promise.resolve());
+      expect(audio().src).toBe("/soundtrack/casual-menu-b.ogg");
+      expect(audio().volume).toBeLessThan(0.9);
+
+      act(() => vi.advanceTimersByTime(400));
+      await act(async () => Promise.resolve());
+      expect(audio().volume).toBeCloseTo(0.9);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("empty manifest", () => {
   it("makes no source assignment and never requests URLs", async () => {
     manifest.casualMenu = [];
