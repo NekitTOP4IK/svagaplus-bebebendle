@@ -84,7 +84,7 @@ function markHintSeen(): void {
   window.dispatchEvent(new Event(PLAYER_HINT_EVENT));
 }
 
-type PlayerPosition = Readonly<{ x: number; y: number }>;
+type PlayerOffsetY = number;
 
 const PLAYER_POSITION_KEY = "soundtrackPlayerPosition.v1";
 const DRAG_THRESHOLD_PX = 4;
@@ -94,55 +94,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function readPlayerPosition(): PlayerPosition | null {
+function readPlayerPosition(): PlayerOffsetY | null {
   try {
     const stored = window.localStorage.getItem(PLAYER_POSITION_KEY);
     if (!stored) return null;
     const parsed: unknown = JSON.parse(stored);
-    if (!isRecord(parsed)) return null;
-    const { x, y } = parsed;
-    if (typeof x !== "number" || !Number.isFinite(x)) return null;
-    if (typeof y !== "number" || !Number.isFinite(y)) return null;
-    return { x, y };
+    // The first draggable release stored {x, y}; keep accepting its y offset.
+    const raw = typeof parsed === "number" ? parsed : isRecord(parsed) ? parsed.y : null;
+    return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
   } catch {
     return null;
   }
 }
 
-function writePlayerPosition(position: PlayerPosition): void {
+function writePlayerPosition(offsetY: PlayerOffsetY): void {
   try {
-    window.localStorage.setItem(PLAYER_POSITION_KEY, JSON.stringify({ x: position.x, y: position.y }));
+    window.localStorage.setItem(PLAYER_POSITION_KEY, JSON.stringify(offsetY));
   } catch {
     // Position persistence is best-effort (privacy mode etc).
   }
 }
 
-/** The dock's layout top-left corner: getBoundingClientRect includes the
- * collapse transform, so subtract the matrix translation to track the box
- * itself across expanded/collapsed states. */
-function readLayoutOffset(element: HTMLElement): PlayerPosition {
-  const rect = element.getBoundingClientRect();
-  let offsetX = 0;
-  let offsetY = 0;
-  const transform = window.getComputedStyle(element).transform;
-  if (transform && transform !== "none") {
-    const match = /^matrix\(([^)]+)\)$/.exec(transform);
-    if (match) {
-      const parts = match[1]!.split(",").map((part) => Number(part.trim()));
-      offsetX = Number.isFinite(parts[4]) ? parts[4]! : 0;
-      offsetY = Number.isFinite(parts[5]) ? parts[5]! : 0;
-    }
-  }
-  return { x: rect.left - offsetX, y: rect.top - offsetY };
-}
-
-function clampPosition(position: PlayerPosition, width: number, height: number): PlayerPosition {
-  const maxX = Math.max(VIEWPORT_MARGIN_PX, window.innerWidth - width - VIEWPORT_MARGIN_PX);
+function clampOffsetY(offsetY: number, height: number): number {
   const maxY = Math.max(VIEWPORT_MARGIN_PX, window.innerHeight - height - VIEWPORT_MARGIN_PX);
-  return {
-    x: Math.min(Math.max(VIEWPORT_MARGIN_PX, position.x), maxX),
-    y: Math.min(Math.max(VIEWPORT_MARGIN_PX, position.y), maxY),
-  };
+  return Math.min(Math.max(VIEWPORT_MARGIN_PX, offsetY), maxY);
 }
 
 /**
@@ -159,18 +134,16 @@ export function SoundtrackPlayer(): ReactElement | null {
   const dockRef = useRef<HTMLElement | null>(null);
   // Lazy read is safe: the dock renders nothing until playback starts, so the
   // server markup never depends on this value.
-  const [position, setPosition] = useState<PlayerPosition | null>(() =>
+  const [position, setPosition] = useState<PlayerOffsetY | null>(() =>
     typeof window === "undefined" ? null : readPlayerPosition(),
   );
   const [dragging, setDragging] = useState(false);
   const draggedRef = useRef(false);
-  const lastPositionRef = useRef<PlayerPosition | null>(null);
+  const lastPositionRef = useRef<PlayerOffsetY | null>(null);
   const dragStateRef = useRef<{
     pointerId: number;
-    startX: number;
     startY: number;
-    origin: PlayerPosition;
-    width: number;
+    originY: number;
     height: number;
   } | null>(null);
 
@@ -179,8 +152,8 @@ export function SoundtrackPlayer(): ReactElement | null {
   useEffect(() => {
     const onResize = (): void => {
       setPosition((current) => {
-        if (!current || !dockRef.current) return current;
-        return clampPosition(current, dockRef.current.offsetWidth, dockRef.current.offsetHeight);
+        if (current === null || !dockRef.current) return current;
+        return clampOffsetY(current, dockRef.current.offsetHeight);
       });
     };
     window.addEventListener("resize", onResize);
@@ -196,12 +169,14 @@ export function SoundtrackPlayer(): ReactElement | null {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     const dock = dockRef.current;
     if (!dock) return;
+    // The dock stays anchored to the right edge: dragging adjusts its bottom
+    // offset only, so the horizontal collapse slide keeps its physics. Cursor
+    // deltas are inverted into bottom-offset space (down = closer to bottom).
+    const rect = dock.getBoundingClientRect();
     dragStateRef.current = {
       pointerId: event.pointerId,
-      startX: event.clientX,
       startY: event.clientY,
-      origin: readLayoutOffset(dock),
-      width: dock.offsetWidth,
+      originY: window.innerHeight - rect.bottom,
       height: dock.offsetHeight,
     };
     draggedRef.current = false;
@@ -217,19 +192,14 @@ export function SoundtrackPlayer(): ReactElement | null {
   const onHandlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>): void => {
     const drag = dragStateRef.current;
     if (!drag || event.pointerId !== drag.pointerId) return;
-    const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
-    if (!draggedRef.current && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+    if (!draggedRef.current && Math.abs(dy) < DRAG_THRESHOLD_PX) return;
     if (!draggedRef.current) {
       draggedRef.current = true;
       setDragging(true);
       if (showHint) dismissHint();
     }
-    const next = clampPosition(
-      { x: drag.origin.x + dx, y: drag.origin.y + dy },
-      drag.width,
-      drag.height,
-    );
+    const next = clampOffsetY(drag.originY - dy, drag.height);
     lastPositionRef.current = next;
     setPosition(next);
   };
@@ -251,7 +221,7 @@ export function SoundtrackPlayer(): ReactElement | null {
         // The capture may already be gone; nothing else to clean up.
       }
     }
-    if (persist && draggedRef.current && lastPositionRef.current) {
+    if (persist && draggedRef.current && lastPositionRef.current !== null) {
       writePlayerPosition(lastPositionRef.current);
     }
   };
@@ -301,16 +271,7 @@ export function SoundtrackPlayer(): ReactElement | null {
       <aside
         ref={dockRef}
         className={`soundtrack-player${isExpanded ? " soundtrack-player--expanded" : " soundtrack-player--collapsed"}${dragging ? " soundtrack-player--dragging" : ""}${controller.playerObscured ? " soundtrack-player--obscured" : ""}`}
-        style={
-          position
-            ? {
-                left: `${Math.round(position.x)}px`,
-                top: `${Math.round(position.y)}px`,
-                right: "auto",
-                bottom: "auto",
-              }
-            : undefined
-        }
+        style={position !== null ? { bottom: `${Math.round(position)}px` } : undefined}
         data-panel-mode={state.panelMode}
         data-playback={state.status}
         data-hint={showHint ? "true" : undefined}
@@ -328,7 +289,7 @@ export function SoundtrackPlayer(): ReactElement | null {
           onPointerCancel={onHandlePointerCancel}
           aria-label={isExpanded ? "Свернуть плеер" : "Открыть плеер"}
           aria-expanded={isExpanded}
-          title="Перетащи, чтобы переместить плеер"
+          title="Перетащи вверх или вниз, чтобы переместить плеер"
         >
           <span className="soundtrack-player__handle-icon"><PanelIcon expanded={isExpanded} /></span>
           <span className="soundtrack-player__handle-status" aria-hidden="true" />

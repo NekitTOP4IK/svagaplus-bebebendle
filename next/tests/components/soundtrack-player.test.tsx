@@ -181,37 +181,49 @@ describe("SoundtrackPlayer", () => {
   });
 
   describe("dragging", () => {
-    it("moves the dock with the handle and persists the dropped position", () => {
+    function mockDockRect(dock: HTMLElement, top: number, height: number): void {
+      vi.spyOn(dock, "getBoundingClientRect").mockReturnValue({
+        top,
+        bottom: top + height,
+        height,
+      } as DOMRect);
+    }
+
+    function setViewportHeight(height: number): void {
+      Object.defineProperty(window, "innerHeight", { value: height, configurable: true });
+    }
+
+    it("moves the dock vertically with the handle and persists the dropped offset", () => {
+      setViewportHeight(600);
       renderPlayer();
 
       const dock = screen.getByLabelText("Музыкальный плеер");
+      mockDockRect(dock, 100, 76); // initial bottom offset: 600 - 176 = 424
       const handle = screen.getByRole("button", { name: "Свернуть плеер" });
 
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 100, clientY: 100 });
-      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 160, clientY: 140 });
-      fireEvent.pointerUp(handle, { pointerId: 1, clientX: 160, clientY: 140 });
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 140, clientY: 160 });
+      fireEvent.pointerUp(handle, { pointerId: 1, clientX: 140, clientY: 160 });
 
-      expect(dock.style.left).toBe("60px");
-      expect(dock.style.top).toBe("40px");
-      expect(dock.style.right).toBe("auto");
-      expect(dock.style.bottom).toBe("auto");
-      expect(JSON.parse(window.localStorage.getItem("soundtrackPlayerPosition.v1") ?? "")).toEqual({
-        x: 60,
-        y: 40,
-      });
+      expect(dock.style.bottom).toBe("364px"); // 424 - 60
+      expect(dock.style.left).toBe("");
+      expect(dock.style.top).toBe("");
+      expect(dock.style.right).toBe("");
+      expect(window.localStorage.getItem("soundtrackPlayerPosition.v1")).toBe("364");
     });
 
-    it("restores a stored position after mount", () => {
+    it("restores a stored vertical offset after mount, including the legacy record", () => {
+      window.localStorage.setItem("soundtrackPlayerPosition.v1", "48");
+      const first = renderPlayer();
+      expect(screen.getByLabelText("Музыкальный плеер").style.bottom).toBe("48px");
+      first.unmount();
+
       window.localStorage.setItem(
         "soundtrackPlayerPosition.v1",
-        JSON.stringify({ x: 24, y: 48 }),
+        JSON.stringify({ x: 120, y: 36 }),
       );
-
       renderPlayer();
-
-      const dock = screen.getByLabelText("Музыкальный плеер");
-      expect(dock.style.left).toBe("24px");
-      expect(dock.style.top).toBe("48px");
+      expect(screen.getByLabelText("Музыкальный плеер").style.bottom).toBe("36px");
     });
 
     it("keeps the handle click as a toggle for taps without movement", () => {
@@ -224,7 +236,7 @@ describe("SoundtrackPlayer", () => {
       fireEvent.click(handle);
 
       expect(controller.current!.togglePanel).toHaveBeenCalledOnce();
-      expect(screen.getByLabelText("Музыкальный плеер").style.left).toBe("");
+      expect(screen.getByLabelText("Музыкальный плеер").style.bottom).toBe("");
     });
 
     it("never toggles the panel because of a completed drag", () => {
@@ -232,34 +244,49 @@ describe("SoundtrackPlayer", () => {
 
       const handle = screen.getByRole("button", { name: "Свернуть плеер" });
       fireEvent.pointerDown(handle, { pointerId: 1, clientX: 10, clientY: 10 });
-      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 80, clientY: 60 });
-      fireEvent.pointerUp(handle, { pointerId: 1, clientX: 80, clientY: 60 });
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 40, clientY: 80 });
+      fireEvent.pointerUp(handle, { pointerId: 1, clientX: 40, clientY: 80 });
       fireEvent.click(handle);
 
       expect(controller.current!.togglePanel).not.toHaveBeenCalled();
     });
 
-    it("clamps the dragged position to the viewport", () => {
-      const setViewport = (width: number, height: number): void => {
-        Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
-        Object.defineProperty(window, "innerHeight", { value: height, configurable: true });
-      };
+    it("ignores horizontal movement instead of dragging sideways", () => {
+      renderPlayer();
+
+      const handle = screen.getByRole("button", { name: "Свернуть плеер" });
+      fireEvent.pointerDown(handle, { pointerId: 1, clientX: 10, clientY: 100 });
+      fireEvent.pointerMove(handle, { pointerId: 1, clientX: 200, clientY: 101 });
+      fireEvent.pointerUp(handle, { pointerId: 1, clientX: 200, clientY: 101 });
+      fireEvent.click(handle);
+
+      const dock = screen.getByLabelText("Музыкальный плеер");
+      expect(dock.style.bottom).toBe("");
+      expect(controller.current!.togglePanel).toHaveBeenCalledOnce();
+    });
+
+    it("clamps the dragged offset to the viewport height", () => {
       try {
-        setViewport(500, 400);
+        setViewportHeight(400);
         renderPlayer();
         const dock = screen.getByLabelText("Музыкальный плеер");
-        Object.defineProperty(dock, "offsetWidth", { value: 382, configurable: true });
         Object.defineProperty(dock, "offsetHeight", { value: 76, configurable: true });
+        mockDockRect(dock, 50, 76); // initial bottom offset: 400 - 126 = 274
+        const maxY = 400 - 76 - 8;
 
         const handle = screen.getByRole("button", { name: "Свернуть плеер" });
-        fireEvent.pointerDown(handle, { pointerId: 1, clientX: 0, clientY: 0 });
-        fireEvent.pointerMove(handle, { pointerId: 1, clientX: 9000, clientY: -9000 });
-        fireEvent.pointerUp(handle, { pointerId: 1, clientX: 9000, clientY: -9000 });
+        fireEvent.pointerDown(handle, { pointerId: 1, clientX: 0, clientY: 200 });
+        fireEvent.pointerMove(handle, { pointerId: 1, clientX: 0, clientY: -8800 });
+        fireEvent.pointerUp(handle, { pointerId: 1, clientX: 0, clientY: -8800 });
+        expect(dock.style.bottom).toBe(`${maxY}px`);
 
-        expect(dock.style.left).toBe(`${500 - 382 - 8}px`);
-        expect(dock.style.top).toBe("8px");
+        fireEvent.pointerDown(handle, { pointerId: 2, clientX: 0, clientY: 0 });
+        mockDockRect(dock, 8, 76);
+        fireEvent.pointerMove(handle, { pointerId: 2, clientX: 0, clientY: 9000 });
+        fireEvent.pointerUp(handle, { pointerId: 2, clientX: 0, clientY: 9000 });
+        expect(dock.style.bottom).toBe("8px");
       } finally {
-        setViewport(1024, 768);
+        setViewportHeight(768);
       }
     });
   });
