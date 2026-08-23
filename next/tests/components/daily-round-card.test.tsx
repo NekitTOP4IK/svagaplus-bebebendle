@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render } from "@testing-library/react";
 import { RoundCard } from "@/components/daily/round-card";
+
+const setPlayerObscured = vi.hoisted(() => vi.fn());
+
+vi.mock("@/components/audio/audio-provider", () => ({
+  useOptionalAudioController: () => ({ setPlayerObscured }),
+}));
 
 const globals = readFileSync(
   resolve(process.cwd(), "app/globals.css"),
@@ -45,6 +51,30 @@ describe("daily round card info panel", () => {
     const wrapper = container.querySelector("div.absolute.bottom-0");
 
     expect(wrapper?.className).not.toContain("pb-8");
+  });
+
+  it("dims the soundtrack player only while the right dish is hovered", () => {
+    setPlayerObscured.mockClear();
+    const { getByRole, unmount } = renderCard("right");
+    const card = getByRole("button");
+
+    fireEvent.pointerEnter(card);
+    expect(setPlayerObscured).toHaveBeenLastCalledWith(true);
+    fireEvent.pointerLeave(card);
+    expect(setPlayerObscured).toHaveBeenLastCalledWith(false);
+    unmount();
+    expect(setPlayerObscured).toHaveBeenLastCalledWith(false);
+  });
+
+  it("does not dim the soundtrack player over the left dish", () => {
+    setPlayerObscured.mockClear();
+    const { getByRole, unmount } = renderCard("left");
+    const card = getByRole("button");
+
+    fireEvent.pointerEnter(card);
+    fireEvent.pointerLeave(card);
+    unmount();
+    expect(setPlayerObscured).not.toHaveBeenCalled();
   });
 
   it("clamps the description to one line on mobile", () => {

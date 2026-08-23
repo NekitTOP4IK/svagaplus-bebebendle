@@ -17,6 +17,8 @@ export type ViewMode =
   | "users"
   | "rejected"
   | "daily"
+  | "soundtrack"
+  | "credits"
   | "stats"
   | "audit"
   | "duplicates"

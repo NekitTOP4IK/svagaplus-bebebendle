@@ -2,6 +2,8 @@
 
 import {
   useCallback,
+  useEffect,
+  useRef,
   useState,
   type ReactElement,
 } from "react";
@@ -18,6 +20,9 @@ import { useTransitionState } from "@/hooks/use-transition-state";
 import { COMPETITIVE_ROUNDS } from "@/lib/competitive/constants";
 import { finalizeCompetitiveDay, submitCompetitiveVote } from "@/app/actions/competitive";
 import type { CompetitiveDaySummary } from "@/lib/competitive/day-result";
+import { AudioSceneBoundary } from "@/components/audio/audio-scene";
+import { useOptionalAudioController } from "@/components/audio/audio-provider";
+import { rankedOutcome } from "@/lib/audio/soundtrack";
 
 type CompetitiveDailyPayload = Readonly<{
   date: string;
@@ -41,6 +46,9 @@ type GameState =
  * Competitive daily client — daily-style transitions + points final + mini board.
  */
 export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily: CompetitiveDailyPayload }>): ReactElement {
+  const audioController = useOptionalAudioController();
+  const enteredCompleteFromPlayRef = useRef(false);
+  const firedOutcomeId = useRef<string | null>(null);
   const [gameState, setGameState] = useState<GameState>({ type: "playing", data: initialDaily });
   const [currentRound, setCurrentRound] = useState(1);
   const [lastResult, setLastResult] = useState<RoundVoteResult | null>(null);
@@ -55,6 +63,7 @@ export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily:
       setGameState({ type: "error", message: result.message });
       return;
     }
+    enteredCompleteFromPlayRef.current = true;
     setGameState({
       type: "complete",
       points: result.data.points,
@@ -63,6 +72,29 @@ export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily:
       summary: result.data.summary,
     });
   }, []);
+
+  useEffect(() => {
+    if (
+      gameState.type !== "complete" ||
+      !audioController ||
+      !enteredCompleteFromPlayRef.current
+    ) {
+      return;
+    }
+    const eventId = `ranked-result:${initialDaily.date}`;
+    if (firedOutcomeId.current === eventId) return;
+    firedOutcomeId.current = eventId;
+    enteredCompleteFromPlayRef.current = false;
+    audioController.playOutcome(
+      rankedOutcome({
+        betterThanPercent: gameState.summary.betterThanPercent,
+        hits: gameState.hits,
+        totalRounds: initialDaily.totalRounds,
+      }),
+      eventId,
+      true,
+    );
+  }, [audioController, gameState, initialDaily.date, initialDaily.totalRounds]);
 
   const handleVote = useCallback(
     async (chosenScranId: number): Promise<void> => {
@@ -135,12 +167,15 @@ export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily:
 
     case "complete":
       return (
-        <CompletePanel
-          points={gameState.points}
-          hits={gameState.hits}
-          answers={gameState.answers}
-          summary={gameState.summary}
-        />
+        <>
+          <AudioSceneBoundary scene="ranked-game" ownerId={`ranked-game:${initialDaily.date}`} />
+          <CompletePanel
+            points={gameState.points}
+            hits={gameState.hits}
+            answers={gameState.answers}
+            summary={gameState.summary}
+          />
+        </>
       );
 
     case "playing": {
@@ -151,15 +186,18 @@ export function CompetitiveGameClient({ initialDaily }: Readonly<{ initialDaily:
         return <ErrorPanel message="Раунд не найден" />;
       }
       return (
-        <CompetitiveRound
-          round={round}
-          totalRounds={gameState.data.totalRounds || COMPETITIVE_ROUNDS}
-          lastResult={lastResult}
-          showResult={showResult}
-          isTransitioning={isTransitioning}
-          isVoting={isVoting}
-          onVote={handleVote}
-        />
+        <>
+          <AudioSceneBoundary scene="ranked-game" ownerId={`ranked-game:${initialDaily.date}`} />
+          <CompetitiveRound
+            round={round}
+            totalRounds={gameState.data.totalRounds || COMPETITIVE_ROUNDS}
+            lastResult={lastResult}
+            showResult={showResult}
+            isTransitioning={isTransitioning}
+            isVoting={isVoting}
+            onVote={handleVote}
+          />
+        </>
       );
     }
 

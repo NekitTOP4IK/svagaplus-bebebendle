@@ -4,6 +4,16 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 const submitCompetitiveVote = vi.fn();
 const finalizeCompetitiveDay = vi.fn();
+const audioController = vi.hoisted(() => ({
+  setScene: vi.fn(),
+  clearScene: vi.fn(),
+  playOutcome: vi.fn(),
+  setPlayerObscured: vi.fn(),
+}));
+
+vi.mock("@/components/audio/audio-provider", () => ({
+  useOptionalAudioController: () => audioController,
+}));
 
 vi.mock("@/app/actions/competitive", () => ({
   submitCompetitiveVote: (...args: unknown[]) =>
@@ -83,6 +93,10 @@ beforeEach(() => {
     ok: true,
     data: { points: 742, hits: 7, summary },
   });
+  audioController.setScene.mockClear();
+  audioController.clearScene.mockClear();
+  audioController.playOutcome.mockClear();
+  audioController.setPlayerObscured.mockClear();
 });
 
 describe("ranked result panel", () => {
@@ -116,5 +130,24 @@ describe("ranked result panel", () => {
     await playThrough();
 
     await waitFor(() => expect(screen.getAllByAltText("Correct")).toHaveLength(10));
+  });
+
+  it("plays a result jingle and resumes ranked music for the first player of the day", async () => {
+    finalizeCompetitiveDay.mockResolvedValue({
+      ok: true,
+      data: {
+        points: 742,
+        hits: 7,
+        summary: { ...summary, betterThanPercent: null, place: 1 },
+      },
+    });
+
+    await playThrough();
+
+    await waitFor(() => expect(audioController.playOutcome).toHaveBeenCalledWith(
+      "victory",
+      "ranked-result:2026-07-26",
+      true,
+    ));
   });
 });

@@ -192,6 +192,7 @@ next/public/uploads/*
 
 # Other tool-specific / temporary
 .opencode/
+docs/
 
 # Agent scratch
 .superpowers/

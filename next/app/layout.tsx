@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Press_Start_2P } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { getSoundtrackMetadata } from "@/lib/audio/soundtrack-settings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,11 +25,13 @@ export const metadata: Metadata = {
   description: "Бебебендл от catlilface",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const soundtrackMetadata = await getSoundtrackMetadata();
+
   return (
     <html lang="ru">
       <head>
@@ -41,7 +44,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${pressStart2P.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
+        <Providers soundtrackMetadata={soundtrackMetadata}>{children}</Providers>
       </body>
     </html>
   );
