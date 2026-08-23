@@ -30,6 +30,20 @@
   opacity: .35;
 }
 
+.soundtrack-player--dragging {
+  transition: none;
+  user-select: none;
+}
+
+.soundtrack-player--dragging,
+.soundtrack-player--dragging button {
+  cursor: grabbing;
+}
+
+.soundtrack-player__handle {
+  touch-action: none;
+}
+
 .soundtrack-player button {
   font: inherit;
   cursor: pointer;

@@ -62,17 +62,32 @@ describe("SCENE_CHANGED", () => {
     expect(state.generation).toBe(3);
   });
 
-  it("always clears a prior outcome and resets the session pause flag", () => {
-    const state = reduce([
+  it("clears a prior outcome but preserves an explicit session pause", () => {
+    const paused = reduce([
       { type: "SCENE_CHANGED", scene: "casual-menu", trackCount: 2 },
       { type: "PLAYBACK_PAUSED" },
-      { type: "SCENE_CHANGED", scene: "casual-menu", trackCount: 2 },
-      { type: "OUTCOME_REQUESTED", outcome: "victory" },
-      { type: "SCENE_CHANGED", scene: "silent", trackCount: 0 },
     ]);
+    expect(paused.sessionPaused).toBe(true);
+
+    const afterSceneChange = reduce(
+      [{ type: "SCENE_CHANGED", scene: "ranked-game", trackCount: 3 }],
+      paused,
+    );
+    expect(afterSceneChange.scene).toBe("ranked-game");
+    expect(afterSceneChange.sessionPaused).toBe(true);
+    expect(afterSceneChange.status).toBe("paused");
+    expect(afterSceneChange.panelMode).toBe("collapsed");
+
+    const state = reduce(
+      [
+        { type: "OUTCOME_REQUESTED", outcome: "victory" },
+        { type: "SCENE_CHANGED", scene: "silent", trackCount: 0 },
+      ],
+      afterSceneChange,
+    );
 
     expect(state.outcome).toBeNull();
-    expect(state.sessionPaused).toBe(false);
+    expect(state.sessionPaused).toBe(true);
   });
 });
 
@@ -216,6 +231,23 @@ describe("SOURCE_FAILED", () => {
     expect(state.status).not.toBe("error");
   });
 
+  it("keeps a session pause when applying a source fallback", () => {
+    const base = playing({ sessionPaused: true, status: "paused" });
+    const state = reduce(
+      [
+        {
+          type: "SOURCE_FAILED",
+          generation: base.generation,
+          fallback: { trackIndex: 1, sourceIndex: 1 },
+        },
+      ],
+      base,
+    );
+
+    expect(state.trackIndex).toBe(1);
+    expect(state.status).toBe("paused");
+  });
+
   it("settles into a hidden error state when no fallback remains", () => {
     const base = playing();
     const state = reduce(
@@ -249,6 +281,19 @@ describe("NEXT_TRACK / PREVIOUS_TRACK", () => {
     const base = inScene("casual-menu", 0);
     const state = reduce([{ type: "NEXT_TRACK", trackCount: 0 }], base);
     expect(state.generation).toBe(base.generation);
+  });
+
+  it("stays paused when skipping tracks during a session pause", () => {
+    const base = playing({ sessionPaused: true, status: "paused" });
+
+    const next = reduce([{ type: "NEXT_TRACK", trackCount: 2 }], base);
+    expect(next.trackIndex).toBe(1);
+    expect(next.status).toBe("paused");
+    expect(next.sessionPaused).toBe(true);
+
+    const previous = reduce([{ type: "PREVIOUS_TRACK", trackCount: 2 }], next);
+    expect(previous.trackIndex).toBe(0);
+    expect(previous.status).toBe("paused");
   });
 });
 

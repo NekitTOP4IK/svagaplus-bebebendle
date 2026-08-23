@@ -54,16 +54,17 @@ function wrapIndex(index: number, trackCount: number): number {
 export function playerReducer(state: PlayerState, event: PlayerEvent): PlayerState {
   switch (event.type) {
     case "SCENE_CHANGED":
+      // An explicit user pause survives scene (route) changes; the provider
+      // preloads the new scene's source so resuming stays instant.
       return {
         ...state,
         scene: event.scene,
-        status: "idle",
-        panelMode: "hidden",
+        status: state.sessionPaused ? "paused" : "idle",
+        panelMode: state.sessionPaused ? "collapsed" : "hidden",
         trackIndex: 0,
         sourceIndex: 0,
         generation: state.generation + 1,
         outcome: null,
-        sessionPaused: false,
       };
 
     case "TRACK_STARTED":
@@ -111,7 +112,7 @@ export function playerReducer(state: PlayerState, event: PlayerEvent): PlayerSta
       }
       return {
         ...state,
-        status: "loading",
+        status: state.sessionPaused ? "paused" : "loading",
         trackIndex: event.fallback.trackIndex,
         sourceIndex: event.fallback.sourceIndex,
         generation: state.generation + 1,
@@ -122,7 +123,7 @@ export function playerReducer(state: PlayerState, event: PlayerEvent): PlayerSta
       if (event.trackCount <= 0) return state;
       return {
         ...state,
-        status: "loading",
+        status: state.sessionPaused ? "paused" : "loading",
         trackIndex: wrapIndex(
           state.trackIndex + (event.type === "NEXT_TRACK" ? 1 : -1),
           event.trackCount,

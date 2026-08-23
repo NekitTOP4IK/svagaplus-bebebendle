@@ -14,7 +14,7 @@ import {
 import { usePathname } from "next/navigation";
 import { useAudioPreferences } from "@/components/audio/audio-preferences-provider";
 import { updateAudioPreferences } from "@/lib/audio/preferences";
-import { SOUNDTRACK_MANIFEST, type AudioScene, type Outcome, type SoundtrackTrack } from "@/lib/audio/soundtrack-manifest";
+import { SOUNDTRACK_MANIFEST, type AudioSource, type AudioScene, type Outcome, type SoundtrackTrack } from "@/lib/audio/soundtrack-manifest";
 import {
   applySoundtrackMetadata,
   DEFAULT_SOUNDTRACK_METADATA,
@@ -194,20 +194,29 @@ export function AudioProvider({
   const musicEnabledRef = useRef(preferences.musicEnabled);
   musicEnabledRef.current = preferences.musicEnabled;
 
-  const attemptPlay = useCallback((): void => {
-    if (!activatedRef.current || !musicEnabledRef.current) return;
-    if (stateRef.current.sessionPaused && !jingleModeRef.current) return;
-    const queue = queueRef.current;
-    if (queue.length === 0) return;
+  // Media-element listeners are attached once, so they must never close over a
+  // render's callbacks: they read the latest ones through these refs instead
+  // (otherwise volume fades kept targeting the first render's preferences).
+  const attemptPlayRef = useRef<() => void>(() => {});
+  const finishOutcomeRef = useRef<(element: HTMLAudioElement) => void>(() => {});
 
+  const selectCandidate = useCallback((): AudioSource | null => {
+    const queue = queueRef.current;
+    if (queue.length === 0) return null;
     const { trackIndex, sourceIndex } = stateRef.current;
     const candidate =
       queue.find((item) => item.trackIndex === trackIndex && item.sourceIndex === sourceIndex) ??
       queue.find((item) => item.trackIndex === trackIndex) ??
       queue[0]!;
-    const track = sceneTracksRef.current[candidate.trackIndex]?.track;
-    const source = track?.sources[candidate.sourceIndex];
-    if (!track || !source) return;
+    return sceneTracksRef.current[candidate.trackIndex]?.track.sources[candidate.sourceIndex] ?? null;
+  }, []);
+
+  const attemptPlay = useCallback((): void => {
+    if (!activatedRef.current || !musicEnabledRef.current) return;
+    if (stateRef.current.sessionPaused && !jingleModeRef.current) return;
+
+    const source = selectCandidate();
+    if (!source) return;
 
     const element = getAudio();
     const generation = stateRef.current.generation;
@@ -270,7 +279,40 @@ export function AudioProvider({
       return;
     }
     playSelectedSource(fadeToken);
-  }, [cancelVolumeFade, dispatch, fadeVolume, getAudio, preferences.musicVolume]);
+  }, [cancelVolumeFade, dispatch, fadeVolume, getAudio, preferences.musicVolume, selectCandidate]);
+
+  attemptPlayRef.current = attemptPlay;
+
+  /** While session-paused, swaps the loaded source for the selected track
+   * without autoplay so resuming starts the right track from zero. */
+  const primePausedSource = useCallback((): void => {
+    if (!activatedRef.current || !musicEnabledRef.current) return;
+    if (!stateRef.current.sessionPaused || jingleModeRef.current) return;
+    const source = selectCandidate();
+    if (!source) return;
+    const element = getAudio();
+    const resolvedSource = new URL(source.src, window.location.href).href;
+    if (element.src === source.src || element.src === resolvedSource) return;
+    cancelVolumeFade();
+    suppressMediaEventsRef.current = true;
+    element.pause();
+    element.currentTime = 0;
+    element.src = source.src;
+    element.load();
+    suppressMediaEventsRef.current = false;
+    element.volume = preferences.musicVolume;
+    element.loop = sceneTracksRef.current.length === 1 && !jingleModeRef.current;
+    mediaGenerationRef.current = { generation: stateRef.current.generation, jingleRequest: null };
+    setPosition({ currentTime: 0, duration: 0 });
+  }, [cancelVolumeFade, getAudio, preferences.musicVolume, selectCandidate]);
+
+  const resumeOrPrime = useCallback((): void => {
+    if (stateRef.current.sessionPaused && !jingleModeRef.current) {
+      primePausedSource();
+      return;
+    }
+    attemptPlay();
+  }, [attemptPlay, primePausedSource]);
 
   const activatePlayback = useCallback((silent = false): void => {
     activatedRef.current = true;
@@ -348,7 +390,7 @@ export function AudioProvider({
           suppressMediaEventsRef.current = false;
           setPosition({ currentTime: 0, duration: 0 });
         } else {
-          attemptPlay();
+          resumeOrPrime();
         }
       } else {
         const clear = (): void => clearMediaSource(element);
@@ -362,13 +404,13 @@ export function AudioProvider({
       }
     },
     [
-      attemptPlay,
       canPlay,
       cancelVolumeFade,
       clearMediaSource,
       dispatch,
       fadeVolume,
       getAudio,
+      resumeOrPrime,
       soundtrackMetadata,
     ],
   );
@@ -393,6 +435,8 @@ export function AudioProvider({
     if (nextScene) applyScene(nextScene);
   }, [applyScene, clearMediaSource]);
 
+  finishOutcomeRef.current = finishOutcome;
+
   const attachMediaListeners = (element: HTMLAudioElement): void => {
     element.addEventListener("timeupdate", () => {
       setPosition({ currentTime: element.currentTime, duration: element.duration || 0 });
@@ -411,7 +455,7 @@ export function AudioProvider({
         return;
       }
       dispatch({ type: "TRACK_ENDED", generation, trackCount: sceneTracksRef.current.length });
-      attemptPlay();
+      attemptPlayRef.current();
     });
     element.addEventListener("error", () => {
       if (suppressMediaEventsRef.current) return;
@@ -426,11 +470,11 @@ export function AudioProvider({
       const fallback = cursor >= 0 && cursor + 1 < queue.length ? queue[cursor + 1]! : null;
       if (jingleModeRef.current) {
         if (media.jingleRequest !== activeJingleRequestRef.current) return;
-        finishOutcome(element);
+        finishOutcomeRef.current(element);
         return;
       }
       dispatch({ type: "SOURCE_FAILED", generation, fallback });
-      if (fallback) attemptPlay();
+      if (fallback) attemptPlayRef.current();
     });
     element.addEventListener("pause", () => {
       if (suppressMediaEventsRef.current) return;
@@ -670,15 +714,15 @@ export function AudioProvider({
     const count = sceneTracksRef.current.length;
     if (count === 0) return;
     dispatch({ type: "PREVIOUS_TRACK", trackCount: count });
-    attemptPlay();
-  }, [attemptPlay, dispatch]);
+    resumeOrPrime();
+  }, [dispatch, resumeOrPrime]);
 
   const nextTrack = useCallback((): void => {
     const count = sceneTracksRef.current.length;
     if (count === 0) return;
     dispatch({ type: "NEXT_TRACK", trackCount: count });
-    attemptPlay();
-  }, [attemptPlay, dispatch]);
+    resumeOrPrime();
+  }, [dispatch, resumeOrPrime]);
 
   const controller: AudioController = {
     state,
