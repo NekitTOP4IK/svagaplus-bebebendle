@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
-import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   ChevronDown,
@@ -319,7 +318,7 @@ function ScranActionsMenu({
           setPosition(null);
           setOpen((value) => !value);
         }}
-        className={`pixel-btn inline-flex min-h-10 items-center gap-2 px-3 py-1.5 text-xs font-bold sm:text-sm ${
+        className={`pixel-btn inline-flex min-h-10 cursor-pointer items-center gap-2 px-3 py-1.5 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 sm:text-sm ${
           open ? "pixel-btn-info" : ""
         }`}
         aria-haspopup="menu"
@@ -341,39 +340,39 @@ function ScranActionsMenu({
               ref={menuRef}
               role="menu"
               aria-label={`Действия для ${scran.name}`}
-              className="fixed z-[100] max-h-[calc(100vh-1rem)] w-72 overflow-y-auto border-4 border-black bg-zinc-900 p-2 text-sm text-white shadow-[6px_6px_0_rgba(0,0,0,0.65)]"
+              className="fixed z-[100] max-h-[calc(100vh-1rem)] w-[19rem] overflow-y-auto border-4 border-black bg-zinc-900 p-2 text-sm text-white shadow-[6px_6px_0_rgba(0,0,0,0.65)] [font-family:var(--font-pixel)]"
               style={position}
             >
-              <div className="mb-2 flex items-center gap-3 border-2 border-zinc-700 bg-zinc-950 p-2">
+              <div className="mb-2 flex items-center gap-3 border-2 border-zinc-600 bg-[linear-gradient(180deg,#18181b_0%,#09090b_100%)] p-2 shadow-[inset_2px_2px_0_rgba(255,255,255,0.06)]">
                 {scran.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={scran.imageUrl}
                     alt=""
-                    className="h-11 w-11 shrink-0 border-2 border-black object-cover"
+                    className="h-12 w-12 shrink-0 border-2 border-black object-cover shadow-[2px_2px_0_rgba(255,255,255,0.12)]"
                   />
                 ) : null}
                 <div className="min-w-0">
-                  <p className="truncate font-bold text-white">{scran.name}</p>
-                  <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-white/40">
+                  <p className="truncate text-xs font-bold leading-snug text-white">{scran.name}</p>
+                  <p className="mt-1 text-[9px] font-bold uppercase leading-tight tracking-[0.08em] text-zinc-400">
                     #{scran.id} · {scran.approved ? "опубликовано" : scran.rejected ? "отклонено" : "на проверке"}
                   </p>
                 </div>
               </div>
 
               <MenuSection icon={ShieldCheck} label="Модерация" tone="amber">
-              <Link
+              <a
                 href={`/admin/scrans?id=${scran.id}`}
                 role="menuitem"
                 onClick={() => {
                   setOpen(false);
                   setPosition(null);
                 }}
-                className="group flex w-full items-center gap-3 border border-transparent px-2 py-2 text-left hover:border-amber-500/40 hover:bg-amber-950/35 focus:border-amber-400 focus:bg-amber-950/35 focus:outline-none"
+                className="group flex w-full cursor-pointer items-center gap-3 border border-transparent px-2 py-2 text-left transition-[background-color,border-color,transform] duration-75 hover:border-amber-500/50 hover:bg-amber-950/45 focus-visible:border-amber-300 focus-visible:bg-amber-950/45 focus-visible:outline-none active:translate-x-px active:translate-y-px"
               >
                 <MenuIcon icon={ClipboardList} tone="amber" />
                 <MenuCopy label="Открыть карточку" hint="История, автор и Daily" />
-              </Link>
+              </a>
               {(scran.telegramId || scran.authorUsername || scran.authorDisplayName) && onAuthor ? (
                 <MenuButton
                   icon={UserRound}
@@ -468,16 +467,16 @@ function MenuButton({
 }>): ReactElement {
   const hoverClass =
     tone === "red"
-      ? "hover:border-red-500/50 hover:bg-red-950/40 focus:border-red-400 focus:bg-red-950/40"
+      ? "hover:border-red-500/60 hover:bg-red-950/50 focus-visible:border-red-300 focus-visible:bg-red-950/50"
       : tone === "sky"
-        ? "hover:border-sky-500/40 hover:bg-sky-950/35 focus:border-sky-400 focus:bg-sky-950/35"
-        : "hover:border-amber-500/40 hover:bg-amber-950/35 focus:border-amber-400 focus:bg-amber-950/35";
+        ? "hover:border-sky-500/50 hover:bg-sky-950/45 focus-visible:border-sky-300 focus-visible:bg-sky-950/45"
+        : "hover:border-amber-500/50 hover:bg-amber-950/45 focus-visible:border-amber-300 focus-visible:bg-amber-950/45";
   return (
     <button
       type="button"
       role="menuitem"
       onClick={onSelect}
-      className={`group flex w-full items-center gap-3 border border-transparent px-2 py-2 text-left focus:outline-none ${hoverClass}`}
+      className={`group flex w-full cursor-pointer items-center gap-3 border border-transparent px-2 py-2 text-left transition-[background-color,border-color,transform] duration-75 focus-visible:outline-none active:translate-x-px active:translate-y-px ${hoverClass}`}
     >
       <MenuIcon icon={icon} tone={tone} />
       <MenuCopy label={label} hint={hint} danger={tone === "red"} />
@@ -505,12 +504,12 @@ function MenuSection({
         ? "border-sky-900/70 bg-sky-950/15 text-sky-300"
         : "border-amber-900/70 bg-amber-950/15 text-amber-300";
   return (
-    <section className={`mt-2 border-t-2 pt-1 ${toneClass}`}>
-      <h3 className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]">
+    <section className={`mt-2 overflow-hidden border-2 p-1 ${toneClass}`}>
+      <h3 className="flex items-center gap-1.5 border-b border-current/20 px-1.5 py-1.5 text-[9px] font-black uppercase tracking-[0.12em]">
         <Icon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.5} />
         {label}
       </h3>
-      <div>{children}</div>
+      <div className="pt-1">{children}</div>
     </section>
   );
 }
@@ -523,7 +522,7 @@ function MenuIcon({ icon: Icon, tone }: Readonly<{ icon: LucideIcon; tone: MenuT
         ? "border-sky-700 bg-sky-950 text-sky-300"
         : "border-amber-700 bg-amber-950 text-amber-300";
   return (
-    <span className={`flex h-8 w-8 shrink-0 items-center justify-center border ${toneClass}`}>
+    <span className={`flex h-9 w-9 shrink-0 items-center justify-center border-2 shadow-[inset_1px_1px_0_rgba(255,255,255,0.12)] ${toneClass}`}>
       <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} />
     </span>
   );
@@ -536,8 +535,10 @@ function MenuCopy({
 }: Readonly<{ label: string; hint: string; danger?: boolean }>): ReactElement {
   return (
     <span className="min-w-0">
-      <span className={`block font-bold ${danger ? "text-red-200" : "text-white"}`}>{label}</span>
-      <span className="mt-0.5 block text-[10px] leading-tight text-white/40">{hint}</span>
+      <span className={`block text-[11px] font-bold leading-tight ${danger ? "text-red-200" : "text-white"}`}>
+        {label}
+      </span>
+      <span className="mt-1 block text-[9px] leading-[1.35] text-zinc-400">{hint}</span>
     </span>
   );
 }

@@ -69,6 +69,11 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
     expect(screen.getByText("Опасная зона")).toBeInTheDocument();
     expect(screen.getByText("Снять с публикации")).toBeInTheDocument();
     expect(screen.getByText("Удалить блюдо")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /Открыть карточку/ })).toHaveAttribute(
+      "href",
+      "/admin/scrans?id=42",
+    );
+    expect(screen.getByRole("menuitem", { name: /Открыть карточку/ }).tagName).toBe("A");
     expect(screen.queryByText("Одобрить")).not.toBeInTheDocument();
   });
 
