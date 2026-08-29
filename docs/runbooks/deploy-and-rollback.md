@@ -12,14 +12,17 @@ CI **never** uploads bot tokens or DB passwords. The deploy script sources `shar
 
 `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` is read from host `shared/.env` during `bun run build` on the server (not from GitHub).
 
-### Daily cron (production/staging hosts)
+### Daily systemd timers (production/staging hosts)
 
-```cron
-0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-daily.sh >> /opt/bebebendle/shared/logs/daily-cron.log 2>&1
-0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-competitive.sh >> /opt/bebebendle/shared/logs/competitive-cron.log 2>&1
+Install once as root after the first release, then inspect them after deploys:
+
+```bash
+sudo bash /opt/bebebendle/current/ops/install-daily-timers.sh install
+bash /opt/bebebendle/current/ops/install-daily-timers.sh status
+systemctl list-timers 'bebebendle-*'
 ```
 
-Requires `CRON_SECRET` in `shared/.env`. Daily date boundary is 00:00 Europe/Moscow. Competitive cron uses the same secret and endpoint auth (`Bearer ${CRON_SECRET}` → `/api/cron/competitive`); exits 0 when competitive is disabled or no playable season.
+Both timers run at 00:00 `Europe/Moscow`, use `Persistent=true` to recover a missed boot-time run, and invoke scripts through `/opt/bebebendle/current`. Output appends to `shared/logs/daily-cron.log` and `shared/logs/competitive-cron.log`. `install` is root-only; `status` is read-only and may be run by `deploy`. A deploy warns, but remains successful, if the status check cannot reach systemd. Requires `CRON_SECRET` in `shared/.env`; the competitive job safely exits when disabled or no season is playable.
 
 ## Branch → environment
 
