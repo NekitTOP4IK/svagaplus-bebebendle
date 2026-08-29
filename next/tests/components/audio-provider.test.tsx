@@ -632,6 +632,60 @@ describe("outcome jingles", () => {
     act(() => audio().emit("ended"));
 
     expect(audio().src).toBe("");
+    expect(controller.trackCount).toBe(0);
+    expect(controller.currentTrack).toBeNull();
+    expect(controller.state.outcome).toBeNull();
+    expect(controller.state.panelMode).toBe("hidden");
+  });
+
+  it("exposes the playing jingle as the current track for the player UI", async () => {
+    let controller!: AudioController;
+    function Grab(): null {
+      controller = useAudioController();
+      return null;
+    }
+    render(wrap(<Grab />));
+    fireEvent.pointerDown(document.body);
+
+    act(() => controller.playOutcome("victory", "casual-result:visible"));
+
+    expect(controller.currentTrack?.id).toBe("victory-jingle");
+    expect(controller.currentTrack?.title).toBe("Victory");
+    expect(controller.trackCount).toBe(1);
+    await waitFor(() => expect(controller.state.panelMode).toBe("auto"));
+    await waitFor(() => expect(controller.state.status).toBe("playing"));
+  });
+
+  it("cuts the jingle and switches to the destination scene when navigating away mid-jingle", async () => {
+    const grabs: AudioController[] = [];
+    function Harness({ owned }: Readonly<{ owned: boolean }>): null {
+      const controller = useAudioController();
+      grabs.push(controller);
+      const setScene = controller.setScene;
+      const clearScene = controller.clearScene;
+      useEffect(() => {
+        if (!owned) return undefined;
+        setScene("ranked-game", "ranked-result");
+        return () => clearScene("ranked-result");
+      }, [clearScene, owned, setScene]);
+      return null;
+    }
+    const view = render(wrap(<Harness owned={false} />));
+    fireEvent.pointerDown(document.body);
+
+    route.value = "/competitive/play";
+    view.rerender(wrap(<Harness owned={true} />));
+    await waitFor(() => expect(audio().src).toBe("/soundtrack/ranked-game-a.mp3"));
+
+    act(() => grabs[grabs.length - 1]!.playOutcome("victory", "ranked-result:leave", true));
+    expect(audio().src).toBe("/soundtrack/victory.mp3");
+
+    route.value = "/";
+    view.rerender(wrap(<Harness owned={false} />));
+
+    await waitFor(() => expect(audio().src).toBe("/soundtrack/casual-menu-a.ogg"));
+    expect(grabs[grabs.length - 1]!.state.outcome).toBeNull();
+    expect(grabs[grabs.length - 1]!.state.scene).toBe("casual-menu");
   });
 
   it("restores the ranked scene after its result jingle when requested", async () => {
