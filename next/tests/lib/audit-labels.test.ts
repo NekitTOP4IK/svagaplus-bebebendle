@@ -12,6 +12,8 @@ const ACTION_LABELS = {
   "scran.bulk_reject": "Массовое отклонение",
   "user.ban": "Пользователь забанен",
   "daily.generate": "Daily сгенерирован",
+  "daily.reentry_grant": "Повторный допуск в Daily выдан",
+  "daily.reentry_revoke": "Повторный допуск в Daily отозван",
   "settings.daily_rotation_notify": "Настройка: уведомления о ротации",
   "settings.daily_generation": "Настройка: генерация daily",
   "announcements.create": "Объявление создано",
@@ -56,6 +58,11 @@ describe("auditDetailsPreview", () => {
 
   it("formats generated daily details", () => {
     expect(auditDetailsPreview(JSON.stringify({ date: "2026-07-26", rounds: 5 }))).toBe("дата 2026-07-26; раундов: 5");
+  });
+
+  it("formats Daily reentry details", () => {
+    expect(auditDetailsPreview(JSON.stringify({ dailyReentry: true, bulk: false }))).toBe("одно блюдо");
+    expect(auditDetailsPreview(JSON.stringify({ dailyReentry: true, bulk: true, reason: "для теста" }))).toBe("массовая операция; комментарий: для теста");
   });
 
   it("formats enabled settings", () => {

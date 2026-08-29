@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { ScranRow } from "@/components/admin/scran-row";
 import type { Scran } from "@/types/scran";
 
@@ -47,7 +47,7 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
     expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
   });
 
-  it("shows ban only for admin on approved items", () => {
+  it("shows unpublish and delete in the admin actions menu for approved items", () => {
     const approvedScran = { ...baseScran, approved: true };
     render(
       <table>
@@ -63,7 +63,8 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
         </tbody>
       </table>,
     );
-    expect(screen.getByText("Снять")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Действия для Test Scran" }));
+    expect(screen.getByText("Снять с публикации")).toBeInTheDocument();
     expect(screen.getByText("Удалить")).toBeInTheDocument();
     expect(screen.queryByText("Одобрить")).not.toBeInTheDocument();
   });
@@ -88,7 +89,7 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
     expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
   });
 
-  it("shows Delete button ONLY for admin role", () => {
+  it("shows Delete only inside the admin actions menu", () => {
     render(
       <table>
         <tbody>
@@ -103,6 +104,8 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
         </tbody>
       </table>,
     );
+    expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Действия для Test Scran" }));
     expect(screen.getByText("Удалить")).toBeInTheDocument();
     expect(screen.getByText("Одобрить")).toBeInTheDocument();
   });

@@ -15,6 +15,7 @@ import {
 } from "@/app/actions/admin/moderation";
 import type { RejectReasonCode } from "@/lib/reject-reasons";
 import type { BanReasonCode } from "@/lib/ban-reasons";
+import { grantAdminDailyReentry } from "@/app/actions/admin-daily";
 
 interface UseScranMutationsParams {
   onUnauthorized: () => void;
@@ -47,6 +48,7 @@ interface UseScranMutationsReturn {
     patch: { name: string; description: string; price: number },
   ) => Promise<boolean>;
   restoreScran: (id: number) => Promise<void>;
+  grantDailyReentry: (ids: number[]) => Promise<boolean>;
 }
 
 export function useScranMutations({
@@ -308,6 +310,41 @@ export function useScranMutations({
     [onSuccess, onUnauthorized],
   );
 
+  const grantDailyReentry = useCallback(
+    async (ids: number[]): Promise<boolean> => {
+      if (ids.length === 0) return false;
+      try {
+        const response = await grantAdminDailyReentry({ ids });
+        if (response.ok) {
+          const { grantedIds, skippedIds } = response.data;
+          if (grantedIds.length > 0) {
+            toast.success(
+              grantedIds.length === 1
+                ? `Блюдо #${grantedIds[0]} снова допущено в Daily`
+                : `Повторный допуск: ${grantedIds.length}`,
+              skippedIds.length > 0
+                ? { description: `Пропущено: ${skippedIds.length}` }
+                : undefined,
+            );
+          } else {
+            toast.error("Нет подходящих блюд", {
+              description: "Нужны одобренные блюда, уже участвовавшие в Daily",
+            });
+          }
+          onSuccess();
+          return grantedIds.length > 0;
+        }
+        if (response.code === "unauthorized") onUnauthorized();
+        else toast.error(response.message);
+      } catch (error) {
+        console.error("daily reentry error", error);
+        toast.error("Не удалось выдать повторный допуск");
+      }
+      return false;
+    },
+    [onSuccess, onUnauthorized],
+  );
+
   return {
     approveScran,
     rejectScran,
@@ -318,5 +355,6 @@ export function useScranMutations({
     bulkAction,
     editScran,
     restoreScran,
+    grantDailyReentry,
   };
 }

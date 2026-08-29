@@ -33,6 +33,7 @@ export default function AdminPage() {
     bulkAction,
     editScran,
     restoreScran,
+    grantDailyReentry,
     handleSort,
     setCurrentPage,
     setView,
@@ -75,6 +76,7 @@ export default function AdminPage() {
       onBulk={bulkAction}
       onEdit={editScran}
       onRestore={restoreScran}
+      onGrantDailyReentry={grantDailyReentry}
       onSetView={setView}
       onSetSubscriberOnly={setSubscriberOnly}
       onToggleSubscriberOnly={toggleSubscriberOnly}

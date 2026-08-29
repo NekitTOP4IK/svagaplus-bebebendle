@@ -27,8 +27,6 @@ import {
 import { getUsersPage, type AdminUser } from "@/app/admin/actions";
 import { UserEditorModal } from "@/components/admin/user-editor-modal";
 import type { BanReasonCode } from "@/lib/ban-reasons";
-import { addCompetitivePoolEntry } from "@/app/admin/competitive-actions";
-import { toast } from "sonner";
 
 type SortField = "id" | "name" | "price" | "numberOfLikes" | "numberOfDislikes" | "approved";
 type SortOrder = "asc" | "desc";
@@ -73,6 +71,7 @@ interface AdminDashboardProps {
     patch: { name: string; description: string; price: number },
   ) => Promise<boolean>;
   onRestore?: (id: number) => void | Promise<void>;
+  onGrantDailyReentry?: (ids: number[]) => Promise<boolean>;
   onSetView?: (mode: ViewMode) => void;
   onSetSubscriberOnly?: (only: boolean) => void;
   onToggleSubscriberOnly?: () => void;
@@ -131,6 +130,7 @@ export function AdminDashboard({
   onBulk,
   onEdit,
   onRestore,
+  onGrantDailyReentry,
   onSetView,
   onToggleSubscriberOnly,
   onSearchChange,
@@ -149,26 +149,7 @@ export function AdminDashboard({
   const [queueMode, setQueueMode] = useState<QueueMode>("cards");
   const [actionBusy, setActionBusy] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [competitiveBusyId, setCompetitiveBusyId] = useState<number | null>(
-    null,
-  );
   const [localSearch, setLocalSearch] = useState(searchQuery);
-
-  const handleAddToCompetitive = useCallback(async (id: number) => {
-    setCompetitiveBusyId(id);
-    try {
-      const result = await addCompetitivePoolEntry(id);
-      if (!result.success) {
-        toast.error(result.message);
-        return;
-      }
-      toast.success(`#${id} добавлен в competitive pool`);
-    } catch {
-      toast.error("Ошибка сети");
-    } finally {
-      setCompetitiveBusyId(null);
-    }
-  }, []);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -265,6 +246,17 @@ export function AdminDashboard({
     },
     [onBulk, selected],
   );
+
+  const grantSelectedDailyReentry = useCallback(async () => {
+    if (!onGrantDailyReentry || selected.size === 0) return;
+    setActionBusy(true);
+    try {
+      const changed = await onGrantDailyReentry([...selected]);
+      if (changed) setSelected(new Set());
+    } finally {
+      setActionBusy(false);
+    }
+  }, [onGrantDailyReentry, selected]);
 
   const uncheckedCount = scrans.filter((s) => s.isSubscriberAtSubmit === null).length;
 
@@ -464,6 +456,16 @@ export function AdminDashboard({
                 >
                   Bulk ✕
                 </button>
+                {role === "admin" && onGrantDailyReentry && (
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => void grantSelectedDailyReentry()}
+                    className="pixel-btn pixel-btn-info px-2 py-1 text-xs font-bold"
+                  >
+                    Повтор в Daily
+                  </button>
+                )}
                 <button type="button" onClick={clearSelection} className="pixel-link-btn">
                   сброс
                 </button>
@@ -643,12 +645,12 @@ export function AdminDashboard({
                   ? (id) => void onRestore(id)
                   : undefined
               }
-              onAddToCompetitive={
-                role === "admin"
-                  ? (id) => void handleAddToCompetitive(id)
+              onRecheck={(id) => void handleRecheck(id)}
+              onGrantDailyReentry={
+                role === "admin" && onGrantDailyReentry
+                  ? (id) => void onGrantDailyReentry([id])
                   : undefined
               }
-              competitiveBusyId={competitiveBusyId}
             />
             <Pagination
               currentPage={currentPage}

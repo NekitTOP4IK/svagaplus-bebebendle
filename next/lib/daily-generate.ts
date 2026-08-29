@@ -1,4 +1,4 @@
-import { db, scrans, dailyScrandles } from "@/db/schema";
+import { db, scrans, dailyReentryGrants, dailyScrandles } from "@/db/schema";
 import {
   eq,
   and,
@@ -9,6 +9,8 @@ import {
   gt,
   asc,
   inArray,
+  exists,
+  isNull,
 } from "drizzle-orm";
 import type { Scran } from "@/db/schema";
 import { todayMskDate } from "@/lib/daily-timezone";
@@ -53,16 +55,30 @@ export async function getApprovedScransWithVotes(): Promise<Scran[]> {
     .from(scrans)
     .where(
       and(
-        notExists(
-          db
-            .select({ one: sql`1` })
-            .from(dailyScrandles)
-            .where(
-              or(
-                eq(dailyScrandles.scranAId, scrans.id),
-                eq(dailyScrandles.scranBId, scrans.id),
+        or(
+          notExists(
+            db
+              .select({ one: sql`1` })
+              .from(dailyScrandles)
+              .where(
+                or(
+                  eq(dailyScrandles.scranAId, scrans.id),
+                  eq(dailyScrandles.scranBId, scrans.id),
+                ),
               ),
-            ),
+          ),
+          exists(
+            db
+              .select({ one: sql`1` })
+              .from(dailyReentryGrants)
+              .where(
+                and(
+                  eq(dailyReentryGrants.scranId, scrans.id),
+                  isNull(dailyReentryGrants.consumedAt),
+                  isNull(dailyReentryGrants.revokedAt),
+                ),
+              ),
+          ),
         ),
         gt(
           sql<number>`${scrans.numberOfLikes} + ${scrans.numberOfDislikes}`,
@@ -155,28 +171,47 @@ export async function createDailyRounds(
   selected: Scran[],
   date: string,
 ): Promise<{ roundNumber: number; scranA: string; scranB: string }[]> {
-  const createdRounds = [];
+  const createdAt = new Date();
+  const createdRounds = Array.from({ length: ROUNDS_COUNT }, (_, index) => {
+    const scranA = selected[index * 2]!;
+    const scranB = selected[index * 2 + 1]!;
+    return {
+      roundNumber: index + 1,
+      scranA,
+      scranB,
+    };
+  });
 
-  for (let roundNumber = 1; roundNumber <= ROUNDS_COUNT; roundNumber++) {
-    const scranA = selected[(roundNumber - 1) * 2];
-    const scranB = selected[(roundNumber - 1) * 2 + 1];
+  await db.transaction(async (tx) => {
+    await tx.insert(dailyScrandles).values(
+      createdRounds.map(({ roundNumber, scranA, scranB }) => ({
+        date,
+        scranAId: scranA.id,
+        scranBId: scranB.id,
+        roundNumber,
+        createdAt,
+      })),
+    );
+    await tx
+      .update(dailyReentryGrants)
+      .set({ consumedAt: createdAt, consumedForDate: date })
+      .where(
+        and(
+          inArray(
+            dailyReentryGrants.scranId,
+            selected.map((scran) => scran.id),
+          ),
+          isNull(dailyReentryGrants.consumedAt),
+          isNull(dailyReentryGrants.revokedAt),
+        ),
+      );
+  });
 
-    await db.insert(dailyScrandles).values({
-      date,
-      scranAId: scranA.id,
-      scranBId: scranB.id,
-      roundNumber,
-      createdAt: new Date(),
-    });
-
-    createdRounds.push({
-      roundNumber,
-      scranA: scranA.name,
-      scranB: scranB.name,
-    });
-  }
-
-  return createdRounds;
+  return createdRounds.map(({ roundNumber, scranA, scranB }) => ({
+    roundNumber,
+    scranA: scranA.name,
+    scranB: scranB.name,
+  }));
 }
 
 export async function generateDailyForDate(date: string): Promise<

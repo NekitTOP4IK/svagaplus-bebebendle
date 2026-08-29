@@ -142,6 +142,17 @@ export const dailyScrandles = pgTable("daily_scrandles", {
   uniqueRoundPerDay: uniqueIndex("unique_round_per_day").on(table.date, table.roundNumber),
 }));
 
+/** One reusable one-shot permission for a scran to return to casual Daily. */
+export const dailyReentryGrants = pgTable("daily_reentry_grants", {
+  scranId: integer("scran_id").primaryKey().references(() => scrans.id, { onDelete: "cascade" }),
+  grantedByUserId: integer("granted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  reason: text("reason"),
+  grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  consumedForDate: text("consumed_for_date"),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
+
 export const scrandleVotes = pgTable("scrandle_votes", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   dailyScrandleId: integer("daily_scrandle_id").notNull(),
@@ -314,6 +325,7 @@ export const competitiveSeasonFinalRanks = pgTable("competitive_season_final_ran
 
 export type Scran = typeof scrans.$inferSelect;
 export type DailyScrandle = typeof dailyScrandles.$inferSelect;
+export type DailyReentryGrant = typeof dailyReentryGrants.$inferSelect;
 export type ScrandleVote = typeof scrandleVotes.$inferSelect;
 export type DailyUserResult = typeof dailyUserResults.$inferSelect;
 export type TelegramVote = typeof telegramVotes.$inferSelect;

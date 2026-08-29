@@ -64,6 +64,7 @@ interface UseAdminReturn {
     patch: { name: string; description: string; price: number },
   ) => Promise<boolean>;
   restoreScran: (id: number) => Promise<void>;
+  grantDailyReentry: (ids: number[]) => Promise<boolean>;
   handleSort: (field: SortField) => void;
   setCurrentPage: (page: number) => void;
   setView: (mode: ViewMode) => void;
@@ -158,6 +159,7 @@ export function useAdmin(): UseAdminReturn {
     bulkAction,
     editScran,
     restoreScran,
+    grantDailyReentry,
   } = useScranMutations({
     onUnauthorized: logout,
     onSuccess: refetch,
@@ -191,6 +193,7 @@ export function useAdmin(): UseAdminReturn {
     bulkAction,
     editScran,
     restoreScran,
+    grantDailyReentry,
     handleSort,
     setCurrentPage,
     setView,

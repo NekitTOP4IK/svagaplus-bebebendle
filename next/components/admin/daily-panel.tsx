@@ -8,6 +8,7 @@ import {
   generateAdminDaily,
   getAdminDailySettings,
   getAdminDailyView,
+  revokeAdminDailyReentry,
   updateAdminDailySettings,
 } from "@/app/actions/admin-daily";
 
@@ -26,6 +27,13 @@ type DailyData = {
     scranBName: string | null;
   }>;
   calendar: Array<{ date: string; rounds: number }>;
+  activeReentries: Array<{
+    scranId: number;
+    scranName: string;
+    grantedAt: string;
+    grantedBy: string | null;
+    reason: string | null;
+  }>;
 };
 
 type Settings = {
@@ -105,6 +113,22 @@ export function DailyPanel({ role }: Props): ReactElement {
         await load();
       } else {
         toast.error(result.message || "Не удалось создать");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revokeReentry = async (scranId: number) => {
+    if (role !== "admin") return;
+    setBusy(true);
+    try {
+      const result = await revokeAdminDailyReentry({ ids: [scranId] });
+      if (result.ok) {
+        toast.success(`Допуск #${scranId} отозван`);
+        await load();
+      } else {
+        toast.error(result.message);
       }
     } finally {
       setBusy(false);
@@ -309,6 +333,40 @@ export function DailyPanel({ role }: Props): ReactElement {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {role === "admin" && (
+            <div className="border-t border-zinc-700 pt-3">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-white/50">
+                Повторные допуски ({data.activeReentries?.length ?? 0})
+              </h3>
+              {data.activeReentries?.length ? (
+                <ul className="space-y-2">
+                  {data.activeReentries.map((entry) => (
+                    <li
+                      key={entry.scranId}
+                      className="flex flex-wrap items-center gap-2 border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm"
+                    >
+                      <ScranAdminLink id={entry.scranId} name={entry.scranName} />
+                      <span className="text-xs text-white/45">
+                        {entry.grantedBy || "—"} · {new Date(entry.grantedAt).toLocaleString("ru-RU")}
+                        {entry.reason ? ` · ${entry.reason}` : ""}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void revokeReentry(entry.scranId)}
+                        className="pixel-link-btn ml-auto text-red-300"
+                      >
+                        отозвать
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-white/40">Активных допусков нет</p>
+              )}
             </div>
           )}
 

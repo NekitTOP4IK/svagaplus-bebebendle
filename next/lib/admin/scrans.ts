@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import {
+  dailyReentryGrants,
   dailyScrandles,
   db,
   moderationAuditLog,
@@ -255,6 +256,17 @@ export async function getAdminScran(
     .where(eq(moderationAuditLog.scranId, id))
     .orderBy(desc(moderationAuditLog.createdAt))
     .limit(40);
+  const [dailyReentry] = await db
+    .select({
+      grantedAt: dailyReentryGrants.grantedAt,
+      reason: dailyReentryGrants.reason,
+      consumedAt: dailyReentryGrants.consumedAt,
+      consumedForDate: dailyReentryGrants.consumedForDate,
+      revokedAt: dailyReentryGrants.revokedAt,
+    })
+    .from(dailyReentryGrants)
+    .where(eq(dailyReentryGrants.scranId, id))
+    .limit(1);
 
   return {
     scran: rows[0].scran,
@@ -264,6 +276,7 @@ export async function getAdminScran(
       roundNumber: item.roundNumber,
       side: item.scranAId === id ? "A" : "B",
     })),
+    dailyReentry: dailyReentry ?? null,
     audit,
   };
 }

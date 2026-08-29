@@ -10,6 +10,8 @@ export const AUDIT_ACTIONS = {
   SCRAN_BULK_REJECT: "scran.bulk_reject",
   USER_BAN: "user.ban",
   DAILY_GENERATE: "daily.generate",
+  DAILY_REENTRY_GRANT: "daily.reentry_grant",
+  DAILY_REENTRY_REVOKE: "daily.reentry_revoke",
   SETTINGS_DAILY_ROTATION_NOTIFY: "settings.daily_rotation_notify",
   SETTINGS_DAILY_GENERATION: "settings.daily_generation",
   SETTINGS_SOUNDTRACK_METADATA: "settings.soundtrack_metadata",

@@ -94,10 +94,10 @@ export async function getAdminScranAction(
   id: number,
 ): Promise<QueryResult<unknown>> {
   try {
-    await requireRole("moderator");
+    const actor = await requireRole("moderator");
     const data = await getAdminScran(id);
     return data
-      ? { success: true, data }
+      ? { success: true, data: { ...data, viewerRole: actor.role } }
       : { success: false, message: "Scran not found" };
   } catch (error) {
     return { success: false, message: errorMessage(error, "Ошибка загрузки") };

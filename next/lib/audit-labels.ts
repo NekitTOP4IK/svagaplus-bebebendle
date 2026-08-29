@@ -15,6 +15,8 @@ export const AUDIT_ACTION_LABELS: Record<(typeof PRODUCTION_AUDIT_ACTIONS)[numbe
   "scran.bulk_reject": "Массовое отклонение",
   "user.ban": "Пользователь забанен",
   "daily.generate": "Daily сгенерирован",
+  "daily.reentry_grant": "Повторный допуск в Daily выдан",
+  "daily.reentry_revoke": "Повторный допуск в Daily отозван",
   "settings.daily_rotation_notify": "Настройка: уведомления о ротации",
   "settings.daily_generation": "Настройка: генерация daily",
   "settings.soundtrack_metadata": "Метаданные саундтрека обновлены",
@@ -90,6 +92,14 @@ function formatSeasonStatus(value: unknown): string | null {
 
 /** Formats the known audit detail payloads written by the application. */
 function formatKnownDetails(details: Record<string, unknown>): string | null {
+  if (details.dailyReentry === true) {
+    const scope = details.bulk === true ? "массовая операция" : "одно блюдо";
+    const reason = typeof details.reason === "string" && details.reason.trim()
+      ? `; комментарий: ${details.reason.trim()}`
+      : "";
+    return `${scope}${reason}`;
+  }
+
   if (typeof details.targetUserId === "number") {
     const telegram = typeof details.telegramId === "string" || typeof details.telegramId === "number"
       ? ` (Telegram: ${details.telegramId})`
