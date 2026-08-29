@@ -3,6 +3,21 @@
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
+import {
+  ChevronDown,
+  ClipboardList,
+  EyeOff,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+  TriangleAlert,
+  UserRound,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 import type { Scran } from "@/types/scran";
 import { getLikesPercentage } from "@/lib/scoring";
 import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
@@ -256,7 +271,7 @@ function ScranActionsMenu({
     if (!button) return;
     const rect = button.getBoundingClientRect();
     const right = Math.max(8, window.innerWidth - rect.right);
-    if (window.innerHeight - rect.bottom < 320) {
+    if (window.innerHeight - rect.bottom < 420) {
       setPosition({ right, bottom: window.innerHeight - rect.top + 6 });
     } else {
       setPosition({ right, top: rect.bottom + 6 });
@@ -304,25 +319,49 @@ function ScranActionsMenu({
           setPosition(null);
           setOpen((value) => !value);
         }}
-        className="pixel-btn min-h-10 min-w-10 px-3 py-1.5 text-sm font-bold"
+        className={`pixel-btn inline-flex min-h-10 items-center gap-2 px-3 py-1.5 text-xs font-bold sm:text-sm ${
+          open ? "pixel-btn-info" : ""
+        }`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Действия для ${scran.name}`}
         title="Действия"
       >
-        ⋯
+        <Settings2 aria-hidden="true" className="h-4 w-4" strokeWidth={2.5} />
+        <span>Действия</span>
+        <ChevronDown
+          aria-hidden="true"
+          className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+          strokeWidth={2.5}
+        />
       </button>
       {open && position
         ? createPortal(
             <div
               ref={menuRef}
               role="menu"
-              className="fixed z-[100] w-64 border-2 border-black bg-zinc-900 p-1 text-sm text-white shadow-[4px_4px_0_rgba(0,0,0,0.6)]"
+              aria-label={`Действия для ${scran.name}`}
+              className="fixed z-[100] max-h-[calc(100vh-1rem)] w-72 overflow-y-auto border-4 border-black bg-zinc-900 p-2 text-sm text-white shadow-[6px_6px_0_rgba(0,0,0,0.65)]"
               style={position}
             >
-              <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/40">
-                Модерация
-              </p>
+              <div className="mb-2 flex items-center gap-3 border-2 border-zinc-700 bg-zinc-950 p-2">
+                {scran.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={scran.imageUrl}
+                    alt=""
+                    className="h-11 w-11 shrink-0 border-2 border-black object-cover"
+                  />
+                ) : null}
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-white">{scran.name}</p>
+                  <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-white/40">
+                    #{scran.id} · {scran.approved ? "опубликовано" : scran.rejected ? "отклонено" : "на проверке"}
+                  </p>
+                </div>
+              </div>
+
+              <MenuSection icon={ShieldCheck} label="Модерация" tone="amber">
               <Link
                 href={`/admin/scrans?id=${scran.id}`}
                 role="menuitem"
@@ -330,54 +369,80 @@ function ScranActionsMenu({
                   setOpen(false);
                   setPosition(null);
                 }}
-                className="block w-full px-2 py-2 text-left hover:bg-zinc-700 focus:bg-zinc-700 focus:outline-none"
+                className="group flex w-full items-center gap-3 border border-transparent px-2 py-2 text-left hover:border-amber-500/40 hover:bg-amber-950/35 focus:border-amber-400 focus:bg-amber-950/35 focus:outline-none"
               >
-                Открыть карточку
+                <MenuIcon icon={ClipboardList} tone="amber" />
+                <MenuCopy label="Открыть карточку" hint="История, автор и Daily" />
               </Link>
               {(scran.telegramId || scran.authorUsername || scran.authorDisplayName) && onAuthor ? (
-                <MenuButton onSelect={() => select(() => onAuthor(scran.telegramId))}>
-                  Открыть автора
-                </MenuButton>
+                <MenuButton
+                  icon={UserRound}
+                  label="Открыть автора"
+                  hint="Карточка и ограничения"
+                  tone="amber"
+                  onSelect={() => select(() => onAuthor(scran.telegramId))}
+                />
               ) : null}
               {scran.rejected && onRestore ? (
-                <MenuButton onSelect={() => select(() => onRestore(scran.id))}>
-                  Вернуть в очередь
-                </MenuButton>
+                <MenuButton
+                  icon={RotateCcw}
+                  label="Вернуть в очередь"
+                  hint="Снова отправить на проверку"
+                  tone="amber"
+                  onSelect={() => select(() => onRestore(scran.id))}
+                />
               ) : null}
               {scran.approved && isAdmin ? (
-                <MenuButton onSelect={() => select(() => onBan(scran.id))}>
-                  Снять с публикации
-                </MenuButton>
+                <MenuButton
+                  icon={EyeOff}
+                  label="Снять с публикации"
+                  hint="Убрать из публичного списка"
+                  tone="amber"
+                  onSelect={() => select(() => onBan(scran.id))}
+                />
               ) : null}
+              </MenuSection>
 
               {isAdmin ? (
                 <>
-                  <div className="my-1 border-t border-zinc-700" />
-                  <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/40">
-                    Администрирование
-                  </p>
+                  <MenuSection icon={Wrench} label="Администрирование" tone="sky">
                   {onEdit ? (
-                    <MenuButton onSelect={() => select(() => onEdit(scran))}>
-                      Редактировать
-                    </MenuButton>
+                    <MenuButton
+                      icon={Pencil}
+                      label="Редактировать"
+                      hint="Название, описание и цена"
+                      tone="sky"
+                      onSelect={() => select(() => onEdit(scran))}
+                    />
                   ) : null}
                   {onGrantDailyReentry && scran.approved ? (
-                    <MenuButton onSelect={() => select(() => onGrantDailyReentry(scran.id))}>
-                      Разрешить повтор в Daily
-                    </MenuButton>
+                    <MenuButton
+                      icon={RotateCcw}
+                      label="Повтор в Daily"
+                      hint="Одно дополнительное участие"
+                      tone="sky"
+                      onSelect={() => select(() => onGrantDailyReentry(scran.id))}
+                    />
                   ) : null}
                   {onRecheck ? (
-                    <MenuButton onSelect={() => select(() => onRecheck(scran.id))}>
-                      Перепроверить SVAGA+
-                    </MenuButton>
+                    <MenuButton
+                      icon={RefreshCw}
+                      label="Перепроверить SVAGA+"
+                      hint="Обновить статус подписки"
+                      tone="sky"
+                      onSelect={() => select(() => onRecheck(scran.id))}
+                    />
                   ) : null}
-                  <div className="my-1 border-t border-zinc-700" />
+                  </MenuSection>
+                  <MenuSection icon={TriangleAlert} label="Опасная зона" tone="red">
                   <MenuButton
-                    danger
+                    icon={Trash2}
+                    label="Удалить блюдо"
+                    hint="Блюдо и связанные данные"
+                    tone="red"
                     onSelect={() => select(() => onDelete(scran))}
-                  >
-                    Удалить
-                  </MenuButton>
+                  />
+                  </MenuSection>
                 </>
               ) : null}
             </div>,
@@ -389,24 +454,90 @@ function ScranActionsMenu({
 }
 
 function MenuButton({
-  children,
-  danger = false,
+  icon,
+  label,
+  hint,
+  tone,
   onSelect,
 }: Readonly<{
-  children: ReactNode;
-  danger?: boolean;
+  icon: LucideIcon;
+  label: string;
+  hint: string;
+  tone: MenuTone;
   onSelect: () => void;
 }>): ReactElement {
+  const hoverClass =
+    tone === "red"
+      ? "hover:border-red-500/50 hover:bg-red-950/40 focus:border-red-400 focus:bg-red-950/40"
+      : tone === "sky"
+        ? "hover:border-sky-500/40 hover:bg-sky-950/35 focus:border-sky-400 focus:bg-sky-950/35"
+        : "hover:border-amber-500/40 hover:bg-amber-950/35 focus:border-amber-400 focus:bg-amber-950/35";
   return (
     <button
       type="button"
       role="menuitem"
       onClick={onSelect}
-      className={`block w-full px-2 py-2 text-left hover:bg-zinc-700 focus:bg-zinc-700 focus:outline-none ${
-        danger ? "text-red-300" : ""
-      }`}
+      className={`group flex w-full items-center gap-3 border border-transparent px-2 py-2 text-left focus:outline-none ${hoverClass}`}
     >
-      {children}
+      <MenuIcon icon={icon} tone={tone} />
+      <MenuCopy label={label} hint={hint} danger={tone === "red"} />
     </button>
+  );
+}
+
+type MenuTone = "amber" | "sky" | "red";
+
+function MenuSection({
+  children,
+  icon: Icon,
+  label,
+  tone,
+}: Readonly<{
+  children: ReactNode;
+  icon: LucideIcon;
+  label: string;
+  tone: MenuTone;
+}>): ReactElement {
+  const toneClass =
+    tone === "red"
+      ? "border-red-900/70 bg-red-950/15 text-red-300"
+      : tone === "sky"
+        ? "border-sky-900/70 bg-sky-950/15 text-sky-300"
+        : "border-amber-900/70 bg-amber-950/15 text-amber-300";
+  return (
+    <section className={`mt-2 border-t-2 pt-1 ${toneClass}`}>
+      <h3 className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]">
+        <Icon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.5} />
+        {label}
+      </h3>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function MenuIcon({ icon: Icon, tone }: Readonly<{ icon: LucideIcon; tone: MenuTone }>): ReactElement {
+  const toneClass =
+    tone === "red"
+      ? "border-red-700 bg-red-950 text-red-300"
+      : tone === "sky"
+        ? "border-sky-700 bg-sky-950 text-sky-300"
+        : "border-amber-700 bg-amber-950 text-amber-300";
+  return (
+    <span className={`flex h-8 w-8 shrink-0 items-center justify-center border ${toneClass}`}>
+      <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2.25} />
+    </span>
+  );
+}
+
+function MenuCopy({
+  label,
+  hint,
+  danger = false,
+}: Readonly<{ label: string; hint: string; danger?: boolean }>): ReactElement {
+  return (
+    <span className="min-w-0">
+      <span className={`block font-bold ${danger ? "text-red-200" : "text-white"}`}>{label}</span>
+      <span className="mt-0.5 block text-[10px] leading-tight text-white/40">{hint}</span>
+    </span>
   );
 }

@@ -64,8 +64,11 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
       </table>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Действия для Test Scran" }));
+    expect(screen.getByText("Модерация")).toBeInTheDocument();
+    expect(screen.getByText("Администрирование")).toBeInTheDocument();
+    expect(screen.getByText("Опасная зона")).toBeInTheDocument();
     expect(screen.getByText("Снять с публикации")).toBeInTheDocument();
-    expect(screen.getByText("Удалить")).toBeInTheDocument();
+    expect(screen.getByText("Удалить блюдо")).toBeInTheDocument();
     expect(screen.queryByText("Одобрить")).not.toBeInTheDocument();
   });
 
@@ -86,7 +89,7 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
       </table>,
     );
     expect(screen.queryByText("Снять")).not.toBeInTheDocument();
-    expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
+    expect(screen.queryByText("Удалить блюдо")).not.toBeInTheDocument();
   });
 
   it("shows Delete only inside the admin actions menu", () => {
@@ -106,7 +109,7 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
     );
     expect(screen.queryByText("Удалить")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Действия для Test Scran" }));
-    expect(screen.getByText("Удалить")).toBeInTheDocument();
+    expect(screen.getByText("Удалить блюдо")).toBeInTheDocument();
     expect(screen.getByText("Одобрить")).toBeInTheDocument();
   });
 
