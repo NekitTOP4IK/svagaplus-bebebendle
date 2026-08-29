@@ -280,6 +280,46 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: bebebendle-${{ github.sha }}
+      - name: Extract release
+        run: |
+          mkdir release-tree
+          tar -xzf "bebebendle-${GITHUB_SHA}.tar.gz" -C release-tree
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            release-tree/next/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('next/bun.lock', '.bun-version') }}
+          restore-keys: |
+            bun-${{ runner.os }}-
+      - name: Install frontend dependencies
+        working-directory: release-tree/next
+        run: bun install --frozen-lockfile
+      - name: Build Next.js (public env baked at build time)
+        working-directory: release-tree/next
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SITE_URL: ${{ vars.APP_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.APP_URL }}
+          NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${{ vars.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME }}
+        run: bun run build
+      - name: Repackage with prebuilt .next and node_modules
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+          BOT_USERNAME: ${{ vars.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME }}
+        run: |
+          set -euo pipefail
+          rm -rf release-tree/next/.next/cache
+          # Fingerprint must match ops/deploy-release.sh host-side computation
+          # (NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_TELEGRAM_BOT_USERNAME).
+          FP="$(printf '%s\0' "$APP_URL" "$APP_URL" "${BOT_USERNAME:-}" | sha256sum | awk '{print $1}')"
+          printf '%s\n' "$FP" > release-tree/next/.bebebendle-public-env
+          tar -C release-tree -czf "bebebendle-${GITHUB_SHA}.tar.gz" .
+          sha256sum "bebebendle-${GITHUB_SHA}.tar.gz" > "bebebendle-${GITHUB_SHA}.tar.gz.sha256"
+          echo "release artifact: $(du -h "bebebendle-${GITHUB_SHA}.tar.gz" | cut -f1)"
       - name: Configure verified SSH
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
