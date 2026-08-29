@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
   ChevronDown,
@@ -361,8 +362,9 @@ function ScranActionsMenu({
               </div>
 
               <MenuSection icon={ShieldCheck} label="Модерация" tone="amber">
-              <a
+              <Link
                 href={`/admin/scrans?id=${scran.id}`}
+                prefetch={false}
                 role="menuitem"
                 onClick={() => {
                   setOpen(false);
@@ -372,7 +374,7 @@ function ScranActionsMenu({
               >
                 <MenuIcon icon={ClipboardList} tone="amber" />
                 <MenuCopy label="Открыть карточку" hint="История, автор и Daily" />
-              </a>
+              </Link>
               {(scran.telegramId || scran.authorUsername || scran.authorDisplayName) && onAuthor ? (
                 <MenuButton
                   icon={UserRound}

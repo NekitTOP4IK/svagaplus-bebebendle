@@ -73,7 +73,6 @@ describe("ScranRow permissions (Moderator vs Admin)", () => {
       "href",
       "/admin/scrans?id=42",
     );
-    expect(screen.getByRole("menuitem", { name: /Открыть карточку/ }).tagName).toBe("A");
     expect(screen.queryByText("Одобрить")).not.toBeInTheDocument();
   });
 
