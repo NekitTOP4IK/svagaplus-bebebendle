@@ -454,7 +454,13 @@ body {
 }
 
 .daily-event-badge__spark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1em;
+    line-height: 1;
     flex: 0 0 auto;
+    transform: translateY(-0.03em);
 }
 
 .daily-event-badge--violet {
