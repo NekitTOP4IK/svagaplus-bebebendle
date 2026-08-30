@@ -5,6 +5,7 @@ import { RoundCard } from "@/components/daily/round-card";
 import { ResultOverlay } from "@/components/daily/result-overlay";
 import { TransitionOverlay } from "@/components/daily/transition-overlay";
 import { VsBadge } from "@/components/daily/vs-badge";
+import { DailyEventBadge } from "@/components/daily/daily-event-badge";
 import { findRoundByNumber } from "@/lib/game-helpers";
 import type { DailyData, UserAnswer } from "@/types/game";
 
@@ -60,14 +61,8 @@ export function GameBoard({
         раунд {currentRound}/10
       </div>
 
-      {data.eventName ? (
-        <div
-          className="pixel-text absolute left-1/2 top-14 z-20 max-w-[80vw] -translate-x-1/2 truncate border-2 border-violet-300 bg-violet-950/90 px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-violet-100 shadow-[3px_3px_0_rgba(0,0,0,0.75)] sm:top-4 sm:max-w-[50vw] sm:text-xs"
-          title={data.eventName}
-          aria-label={`Событие: ${data.eventName}`}
-        >
-          событие · {data.eventName}
-        </div>
+      {data.eventName && data.eventBadgeVisible !== false ? (
+        <DailyEventBadge name={data.eventName} style={data.eventBadgeStyle} />
       ) : null}
 
       <div className="relative z-10 flex h-full w-full flex-col md:flex-row">

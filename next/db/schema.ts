@@ -152,6 +152,9 @@ export const dailyCustomEvents = pgTable("daily_custom_events", {
   targetDate: text("target_date").notNull(),
   status: text("status", { enum: ["draft", "published", "cancelled"] }).notNull(),
   notifyAuthors: boolean("notify_authors").notNull().default(false),
+  showEventBadge: boolean("show_event_badge").notNull().default(true),
+  showOnHome: boolean("show_on_home").notNull().default(false),
+  badgeStyle: text("badge_style", { enum: ["violet", "gold", "neon", "rainbow"] }).notNull().default("violet"),
   createdByUserId: integer("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -163,6 +166,10 @@ export const dailyCustomEvents = pgTable("daily_custom_events", {
   statusCheck: check(
     "daily_custom_events_status_check",
     sql`${table.status} IN ('draft', 'published', 'cancelled')`,
+  ),
+  badgeStyleCheck: check(
+    "daily_custom_events_badge_style_check",
+    sql`${table.badgeStyle} IN ('violet', 'gold', 'neon', 'rainbow')`,
   ),
 }));
 

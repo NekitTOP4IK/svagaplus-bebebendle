@@ -20,13 +20,20 @@ import {
 
 export const CUSTOM_DAILY_ENTRY_COUNT = 20;
 export const CUSTOM_DAILY_NAME_MAX_LENGTH = 120;
+export const CUSTOM_DAILY_CATALOG_PAGE_SIZE = 12;
+export const CUSTOM_DAILY_CATALOG_MAX_PAGE = 10_000;
+export const CUSTOM_DAILY_CATALOG_QUERY_MAX_LENGTH = 100;
 
 export type CustomDailyStatus = "draft" | "published" | "cancelled";
+export type CustomDailyBadgeStyle = "violet" | "gold" | "neon" | "rainbow";
 
 export type CustomDailyInput = Readonly<{
   name: string;
   targetDate: string;
   notifyAuthors: boolean;
+  showEventBadge: boolean;
+  showOnHome: boolean;
+  badgeStyle: CustomDailyBadgeStyle;
   scranIds: readonly number[];
 }>;
 
@@ -35,6 +42,23 @@ export type CustomDailyScran = Readonly<{
   name: string;
   imageUrl: string;
   price: number;
+}>;
+
+export type CustomDailyScranCatalogSort = "newest" | "name" | "price_asc" | "price_desc";
+export type CustomDailyCatalogSort = CustomDailyScranCatalogSort;
+
+export type CustomDailyScranCatalogInput = Readonly<{
+  query: string;
+  page: number;
+  sort: CustomDailyScranCatalogSort;
+}>;
+
+export type CustomDailyScranCatalogPage = Readonly<{
+  items: readonly CustomDailyScran[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }>;
 
 export type CustomDailyEntry = CustomDailyScran & Readonly<{
@@ -47,6 +71,9 @@ export type CustomDailySummary = Readonly<{
   targetDate: string;
   status: CustomDailyStatus;
   notifyAuthors: boolean;
+  showEventBadge: boolean;
+  showOnHome: boolean;
+  badgeStyle: CustomDailyBadgeStyle;
   entryCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -96,6 +123,9 @@ export function validateCustomDailyInput(input: Readonly<{
   name: unknown;
   targetDate: unknown;
   notifyAuthors: unknown;
+  showEventBadge?: unknown;
+  showOnHome?: unknown;
+  badgeStyle?: unknown;
   scranIds: unknown;
 }>): ValidatedCustomDailyInput | CustomDailyDomainResult<never> {
   if (typeof input.name !== "string") return invalidInput("Введите название события.");
@@ -110,6 +140,15 @@ export function validateCustomDailyInput(input: Readonly<{
   if (typeof input.notifyAuthors !== "boolean") {
     return invalidInput("Некорректная настройка уведомлений.");
   }
+  const showEventBadge = input.showEventBadge ?? true;
+  const showOnHome = input.showOnHome ?? false;
+  const badgeStyle = input.badgeStyle ?? "violet";
+  if (typeof showEventBadge !== "boolean" || typeof showOnHome !== "boolean") {
+    return invalidInput("Некорректные настройки отображения события.");
+  }
+  if (badgeStyle !== "violet" && badgeStyle !== "gold" && badgeStyle !== "neon" && badgeStyle !== "rainbow") {
+    return invalidInput("Некорректный стиль плашки события.");
+  }
   if (!Array.isArray(input.scranIds)) return invalidInput("Некорректный список блюд.");
   const scranIds = input.scranIds.map(Number);
   if (scranIds.some((id) => !Number.isInteger(id) || id < 1)) {
@@ -123,7 +162,15 @@ export function validateCustomDailyInput(input: Readonly<{
   }
   return {
     ok: true,
-    data: { name, targetDate: input.targetDate, notifyAuthors: input.notifyAuthors, scranIds },
+    data: {
+      name,
+      targetDate: input.targetDate,
+      notifyAuthors: input.notifyAuthors,
+      showEventBadge,
+      showOnHome,
+      badgeStyle,
+      scranIds,
+    },
   };
 }
 
@@ -163,6 +210,9 @@ function toSummary(row: typeof dailyCustomEvents.$inferSelect, entryCount: numbe
     targetDate: row.targetDate,
     status: row.status,
     notifyAuthors: row.notifyAuthors,
+    showEventBadge: row.showEventBadge,
+    showOnHome: row.showOnHome,
+    badgeStyle: row.badgeStyle,
     entryCount,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -213,24 +263,66 @@ export function parseCustomDailyScranSearch(query: string): Readonly<{
   };
 }
 
-export async function searchApprovedCustomDailyScrans(query: string): Promise<CustomDailyScran[]> {
-  const { text, numericId } = parseCustomDailyScranSearch(query);
+export function validateCustomDailyScranCatalogInput(
+  input: unknown,
+): CustomDailyDomainResult<CustomDailyScranCatalogInput> {
+  if (typeof input !== "object" || input === null) {
+    return invalidInput("Некорректные параметры каталога блюд.");
+  }
+  const { query, page, sort } = input as Record<string, unknown>;
+  if (typeof query !== "string" || query.length > CUSTOM_DAILY_CATALOG_QUERY_MAX_LENGTH) {
+    return invalidInput(`Поисковый запрос должен быть не длиннее ${CUSTOM_DAILY_CATALOG_QUERY_MAX_LENGTH} символов.`);
+  }
+  if (!Number.isInteger(page) || (page as number) < 1 || (page as number) > CUSTOM_DAILY_CATALOG_MAX_PAGE) {
+    return invalidInput(`Номер страницы должен быть от 1 до ${CUSTOM_DAILY_CATALOG_MAX_PAGE}.`);
+  }
+  if (sort !== "newest" && sort !== "name" && sort !== "price_asc" && sort !== "price_desc") {
+    return invalidInput("Некорректная сортировка каталога блюд.");
+  }
+  return {
+    ok: true,
+    data: { query: query.trim(), page: page as number, sort },
+  };
+}
+
+export async function listApprovedCustomDailyScrans(
+  input: CustomDailyScranCatalogInput,
+): Promise<CustomDailyScranCatalogPage> {
+  const { text, numericId } = parseCustomDailyScranSearch(input.query);
   const search = text
     ? or(
         ilike(scrans.name, `%${text}%`),
         numericId !== null ? eq(scrans.id, numericId) : undefined,
       )
     : undefined;
-  return db
+  const where = and(eq(scrans.approved, true), eq(scrans.rejected, false), search);
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(scrans)
+    .where(where);
+  const totalPages = Math.max(1, Math.ceil((total ?? 0) / CUSTOM_DAILY_CATALOG_PAGE_SIZE));
+  const page = Math.min(input.page, totalPages);
+  const orderBy = input.sort === "newest"
+    ? [desc(scrans.id)]
+    : input.sort === "name"
+      ? [asc(scrans.name), asc(scrans.id)]
+      : input.sort === "price_asc"
+        ? [asc(scrans.price), asc(scrans.id)]
+        : [desc(scrans.price), asc(scrans.id)];
+  const items = await db
     .select({ id: scrans.id, name: scrans.name, imageUrl: scrans.imageUrl, price: scrans.price })
     .from(scrans)
-    .where(and(
-      eq(scrans.approved, true),
-      eq(scrans.rejected, false),
-      search,
-    ))
-    .orderBy(asc(scrans.name), asc(scrans.id))
-    .limit(30);
+    .where(where)
+    .orderBy(...orderBy)
+    .limit(CUSTOM_DAILY_CATALOG_PAGE_SIZE)
+    .offset((page - 1) * CUSTOM_DAILY_CATALOG_PAGE_SIZE);
+  return {
+    items,
+    page,
+    pageSize: CUSTOM_DAILY_CATALOG_PAGE_SIZE,
+    total: total ?? 0,
+    totalPages,
+  };
 }
 
 async function hasActiveDateConflict(
@@ -261,6 +353,9 @@ export async function createCustomDailyEvent(
         targetDate: validated.data.targetDate,
         status: "draft",
         notifyAuthors: validated.data.notifyAuthors,
+        showEventBadge: validated.data.showEventBadge,
+        showOnHome: validated.data.showOnHome,
+        badgeStyle: validated.data.badgeStyle,
         createdByUserId: actorUserId,
         createdAt: now,
         updatedAt: now,
@@ -306,6 +401,9 @@ export async function updateCustomDailyEvent(
         name: validated.data.name,
         targetDate: validated.data.targetDate,
         notifyAuthors: validated.data.notifyAuthors,
+        showEventBadge: validated.data.showEventBadge,
+        showOnHome: validated.data.showOnHome,
+        badgeStyle: validated.data.badgeStyle,
         updatedAt: new Date(),
       }).where(and(eq(dailyCustomEvents.id, id), eq(dailyCustomEvents.status, "draft")))
         .returning({ id: dailyCustomEvents.id });

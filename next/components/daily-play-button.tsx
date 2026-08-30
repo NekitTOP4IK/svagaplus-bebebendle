@@ -24,11 +24,14 @@ type Props = Readonly<{
   available?: boolean;
   /** Shown when daily is unavailable (generation off or not ready). */
   unavailableReason?: string | null;
+  /** Optional custom-event name shown below the available Daily CTA. */
+  eventText?: string | null;
 }>;
 
 export function DailyPlayButton({
   available = true,
   unavailableReason = null,
+  eventText = null,
 }: Props) {
   const hasPlayed = useSyncExternalStore(
     subscribe,
@@ -73,8 +76,15 @@ export function DailyPlayButton({
   }
 
   return (
-    <Link href="/daily" className={btnBase}>
-      Дейлик!
-    </Link>
+    <div className="flex flex-col items-center gap-2">
+      <Link href="/daily" className={btnBase}>
+        Дейлик!
+      </Link>
+      {eventText ? (
+        <p className="pixel-text max-w-full truncate text-center text-xs text-violet-100 sm:text-sm">
+          Сегодня: {eventText}
+        </p>
+      ) : null}
+    </div>
   );
 }

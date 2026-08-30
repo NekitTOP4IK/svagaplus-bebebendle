@@ -8,15 +8,16 @@ import {
   cancelCustomDailyEvent,
   createCustomDailyEvent,
   getCustomDailyEvent,
+  listApprovedCustomDailyScrans,
   listCustomDailyEvents,
   publishCustomDailyEvent,
-  searchApprovedCustomDailyScrans as searchApprovedScrans,
   updateCustomDailyEvent,
   validateCustomDailyInput,
+  validateCustomDailyScranCatalogInput,
   type CustomDailyDetail,
   type CustomDailyDomainResult,
   type CustomDailyErrorCode,
-  type CustomDailyScran,
+  type CustomDailyScranCatalogPage,
   type CustomDailySummary,
 } from "@/lib/admin/custom-daily";
 import { getCurrentUser } from "@/lib/auth-server";
@@ -24,11 +25,16 @@ import { notifyAuthorsDailyRotation } from "@/lib/daily-rotation-notify";
 import { writeAuditLog } from "@/lib/moderation-audit";
 
 export type {
+  CustomDailyBadgeStyle,
   CustomDailyDetail,
+  CustomDailyCatalogSort,
   CustomDailyEntry,
   CustomDailyInput,
   CustomDailyStatus,
   CustomDailySummary,
+  CustomDailyScranCatalogInput,
+  CustomDailyScranCatalogPage,
+  CustomDailyScranCatalogSort,
 } from "@/lib/admin/custom-daily";
 
 type CustomDailyActionError =
@@ -86,6 +92,9 @@ function auditDetails(event: CustomDailyDetail, bulkAssisted = false): string {
     status: event.status,
     selectedIds: event.entries.map((entry) => entry.id),
     notifyAuthors: event.notifyAuthors,
+    showEventBadge: event.showEventBadge,
+    showOnHome: event.showOnHome,
+    badgeStyle: event.badgeStyle,
     bulkAssisted,
   });
 }
@@ -133,6 +142,9 @@ type CustomDailyActionInput = Readonly<{
   name: unknown;
   targetDate: unknown;
   notifyAuthors: unknown;
+  showEventBadge?: unknown;
+  showOnHome?: unknown;
+  badgeStyle?: unknown;
   scranIds: unknown;
   bulkAssisted?: unknown;
 }>;
@@ -189,19 +201,18 @@ export async function updateAdminCustomDailyEvent(
   }
 }
 
-export async function searchApprovedCustomDailyScrans(
-  queryInput: unknown,
-): Promise<ActionResult<CustomDailyScran[], CustomDailyActionError>> {
+export async function browseApprovedCustomDailyScrans(
+  input: unknown,
+): Promise<ActionResult<CustomDailyScranCatalogPage, CustomDailyActionError>> {
   const auth = await requireStaff();
   if (!auth.ok) return auth.result;
-  if (typeof queryInput !== "string") {
-    return { ok: false, code: "invalid_input", message: "Некорректный поисковый запрос." };
-  }
+  const validated = validateCustomDailyScranCatalogInput(input);
+  if (!validated.ok) return toActionFailure(validated);
   try {
-    return { ok: true, data: await searchApprovedScrans(queryInput) };
+    return { ok: true, data: await listApprovedCustomDailyScrans(validated.data) };
   } catch (error) {
-    console.error("[actions/admin-custom-daily] scran search failed", error);
-    return { ok: false, code: "internal", message: "Не удалось найти блюда." };
+    console.error("[actions/admin-custom-daily] scran catalog failed", error);
+    return { ok: false, code: "internal", message: "Не удалось загрузить каталог блюд." };
   }
 }
 

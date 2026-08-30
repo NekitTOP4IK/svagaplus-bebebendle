@@ -31,6 +31,8 @@ export interface DailyData {
   /** Present only for a published themed Daily replacing the regular rotation. */
   eventId?: number;
   eventName?: string;
+  eventBadgeVisible?: boolean;
+  eventBadgeStyle?: "violet" | "gold" | "neon" | "rainbow";
 }
 
 export interface UserAnswer {

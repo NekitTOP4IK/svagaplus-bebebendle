@@ -9,6 +9,7 @@ const dependencies = vi.hoisted(() => ({
   update: vi.fn(),
   publish: vi.fn(),
   cancel: vi.fn(),
+  browse: vi.fn(),
   writeAuditLog: vi.fn(),
   notify: vi.fn(),
 }));
@@ -26,10 +27,12 @@ vi.mock("@/lib/admin/custom-daily", async (importOriginal) => {
     updateCustomDailyEvent: dependencies.update,
     publishCustomDailyEvent: dependencies.publish,
     cancelCustomDailyEvent: dependencies.cancel,
+    listApprovedCustomDailyScrans: dependencies.browse,
   };
 });
 
 import {
+  browseApprovedCustomDailyScrans,
   cancelAdminCustomDailyEvent,
   createAdminCustomDailyEvent,
   publishAdminCustomDailyEvent,
@@ -41,6 +44,9 @@ const input = {
   name: "Битва бургеров",
   targetDate: "2026-09-12",
   notifyAuthors: true,
+  showEventBadge: true,
+  showOnHome: true,
+  badgeStyle: "neon" as const,
   scranIds: [1, 2],
 };
 
@@ -75,6 +81,37 @@ describe("admin custom Daily actions", () => {
     expect(dependencies.create).not.toHaveBeenCalled();
   });
 
+  it("allows staff to browse a validated paginated dish catalog", async () => {
+    dependencies.getCurrentUser.mockResolvedValue({ id: 4, role: "moderator" });
+    dependencies.browse.mockResolvedValue({
+      items: [{ id: 2, name: "Борщ", imageUrl: "/b", price: 300 }],
+      page: 2,
+      pageSize: 12,
+      total: 13,
+      totalPages: 2,
+    });
+    await expect(browseApprovedCustomDailyScrans({ query: " борщ ", page: 2, sort: "name" })).resolves.toEqual({
+      ok: true,
+      data: {
+        items: [{ id: 2, name: "Борщ", imageUrl: "/b", price: 300 }],
+        page: 2,
+        pageSize: 12,
+        total: 13,
+        totalPages: 2,
+      },
+    });
+    expect(dependencies.browse).toHaveBeenCalledWith({ query: "борщ", page: 2, sort: "name" });
+  });
+
+  it("rejects invalid dish catalog input before querying the domain", async () => {
+    dependencies.getCurrentUser.mockResolvedValue({ id: 1, role: "admin" });
+    await expect(browseApprovedCustomDailyScrans({ query: "", page: -1, sort: "newest" })).resolves.toMatchObject({
+      ok: false,
+      code: "invalid_input",
+    });
+    expect(dependencies.browse).not.toHaveBeenCalled();
+  });
+
   it("rate limits admin mutations before writing", async () => {
     dependencies.getCurrentUser.mockResolvedValue({ id: 1, role: "admin" });
     dependencies.checkRateLimit.mockResolvedValue({ allowed: false });
@@ -89,6 +126,11 @@ describe("admin custom Daily actions", () => {
     dependencies.getCurrentUser.mockResolvedValue({ id: 1, role: "admin" });
     dependencies.create.mockResolvedValue({ ok: true, data: { ...event, status: "draft" } });
     await expect(createAdminCustomDailyEvent(input)).resolves.toMatchObject({ ok: true });
+    expect(dependencies.create).toHaveBeenCalledWith(expect.objectContaining({
+      showEventBadge: true,
+      showOnHome: true,
+      badgeStyle: "neon",
+    }), 1);
     expect(dependencies.writeAuditLog).toHaveBeenCalledTimes(1);
     expect(dependencies.writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({
       actorUserId: 1,

@@ -433,6 +433,77 @@ body {
     }
 }
 
+/* Custom Daily event badge themes. Animated themes stop with reduced motion. */
+.daily-event-badge {
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    overflow: hidden;
+    border: 3px solid #000;
+    padding: 0.5rem 0.75rem;
+    font-family: var(--font-pixel), monospace;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.25;
+    text-align: center;
+    text-transform: uppercase;
+    white-space: nowrap;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.72);
+    image-rendering: pixelated;
+}
+
+.daily-event-badge__spark {
+    flex: 0 0 auto;
+}
+
+.daily-event-badge--violet {
+    border-color: #c4b5fd;
+    background: #2e1065;
+    color: #f5f3ff;
+    text-shadow: 2px 2px 0 #12052c;
+}
+
+.daily-event-badge--gold {
+    border-color: #fde68a;
+    background: #78350f;
+    color: #fef3c7;
+    text-shadow: 2px 2px 0 #451a03;
+}
+
+.daily-event-badge--neon {
+    border-color: #67e8f9;
+    background: #083344;
+    color: #cffafe;
+    text-shadow: 0 0 5px #22d3ee, 2px 2px 0 #042f2e;
+    animation: daily-event-neon 1.8s steps(2, end) infinite;
+}
+
+.daily-event-badge--rainbow {
+    border-color: #fff;
+    background: linear-gradient(90deg, #7c3aed, #db2777, #ea580c, #16a34a, #0284c7, #7c3aed);
+    background-size: 300% 100%;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+    animation: daily-event-rainbow 4s linear infinite;
+}
+
+@keyframes daily-event-neon {
+    0%, 100% { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.72), 0 0 7px rgba(34, 211, 238, 0.55); }
+    50% { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.72), 0 0 18px rgba(34, 211, 238, 0.95); }
+}
+
+@keyframes daily-event-rainbow {
+    to { background-position: -300% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .daily-event-badge--neon,
+    .daily-event-badge--rainbow {
+        animation: none;
+    }
+}
+
 /*
  * Dark-surface pixel label: white fill + black outline.
  * Never pair with text-black (outline+fill both black).

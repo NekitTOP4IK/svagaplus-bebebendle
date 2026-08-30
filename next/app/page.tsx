@@ -5,7 +5,10 @@ import { SocialLinks } from "@/components/social-links";
 import { CountdownTimer } from "@/components/countdown-timer";
 import { SplashText } from "@/components/splash-text";
 import { HomeUserMenu } from "@/components/home-user-menu";
-import { hasDailyForToday } from "@/app/daily/lib/get-daily-data";
+import {
+  getTodayCustomDailyHomePresentation,
+  hasDailyForToday,
+} from "@/app/daily/lib/get-daily-data";
 import { getDailyPublicStatus } from "@/lib/app-settings";
 import { getActiveAnnouncements } from "@/lib/announcements";
 import { HomeOverlays } from "@/components/home-overlays";
@@ -62,7 +65,10 @@ const splashTexts = [
 ];
 
 export default async function HomePage() {
-  const hasDaily = await hasDailyForToday();
+  const [hasDaily, eventPresentation] = await Promise.all([
+    hasDailyForToday(),
+    getTodayCustomDailyHomePresentation(),
+  ]);
   const dailyStatus = await getDailyPublicStatus(hasDaily);
   const [announcements, user, creditGroups] = await Promise.all([
     getActiveAnnouncements(),
@@ -104,6 +110,7 @@ export default async function HomePage() {
           <DailyPlayButton
             available={dailyStatus.available}
             unavailableReason={dailyStatus.reason}
+            eventText={eventPresentation?.eventName}
           />
           <HomeUserMenu user={user} />
           <Link

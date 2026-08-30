@@ -6,6 +6,7 @@ import {
   pairCustomDailyScranIds,
   parseCustomDailyScranSearch,
   validateCustomDailyInput,
+  validateCustomDailyScranCatalogInput,
   validateCustomDailyPublishEntries,
 } from "@/lib/admin/custom-daily";
 
@@ -20,7 +21,33 @@ describe("custom Daily validation", () => {
   it("normalizes a valid draft and permits fewer than twenty entries", () => {
     expect(validateCustomDailyInput(valid)).toEqual({
       ok: true,
-      data: { ...valid, name: "Битва бургеров" },
+      data: {
+        ...valid,
+        name: "Битва бургеров",
+        showEventBadge: true,
+        showOnHome: false,
+        badgeStyle: "violet",
+      },
+    });
+  });
+
+  it("validates custom Daily presentation settings", () => {
+    expect(validateCustomDailyInput({
+      ...valid,
+      showEventBadge: false,
+      showOnHome: true,
+      badgeStyle: "rainbow",
+    })).toMatchObject({
+      ok: true,
+      data: { showEventBadge: false, showOnHome: true, badgeStyle: "rainbow" },
+    });
+    expect(validateCustomDailyInput({ ...valid, showEventBadge: "yes" })).toMatchObject({
+      ok: false,
+      code: "invalid_input",
+    });
+    expect(validateCustomDailyInput({ ...valid, badgeStyle: "sparkles" })).toMatchObject({
+      ok: false,
+      code: "invalid_input",
     });
   });
 
@@ -50,6 +77,25 @@ describe("custom Daily validation", () => {
     expect(parseCustomDailyScranSearch("  23 ")).toEqual({ text: "23", numericId: 23 });
     expect(parseCustomDailyScranSearch("борщ")).toEqual({ text: "борщ", numericId: null });
     expect(parseCustomDailyScranSearch("0")).toEqual({ text: "0", numericId: null });
+  });
+
+  it("validates and normalizes custom Daily catalog parameters", () => {
+    expect(validateCustomDailyScranCatalogInput({ query: "  борщ  ", page: 2, sort: "price_desc" })).toEqual({
+      ok: true,
+      data: { query: "борщ", page: 2, sort: "price_desc" },
+    });
+    expect(validateCustomDailyScranCatalogInput({ query: "", page: 0, sort: "newest" })).toMatchObject({
+      ok: false,
+      code: "invalid_input",
+    });
+    expect(validateCustomDailyScranCatalogInput({ query: "", page: 1, sort: "popular" })).toMatchObject({
+      ok: false,
+      code: "invalid_input",
+    });
+    expect(validateCustomDailyScranCatalogInput({ query: "x".repeat(101), page: 1, sort: "name" })).toMatchObject({
+      ok: false,
+      code: "invalid_input",
+    });
   });
 });
 
