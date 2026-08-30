@@ -7,6 +7,7 @@ const actions = vi.hoisted(() => ({
   get: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
+  updatePresentation: vi.fn(),
   publish: vi.fn(),
   cancel: vi.fn(),
   browse: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock("@/app/actions/admin-custom-daily", () => ({
   getAdminCustomDailyEvent: (...args: unknown[]) => actions.get(...args),
   createAdminCustomDailyEvent: (...args: unknown[]) => actions.create(...args),
   updateAdminCustomDailyEvent: (...args: unknown[]) => actions.update(...args),
+  updateAdminCustomDailyPresentation: (...args: unknown[]) => actions.updatePresentation(...args),
   publishAdminCustomDailyEvent: (...args: unknown[]) => actions.publish(...args),
   cancelAdminCustomDailyEvent: (...args: unknown[]) => actions.cancel(...args),
   browseApprovedCustomDailyScrans: (...args: unknown[]) => actions.browse(...args),
@@ -266,6 +268,44 @@ describe("CustomDailyBuilder", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Доступный черновик/ }));
     expect(await screen.findByText("Альфа")).toBeVisible();
     expect(screen.getByText("2/20")).toBeVisible();
+  });
+
+  it("keeps presentation controls editable for a published event", async () => {
+    const published = {
+      id: 12,
+      name: "Опубликованное событие",
+      targetDate: "2026-09-02",
+      status: "published" as const,
+      notifyAuthors: false,
+      showEventBadge: true,
+      showOnHome: false,
+      badgeStyle: "violet" as const,
+      entryCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      publishedAt: new Date(),
+      createdByUserId: 1,
+      entries: [],
+    };
+    actions.get.mockResolvedValue({ ok: true, data: published });
+    actions.updatePresentation.mockResolvedValue({
+      ok: true,
+      data: { ...published, showEventBadge: false, showOnHome: true, badgeStyle: "rainbow" },
+    });
+    render(<CustomDailyBuilder initialEventId={12} />);
+
+    expect(await screen.findByDisplayValue("Опубликованное событие")).toBeVisible();
+    fireEvent.click(screen.getByRole("switch", { name: /Текст под кнопкой/ }));
+    fireEvent.click(screen.getByRole("switch", { name: /Плашка в дейлике/ }));
+    fireEvent.click(screen.getByText("Радуга"));
+    fireEvent.click(screen.getByRole("button", { name: /Сохранить оформление/ }));
+
+    await waitFor(() => expect(actions.updatePresentation).toHaveBeenCalledWith({
+      id: 12,
+      showEventBadge: false,
+      showOnHome: true,
+      badgeStyle: "rainbow",
+    }));
   });
 });
 

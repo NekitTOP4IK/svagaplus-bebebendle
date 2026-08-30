@@ -32,6 +32,7 @@ import {
   listAdminCustomDailyEvents,
   publishAdminCustomDailyEvent,
   updateAdminCustomDailyEvent,
+  updateAdminCustomDailyPresentation,
   type CustomDailyCatalogSort,
   type CustomDailyBadgeStyle,
   type CustomDailyDetail,
@@ -507,6 +508,35 @@ export function CustomDailyBuilder({
     }
   };
 
+  const savePresentation = async () => {
+    if (!editor.id || editor.status === "cancelled") return;
+    setBusy(true);
+    try {
+      const result = await updateAdminCustomDailyPresentation({
+        id: editor.id,
+        showEventBadge: editor.showEventBadge,
+        showOnHome: editor.showOnHome,
+        badgeStyle: editor.badgeStyle,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setEditor((current) => ({
+        ...current,
+        showEventBadge: result.data.showEventBadge,
+        showOnHome: result.data.showOnHome,
+        badgeStyle: result.data.badgeStyle,
+      }));
+      await loadEvents();
+      toast.success("Оформление события обновлено");
+    } catch {
+      toast.error("Не удалось обновить оформление события");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const cancel = async () => {
     if (!editor.id || !window.confirm(`Отменить событие «${editor.name}»?`)) return;
     setBusy(true);
@@ -616,21 +646,21 @@ export function CustomDailyBuilder({
           <div className="grid gap-2 sm:grid-cols-2">
             <PresentationSwitch
               checked={editor.showEventBadge}
-              disabled={readOnly}
+              disabled={editor.status === "cancelled"}
               title="Плашка в дейлике"
               description="Показывать «событие» над игровым полем"
               onChange={(checked) => setEditor((current) => ({ ...current, showEventBadge: checked }))}
             />
             <PresentationSwitch
               checked={editor.showOnHome}
-              disabled={readOnly}
+              disabled={editor.status === "cancelled"}
               title="Текст под кнопкой"
               description="Показывать название события под кнопкой Daily"
               onChange={(checked) => setEditor((current) => ({ ...current, showOnHome: checked }))}
             />
           </div>
 
-          <fieldset disabled={readOnly || !editor.showEventBadge} className="mt-3 disabled:opacity-45">
+          <fieldset disabled={editor.status === "cancelled"} className="mt-3 disabled:opacity-45">
             <legend className="mb-2 text-[9px] font-bold uppercase tracking-wide text-white/50">
               Стиль плашки
             </legend>
@@ -776,7 +806,6 @@ export function CustomDailyBuilder({
             <div key={pairIndex} className="border-2 border-zinc-700 bg-zinc-900 p-2">
               <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-white/45">
                 <span>Раунд {pairIndex + 1}</span>
-                {!readOnly && pair.length > 0 ? <span className="text-violet-300/70">перетащи за ручку</span> : null}
               </div>
               <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
                 <PairSlot
@@ -834,6 +863,11 @@ export function CustomDailyBuilder({
       ) : null}
 
       <div className="sticky bottom-2 z-10 flex flex-wrap gap-2 border-2 border-zinc-600 bg-zinc-950/95 p-3 shadow-[4px_4px_0_rgba(0,0,0,0.6)]">
+        {editor.id && editor.status === "published" ? (
+          <button type="button" disabled={busy} onClick={() => void savePresentation()} className="pixel-btn pixel-btn-info cursor-pointer px-4 py-2 text-xs font-bold">
+            <Save aria-hidden="true" className="mr-1 inline h-3.5 w-3.5" /> Сохранить оформление
+          </button>
+        ) : null}
         {!readOnly ? (
           <>
             <button type="button" disabled={busy} onClick={() => void save()} className="pixel-btn cursor-pointer px-4 py-2 text-xs font-bold"><Save aria-hidden="true" className="mr-1 inline h-3.5 w-3.5" /> Сохранить черновик</button>

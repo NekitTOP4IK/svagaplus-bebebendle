@@ -37,6 +37,12 @@ export type CustomDailyInput = Readonly<{
   scranIds: readonly number[];
 }>;
 
+export type CustomDailyPresentationInput = Readonly<{
+  showEventBadge: boolean;
+  showOnHome: boolean;
+  badgeStyle: CustomDailyBadgeStyle;
+}>;
+
 export type CustomDailyScran = Readonly<{
   id: number;
   name: string;
@@ -101,6 +107,24 @@ type ValidatedCustomDailyInput = Readonly<{
   ok: true;
   data: CustomDailyInput;
 }>;
+
+export function validateCustomDailyPresentationInput(input: Readonly<{
+  showEventBadge: unknown;
+  showOnHome: unknown;
+  badgeStyle: unknown;
+}>): CustomDailyDomainResult<CustomDailyPresentationInput> {
+  if (typeof input.showEventBadge !== "boolean" || typeof input.showOnHome !== "boolean") {
+    return invalidInput("Некорректные настройки отображения события.");
+  }
+  if (input.badgeStyle !== "violet" && input.badgeStyle !== "gold" && input.badgeStyle !== "neon" && input.badgeStyle !== "rainbow") {
+    return invalidInput("Некорректный стиль плашки события.");
+  }
+  return { ok: true, data: {
+    showEventBadge: input.showEventBadge,
+    showOnHome: input.showOnHome,
+    badgeStyle: input.badgeStyle,
+  } };
+}
 
 function invalidInput(message: string): CustomDailyDomainResult<never> {
   return { ok: false, code: "invalid_input", message };
@@ -429,6 +453,21 @@ export async function updateCustomDailyEvent(
     }
     throw error;
   }
+}
+
+export async function updateCustomDailyPresentation(
+  id: number,
+  input: CustomDailyPresentationInput,
+): Promise<CustomDailyDomainResult<CustomDailyDetail>> {
+  const [current] = await db.select().from(dailyCustomEvents).where(eq(dailyCustomEvents.id, id)).limit(1);
+  if (!current) return { ok: false, code: "not_found", message: "Событие не найдено." };
+  if (current.status === "cancelled") {
+    return { ok: false, code: "invalid_status", message: "Отменённое событие нельзя изменять." };
+  }
+  await db.update(dailyCustomEvents).set({ ...input, updatedAt: new Date() }).where(eq(dailyCustomEvents.id, id));
+  const event = await getCustomDailyEvent(id);
+  if (!event) throw new Error("Updated Custom Daily presentation could not be reloaded.");
+  return { ok: true, data: event };
 }
 
 export type PublishedCustomDaily = Readonly<{

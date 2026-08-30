@@ -7,6 +7,7 @@ const dependencies = vi.hoisted(() => ({
   headers: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
+  presentation: vi.fn(),
   publish: vi.fn(),
   cancel: vi.fn(),
   browse: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("@/lib/admin/custom-daily", async (importOriginal) => {
     ...original,
     createCustomDailyEvent: dependencies.create,
     updateCustomDailyEvent: dependencies.update,
+    updateCustomDailyPresentation: dependencies.presentation,
     publishCustomDailyEvent: dependencies.publish,
     cancelCustomDailyEvent: dependencies.cancel,
     listApprovedCustomDailyScrans: dependencies.browse,
@@ -37,6 +39,7 @@ import {
   createAdminCustomDailyEvent,
   publishAdminCustomDailyEvent,
   updateAdminCustomDailyEvent,
+  updateAdminCustomDailyPresentation,
 } from "@/app/actions/admin-custom-daily";
 import { AUDIT_ACTIONS } from "@/lib/audit-actions";
 
@@ -149,6 +152,23 @@ describe("admin custom Daily actions", () => {
       ok: false, code: "invalid_status", message: "published",
     });
     expect(dependencies.writeAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("allows admins to update presentation of an already published event", async () => {
+    dependencies.getCurrentUser.mockResolvedValue({ id: 1, role: "admin" });
+    dependencies.presentation.mockResolvedValue({ ok: true, data: event });
+    await expect(updateAdminCustomDailyPresentation({
+      id: 7,
+      showEventBadge: false,
+      showOnHome: true,
+      badgeStyle: "rainbow",
+    })).resolves.toMatchObject({ ok: true, data: event });
+    expect(dependencies.presentation).toHaveBeenCalledWith(7, {
+      showEventBadge: false,
+      showOnHome: true,
+      badgeStyle: "rainbow",
+    });
+    expect(dependencies.writeAuditLog).toHaveBeenCalledTimes(1);
   });
 
   it("preserves invalid scran and participation guards", async () => {

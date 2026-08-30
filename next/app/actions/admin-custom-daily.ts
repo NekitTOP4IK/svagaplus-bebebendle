@@ -12,6 +12,8 @@ import {
   listCustomDailyEvents,
   publishCustomDailyEvent,
   updateCustomDailyEvent,
+  updateCustomDailyPresentation,
+  validateCustomDailyPresentationInput,
   validateCustomDailyInput,
   validateCustomDailyScranCatalogInput,
   type CustomDailyDetail,
@@ -30,6 +32,7 @@ export type {
   CustomDailyCatalogSort,
   CustomDailyEntry,
   CustomDailyInput,
+  CustomDailyPresentationInput,
   CustomDailyStatus,
   CustomDailySummary,
   CustomDailyScranCatalogInput,
@@ -213,6 +216,33 @@ export async function browseApprovedCustomDailyScrans(
   } catch (error) {
     console.error("[actions/admin-custom-daily] scran catalog failed", error);
     return { ok: false, code: "internal", message: "Не удалось загрузить каталог блюд." };
+  }
+}
+
+export async function updateAdminCustomDailyPresentation(
+  input: Readonly<{ id: unknown; showEventBadge: unknown; showOnHome: unknown; badgeStyle: unknown }>,
+): Promise<ActionResult<CustomDailyDetail, CustomDailyActionError>> {
+  const auth = await requireStaff(true);
+  if (!auth.ok) return auth.result;
+  const id = validId(input.id);
+  if (!id) return { ok: false, code: "invalid_input", message: "Некорректный ID события." };
+  if (!await allowMutation(auth.user.id, "presentation")) {
+    return { ok: false, code: "rate_limited", message: "Слишком много запросов." };
+  }
+  const validated = validateCustomDailyPresentationInput(input);
+  if (!validated.ok) return toActionFailure(validated);
+  try {
+    const result = await updateCustomDailyPresentation(id, validated.data);
+    if (!result.ok) return toActionFailure(result);
+    await writeCustomDailyAudit({
+      actorUserId: auth.user.id,
+      action: AUDIT_ACTIONS.DAILY_CUSTOM_UPDATE,
+      details: auditDetails(result.data),
+    });
+    return result;
+  } catch (error) {
+    console.error("[actions/admin-custom-daily] presentation update failed", error);
+    return { ok: false, code: "internal", message: "Не удалось обновить оформление события." };
   }
 }
 
