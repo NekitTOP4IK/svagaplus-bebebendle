@@ -120,6 +120,13 @@
       "when": 1787961600000,
       "tag": "0016_add_daily_reentry_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788034645807,
+      "tag": "0017_add_custom_daily_events",
+      "breakpoints": true
     }
   ]
 }

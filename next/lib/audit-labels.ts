@@ -17,6 +17,10 @@ export const AUDIT_ACTION_LABELS: Record<(typeof PRODUCTION_AUDIT_ACTIONS)[numbe
   "daily.generate": "Daily сгенерирован",
   "daily.reentry_grant": "Повторный допуск в Daily выдан",
   "daily.reentry_revoke": "Повторный допуск в Daily отозван",
+  "daily.custom.create": "Событие Daily создано",
+  "daily.custom.update": "Событие Daily обновлено",
+  "daily.custom.publish": "Событие Daily опубликовано",
+  "daily.custom.cancel": "Событие Daily отменено",
   "settings.daily_rotation_notify": "Настройка: уведомления о ротации",
   "settings.daily_generation": "Настройка: генерация daily",
   "settings.soundtrack_metadata": "Метаданные саундтрека обновлены",
@@ -92,6 +96,14 @@ function formatSeasonStatus(value: unknown): string | null {
 
 /** Formats the known audit detail payloads written by the application. */
 function formatKnownDetails(details: Record<string, unknown>): string | null {
+  if (typeof details.eventId === "number") {
+    const name = typeof details.name === "string" && details.name.trim()
+      ? ` «${details.name.trim()}»`
+      : "";
+    const date = typeof details.date === "string" ? `; дата ${details.date}` : "";
+    return `событие Daily #${details.eventId}${name}${date}`;
+  }
+
   if (details.dailyReentry === true) {
     const scope = details.bulk === true ? "массовая операция" : "одно блюдо";
     const reason = typeof details.reason === "string" && details.reason.trim()

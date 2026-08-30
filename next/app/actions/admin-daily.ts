@@ -1,11 +1,11 @@
 "use server";
 
-import { desc, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { checkRateLimit } from "@/app/api/middleware/rateLimit";
 import { getCurrentUser } from "@/lib/auth-server";
 import type { ActionResult } from "@/lib/action-result";
-import { db, dailyScrandles } from "@/db/schema";
+import { db, dailyCustomEvents, dailyScrandles } from "@/db/schema";
 import { generateDailyForDate, getDailyPreview, todayUtcDate } from "@/lib/daily-generate";
 import {
   grantDailyReentries,
@@ -74,7 +74,36 @@ export async function getAdminDailyView(input: { date?: string } = {}): Promise<
         .from(dailyScrandles).groupBy(dailyScrandles.date).orderBy(desc(dailyScrandles.date)).limit(60),
       listActiveDailyReentries(),
     ]);
-    return { ok: true, data: { ...preview, calendar: recent, activeReentries } };
+    const customDates = [...new Set([date, ...recent.map((item) => item.date)])];
+    const customEvents = customDates.length > 0
+      ? await db
+          .select({
+            id: dailyCustomEvents.id,
+            name: dailyCustomEvents.name,
+            targetDate: dailyCustomEvents.targetDate,
+          })
+          .from(dailyCustomEvents)
+          .where(
+            and(
+              inArray(dailyCustomEvents.targetDate, customDates),
+              eq(dailyCustomEvents.status, "published"),
+            ),
+          )
+      : [];
+    const eventByDate = new Map(customEvents.map((event) => [event.targetDate, event]));
+    const customEvent = customEvents.find((event) => event.targetDate === date) ?? null;
+    return {
+      ok: true,
+      data: {
+        ...preview,
+        customEvent,
+        calendar: recent.map((item) => ({
+          ...item,
+          customEvent: eventByDate.get(item.date) ?? null,
+        })),
+        activeReentries,
+      },
+    };
   } catch (error) {
     console.error("[actions/admin-daily] preview failed", error);
     return { ok: false, code: "internal", message: "Failed to load daily status." };

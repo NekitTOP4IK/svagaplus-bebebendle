@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   db,
   dailyScrandles,
@@ -151,20 +151,64 @@ export async function recordDailyVote(input: {
 
   const scored = correctFromPair(scranAData[0], scranBData[0], chosenScranId);
 
-  // Idempotent: unique (sessionId, dailyScrandleId)
-  const existing = await db
-    .select()
-    .from(scrandleVotes)
-    .where(
-      and(
-        eq(scrandleVotes.sessionId, sessionId),
-        eq(scrandleVotes.dailyScrandleId, round.id),
-      ),
-    )
-    .limit(1);
+  // Serialize participation with custom-event cancellation for this date.
+  // The round is re-read after taking the lock so cancellation cannot leave an orphan vote.
+  const persisted = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock_shared(hashtext(${date}))`);
+    const [currentRound] = await tx.select({ id: dailyScrandles.id })
+      .from(dailyScrandles)
+      .where(and(
+        eq(dailyScrandles.id, round.id),
+        eq(dailyScrandles.date, date),
+        eq(dailyScrandles.roundNumber, roundNumber),
+      ))
+      .limit(1);
+    if (!currentRound) return { kind: "missing" as const };
 
-  if (existing.length > 0) {
-    const prev = existing[0];
+    const [existing] = await tx
+      .select()
+      .from(scrandleVotes)
+      .where(
+        and(
+          eq(scrandleVotes.sessionId, sessionId),
+          eq(scrandleVotes.dailyScrandleId, round.id),
+        ),
+      )
+      .limit(1);
+    if (existing) return { kind: "existing" as const, vote: existing };
+
+    const inserted = await tx.insert(scrandleVotes).values({
+      dailyScrandleId: round.id,
+      sessionId,
+      fingerprintHash: fingerprint,
+      chosenScranId,
+      createdAt: new Date(),
+    }).onConflictDoNothing({
+      target: [scrandleVotes.sessionId, scrandleVotes.dailyScrandleId],
+    }).returning({ id: scrandleVotes.id });
+    if (inserted[0]) return { kind: "inserted" as const };
+
+    // A compatible shared date lock intentionally permits concurrent players,
+    // including retries from the same session. Return the winning retry.
+    const [racedVote] = await tx
+      .select()
+      .from(scrandleVotes)
+      .where(
+        and(
+          eq(scrandleVotes.sessionId, sessionId),
+          eq(scrandleVotes.dailyScrandleId, round.id),
+        ),
+      )
+      .limit(1);
+    if (!racedVote) throw new Error("Conflicting Daily vote could not be reloaded.");
+    return { kind: "existing" as const, vote: racedVote };
+  });
+
+  if (persisted.kind === "missing") {
+    return { error: "Round not found for date", status: 404 };
+  }
+  if (persisted.kind === "existing") {
+    const prev = persisted.vote;
     const prevScored = correctFromPair(
       scranAData[0],
       scranBData[0],
@@ -180,48 +224,6 @@ export async function recordDailyVote(input: {
       percentageA: prevScored.percentageA,
       percentageB: prevScored.percentageB,
     };
-  }
-
-  try {
-    await db.insert(scrandleVotes).values({
-      dailyScrandleId: round.id,
-      sessionId,
-      fingerprintHash: fingerprint,
-      chosenScranId,
-      createdAt: new Date(),
-    });
-  } catch (error) {
-    // race on unique index — re-read
-    if ((error as { code?: string }).code === "23505") {
-      const again = await db
-        .select()
-        .from(scrandleVotes)
-        .where(
-          and(
-            eq(scrandleVotes.sessionId, sessionId),
-            eq(scrandleVotes.dailyScrandleId, round.id),
-          ),
-        )
-        .limit(1);
-      if (again[0]) {
-        const prevScored = correctFromPair(
-          scranAData[0],
-          scranBData[0],
-          again[0].chosenScranId,
-        );
-        return {
-          success: true,
-          roundNumber,
-          dailyScrandleId: round.id,
-          isCorrect: prevScored.isCorrect,
-          chosenScranId: again[0].chosenScranId,
-          correctScranId: prevScored.correctScranId,
-          percentageA: prevScored.percentageA,
-          percentageB: prevScored.percentageB,
-        };
-      }
-    }
-    throw error;
   }
 
   return {
@@ -356,14 +358,38 @@ export async function computeAndStoreDailyResult(input: {
   }
 
   try {
-    await db.insert(dailyUserResults).values({
-      date,
-      sessionId,
-      fingerprintHash: fingerprint,
-      score,
-      createdAt: new Date(),
-      userId: user?.id ?? null,
+    const persisted = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock_shared(hashtext(${date}))`);
+      const [currentResult] = await tx.select().from(dailyUserResults).where(and(
+        eq(dailyUserResults.date, date),
+        eq(dailyUserResults.sessionId, sessionId),
+      )).limit(1);
+      if (currentResult) return { kind: "existing" as const, score: currentResult.score };
+      if (user) {
+        const [currentUserResult] = await tx.select().from(dailyUserResults).where(and(
+          eq(dailyUserResults.date, date),
+          eq(dailyUserResults.userId, user.id),
+        )).limit(1);
+        if (currentUserResult) return { kind: "existing" as const, score: currentUserResult.score };
+      }
+      const currentRounds = await tx.select({ id: dailyScrandles.id })
+        .from(dailyScrandles)
+        .where(eq(dailyScrandles.date, date));
+      if (currentRounds.length < TOTAL_ROUNDS) return { kind: "missing" as const };
+      await tx.insert(dailyUserResults).values({
+        date,
+        sessionId,
+        fingerprintHash: fingerprint,
+        score,
+        createdAt: new Date(),
+        userId: user?.id ?? null,
+      });
+      return { kind: "inserted" as const };
     });
+    if (persisted.kind === "missing") return { error: "No daily for this date", status: 404 };
+    if (persisted.kind === "existing") {
+      return { success: true, score: persisted.score, alreadyPlayed: true };
+    }
   } catch (error) {
     if ((error as { code?: string }).code === "23505") {
       const again = await db

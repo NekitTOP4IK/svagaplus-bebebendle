@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import type { Scran } from "@/types/scran";
 import type { ViewMode } from "@/hooks/use-admin";
 import type { ScranStatusFilter } from "@/hooks/use-scrans-data";
@@ -16,6 +17,7 @@ import { BanUserModal } from "@/components/admin/ban-user-modal";
 import { AuthorCardModal } from "@/components/admin/author-card-modal";
 import { EditScranModal } from "@/components/admin/edit-scran-modal";
 import { DailyPanel } from "@/components/admin/daily-panel";
+import type { CustomDailyScranChoice } from "@/components/admin/custom-daily-builder";
 import { SoundtrackPanel } from "@/components/admin/soundtrack-panel";
 import { CreditsPanel } from "@/components/admin/credits-panel";
 import {
@@ -149,6 +151,11 @@ export function AdminDashboard({
   const [queueMode, setQueueMode] = useState<QueueMode>("cards");
   const [actionBusy, setActionBusy] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [dailyEventBulk, setDailyEventBulk] = useState<{
+    revision: number;
+    scrans: CustomDailyScranChoice[];
+  }>({ revision: 0, scrans: [] });
+  const [activeDailyEventId, setActiveDailyEventId] = useState<number | null>(null);
   const [localSearch, setLocalSearch] = useState(searchQuery);
 
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -257,6 +264,39 @@ export function AdminDashboard({
       setActionBusy(false);
     }
   }, [onGrantDailyReentry, selected]);
+
+  const addSelectedToDailyEvent = useCallback(() => {
+    const loadedById = new Map(scrans.map((scran) => [scran.id, scran]));
+    const missingIds = [...selected].filter((id) => !loadedById.has(id));
+    const unavailableIds = [...selected].filter((id) => {
+      const scran = loadedById.get(id);
+      return scran ? !scran.approved || scran.rejected === true : false;
+    });
+    const choices = [...selected]
+      .map((id) => loadedById.get(id))
+      .filter((scran): scran is Scran => Boolean(scran?.approved && !scran.rejected))
+      .map((scran) => ({
+        id: scran.id,
+        name: scran.name,
+        imageUrl: scran.imageUrl,
+        price: scran.price,
+      }));
+    const omitted = [
+      ...(unavailableIds.length > 0
+        ? [`не одобрены: ${unavailableIds.map((id) => `#${id}`).join(", ")}`]
+        : []),
+      ...(missingIds.length > 0
+        ? [`не загружены на этой странице: ${missingIds.map((id) => `#${id}`).join(", ")}`]
+        : []),
+    ];
+    if (omitted.length > 0) toast.warning(`Не добавлены — ${omitted.join("; ")}`);
+    if (choices.length === 0) {
+      toast.error("Нет одобренных блюд для добавления в событие");
+      return;
+    }
+    setDailyEventBulk((current) => ({ revision: current.revision + 1, scrans: choices }));
+    handleSetView("daily");
+  }, [handleSetView, scrans, selected]);
 
   const uncheckedCount = scrans.filter((s) => s.isSubscriberAtSubmit === null).length;
 
@@ -466,6 +506,16 @@ export function AdminDashboard({
                     Повтор в Daily
                   </button>
                 )}
+                {role === "admin" && (
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={addSelectedToDailyEvent}
+                    className="pixel-btn pixel-btn-warn cursor-pointer px-2 py-1 text-xs font-bold"
+                  >
+                    В событие
+                  </button>
+                )}
                 <button type="button" onClick={clearSelection} className="pixel-link-btn">
                   сброс
                 </button>
@@ -480,7 +530,13 @@ export function AdminDashboard({
         )}
 
         {view === "daily" ? (
-          <DailyPanel role={role} />
+          <DailyPanel
+            role={role}
+            bulkScrans={dailyEventBulk.scrans}
+            bulkRevision={dailyEventBulk.revision}
+            activeEventId={activeDailyEventId}
+            onActiveEventChange={setActiveDailyEventId}
+          />
         ) : view === "soundtrack" ? (
           <div className="pixel-container border-4 border-black bg-zinc-900/80 p-4">
             <SoundtrackPanel />

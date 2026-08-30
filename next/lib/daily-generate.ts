@@ -61,9 +61,12 @@ export async function getApprovedScransWithVotes(): Promise<Scran[]> {
               .select({ one: sql`1` })
               .from(dailyScrandles)
               .where(
-                or(
-                  eq(dailyScrandles.scranAId, scrans.id),
-                  eq(dailyScrandles.scranBId, scrans.id),
+                and(
+                  eq(dailyScrandles.source, "regular"),
+                  or(
+                    eq(dailyScrandles.scranAId, scrans.id),
+                    eq(dailyScrandles.scranBId, scrans.id),
+                  ),
                 ),
               ),
           ),
@@ -189,6 +192,7 @@ export async function createDailyRounds(
         scranAId: scranA.id,
         scranBId: scranB.id,
         roundNumber,
+        source: "regular" as const,
         createdAt,
       })),
     );

@@ -5,6 +5,10 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { todayMskDate } from "@/lib/daily-timezone";
 import {
+  CustomDailyBuilder,
+  type CustomDailyScranChoice,
+} from "@/components/admin/custom-daily-builder";
+import {
   generateAdminDaily,
   getAdminDailySettings,
   getAdminDailyView,
@@ -26,7 +30,12 @@ type DailyData = {
     scranAName: string | null;
     scranBName: string | null;
   }>;
-  calendar: Array<{ date: string; rounds: number }>;
+  customEvent?: { id: number; name: string; targetDate: string } | null;
+  calendar: Array<{
+    date: string;
+    rounds: number;
+    customEvent?: { id: number; name: string; targetDate: string } | null;
+  }>;
   activeReentries: Array<{
     scranId: number;
     scranName: string;
@@ -44,9 +53,22 @@ type Settings = {
 
 type Props = Readonly<{
   role: "moderator" | "admin" | null;
+  bulkScrans?: CustomDailyScranChoice[];
+  bulkRevision?: number;
+  activeEventId?: number | null;
+  onActiveEventChange?: (id: number | null) => void;
 }>;
 
-export function DailyPanel({ role }: Props): ReactElement {
+export function DailyPanel({
+  role,
+  bulkScrans,
+  bulkRevision,
+  activeEventId,
+  onActiveEventChange,
+}: Props): ReactElement {
+  const [surface, setSurface] = useState<"automatic" | "event">(
+    bulkScrans?.length ? "event" : "automatic",
+  );
   const [date, setDate] = useState(() => todayMskDate());
   const [data, setData] = useState<DailyData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,9 +199,11 @@ export function DailyPanel({ role }: Props): ReactElement {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="pixel-text text-xl font-bold text-white">Daily</h2>
-          <p className="text-sm text-white/60">Статус, превью, генерация, переключатели</p>
+          <p className="text-sm text-white/60">
+            {surface === "event" ? "Ручная подборка из двадцати блюд" : "Статус, превью, генерация, переключатели"}
+          </p>
         </div>
-        <label className="text-xs text-white/50">
+        {surface === "automatic" ? <label className="text-xs text-white/50">
           Дата
           <input
             type="date"
@@ -187,8 +211,38 @@ export function DailyPanel({ role }: Props): ReactElement {
             onChange={(e) => setDate(e.target.value)}
             className="pixel-input mt-1 block w-auto min-w-[10.5rem]"
           />
-        </label>
+        </label> : null}
       </div>
+
+      {role === "admin" ? (
+        <div className="grid grid-cols-2 border-2 border-zinc-700 bg-zinc-950 p-1 [font-family:var(--font-pixel)] sm:w-fit">
+          <button
+            type="button"
+            onClick={() => setSurface("automatic")}
+            className={`cursor-pointer px-4 py-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 ${surface === "automatic" ? "bg-amber-400 text-black" : "text-white/60 hover:bg-zinc-800"}`}
+          >
+            Автогенерация
+          </button>
+          <button
+            type="button"
+            onClick={() => setSurface("event")}
+            className={`cursor-pointer px-4 py-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300 ${surface === "event" ? "bg-violet-500 text-white" : "text-white/60 hover:bg-zinc-800"}`}
+          >
+            Конструктор события
+          </button>
+        </div>
+      ) : null}
+
+      {surface === "event" && role === "admin" ? (
+        <CustomDailyBuilder
+          bulkScrans={bulkScrans}
+          bulkRevision={bulkRevision}
+          initialEventId={activeEventId}
+          onActiveEventChange={onActiveEventChange}
+          onPublished={load}
+        />
+      ) : (
+        <>
 
       {role === "admin" && (
         <div className="space-y-3 border-2 border-zinc-700 bg-zinc-950 p-3">
@@ -310,7 +364,12 @@ export function DailyPanel({ role }: Props): ReactElement {
           )}
 
           {data.rounds.length > 0 && (
-            <div className="overflow-x-auto">
+            <div className="space-y-2 overflow-x-auto">
+              {data.customEvent ? (
+                <div className="inline-flex border-2 border-violet-500 bg-violet-950 px-2 py-1 text-xs font-bold text-violet-200 [font-family:var(--font-pixel)]">
+                  Событие · {data.customEvent.name}
+                </div>
+              ) : null}
               <table className="w-full text-sm text-white">
                 <thead>
                   <tr className="border-b border-zinc-700 text-left text-xs uppercase text-white/50">
@@ -380,12 +439,16 @@ export function DailyPanel({ role }: Props): ReactElement {
                   key={c.date}
                   type="button"
                   onClick={() => setDate(c.date)}
-                  className={`pixel-btn px-2 py-1 text-xs font-bold ${
-                    c.date === date ? "pixel-btn-warn" : ""
+                  className={`pixel-btn cursor-pointer px-2 py-1 text-xs font-bold ${
+                    c.date === date
+                      ? "pixel-btn-warn"
+                      : c.customEvent
+                        ? "border-violet-400 bg-violet-950 text-violet-200"
+                        : ""
                   }`}
-                  title={`${c.rounds} раундов`}
+                  title={c.customEvent ? `${c.rounds} раундов · событие «${c.customEvent.name}»` : `${c.rounds} раундов`}
                 >
-                  {c.date.slice(5)}
+                  {c.date.slice(5)}{c.customEvent ? " ★" : ""}
                 </button>
               ))}
               {(data.calendar ?? []).length === 0 && (
@@ -395,6 +458,8 @@ export function DailyPanel({ role }: Props): ReactElement {
           </div>
         </>
       ) : null}
+        </>
+      )}
     </div>
   );
 }

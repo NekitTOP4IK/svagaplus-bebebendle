@@ -28,6 +28,9 @@ export interface DailyData {
   date: string;
   totalRounds: number;
   rounds: Round[];
+  /** Present only for a published themed Daily replacing the regular rotation. */
+  eventId?: number;
+  eventName?: string;
 }
 
 export interface UserAnswer {

@@ -1,8 +1,8 @@
 "use server";
 
 import { db } from "@/db/schema";
-import { dailyScrandles, scrans } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { dailyCustomEvents, dailyScrandles, scrans } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import type { DailyData } from "@/types/game";
 import { publicScran } from "@/lib/daily-integrity";
 import { todayMskDate } from "@/lib/daily-timezone";
@@ -40,6 +40,17 @@ export async function getDailyData(): Promise<DailyData | null> {
     return null;
   }
 
+  const eventData = await db
+    .select({ id: dailyCustomEvents.id, name: dailyCustomEvents.name })
+    .from(dailyCustomEvents)
+    .where(
+      and(
+        eq(dailyCustomEvents.targetDate, today),
+        eq(dailyCustomEvents.status, "published"),
+      ),
+    )
+    .limit(1);
+
   const rounds = await Promise.all(
     roundsData.map(async (round) => {
       const [scranAData, scranBData] = await Promise.all([
@@ -66,5 +77,8 @@ export async function getDailyData(): Promise<DailyData | null> {
     date: today,
     totalRounds: rounds.length,
     rounds,
+    ...(eventData[0]
+      ? { eventId: eventData[0].id, eventName: eventData[0].name }
+      : {}),
   };
 }

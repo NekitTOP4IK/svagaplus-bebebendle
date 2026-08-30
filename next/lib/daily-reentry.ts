@@ -39,13 +39,19 @@ export async function grantDailyReentries(
             db
               .select({ id: dailyScrandles.id })
               .from(dailyScrandles)
-              .where(eq(dailyScrandles.scranAId, scrans.id)),
+              .where(and(
+                eq(dailyScrandles.source, "regular"),
+                eq(dailyScrandles.scranAId, scrans.id),
+              )),
           ),
           exists(
             db
               .select({ id: dailyScrandles.id })
               .from(dailyScrandles)
-              .where(eq(dailyScrandles.scranBId, scrans.id)),
+              .where(and(
+                eq(dailyScrandles.source, "regular"),
+                eq(dailyScrandles.scranBId, scrans.id),
+              )),
           ),
         ),
       ),
