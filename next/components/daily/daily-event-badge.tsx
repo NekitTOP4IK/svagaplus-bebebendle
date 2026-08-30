@@ -28,7 +28,15 @@ export function DailyEventBadge({
       title={name}
       aria-label={`Событие: ${name}`}
     >
-      <span aria-hidden="true" className="daily-event-badge__spark">✦</span>
+      <svg
+        aria-hidden="true"
+        className="daily-event-badge__spark"
+        viewBox="0 0 16 16"
+        focusable="false"
+        shapeRendering="crispEdges"
+      >
+        <path fill="currentColor" d="M7 0h2v4h2v2h4v2h-4v2H9v4H7v-4H5V8H1V6h4V4h2z" />
+      </svg>
       <span className="truncate">событие · {name}</span>
     </div>
   );

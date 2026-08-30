@@ -28,6 +28,7 @@ describe("custom Daily event badge", () => {
   it("shows only public event metadata during play", () => {
     render(<GameBoard data={{ ...data, eventBadgeStyle: "neon" }} currentRound={1} lastAnswer={null} showResult={false} isTransitioning={false} isVoting={false} onVote={vi.fn()} />);
     expect(screen.getByLabelText("Событие: Битва бургеров")).toHaveClass("daily-event-badge--neon");
+    expect(screen.getByLabelText("Событие: Битва бургеров").querySelector("svg")).not.toBeNull();
   });
 
   it("hides the badge when the event presentation disables it", () => {
