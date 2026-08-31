@@ -107,6 +107,7 @@ describe("resolveRouteAudioScene", () => {
     expect(resolveRouteAudioScene("/settings")).toBe("casual-menu");
     expect(resolveRouteAudioScene("/admin")).toBe("casual-menu");
     expect(resolveRouteAudioScene("/admin/announcements")).toBe("casual-menu");
+    expect(resolveRouteAudioScene("/admin/scrans")).toBe("casual-menu");
   });
 
   it("maps the competitive hub to the ranked menu scene", () => {

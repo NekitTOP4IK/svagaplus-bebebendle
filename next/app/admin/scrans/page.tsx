@@ -14,6 +14,11 @@ import { auditActionLabel, auditDetailsPreview } from "@/lib/audit-labels";
 import { ScranImageLightbox } from "@/components/admin/scran-image-lightbox";
 import { UserIdentity } from "@/components/user-identity";
 import { resolveIdentityTone } from "@/lib/user-identity";
+import { toast } from "sonner";
+import {
+  grantAdminDailyReentry,
+  revokeAdminDailyReentry,
+} from "@/app/actions/admin-daily";
 
 type ScranDetail = {
   scran: {
@@ -43,6 +48,14 @@ type ScranDetail = {
     isSubscriber: boolean | null;
   } | null;
   daily: Array<{ date: string; roundNumber: number; side: string }>;
+  dailyReentry: {
+    grantedAt: string;
+    reason: string | null;
+    consumedAt: string | null;
+    consumedForDate: string | null;
+    revokedAt: string | null;
+  } | null;
+  viewerRole: string;
   audit: Array<{
     id: number;
     action: string;
@@ -60,6 +73,7 @@ function ScranDetailInner(): ReactElement {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [reentryBusy, setReentryBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!idParam || Number.isNaN(Number(idParam))) {
@@ -90,6 +104,26 @@ function ScranDetailInner(): ReactElement {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const updateDailyReentry = async (grant: boolean) => {
+    if (!data || data.viewerRole !== "admin") return;
+    setReentryBusy(true);
+    try {
+      const result = grant
+        ? await grantAdminDailyReentry({ ids: [data.scran.id] })
+        : await revokeAdminDailyReentry({ ids: [data.scran.id] });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      toast.success(grant ? "Повторный допуск выдан" : "Повторный допуск отозван");
+      await load();
+    } catch {
+      toast.error("Не удалось обновить допуск");
+    } finally {
+      setReentryBusy(false);
+    }
+  };
 
   return (
     <div className="retro-bg relative min-h-dvh">
@@ -236,6 +270,34 @@ function ScranDetailInner(): ReactElement {
                   ))}
                 </ul>
               )}
+              {data.dailyReentry && !data.dailyReentry.consumedAt && !data.dailyReentry.revokedAt ? (
+                <div className="mt-4 border-2 border-emerald-700 bg-emerald-950/40 p-3 text-sm">
+                  <p className="font-bold text-emerald-300">Повторный допуск активен</p>
+                  <p className="mt-1 text-xs text-white/55">
+                    Выдан {new Date(data.dailyReentry.grantedAt).toLocaleString("ru-RU")}
+                    {data.dailyReentry.reason ? ` · ${data.dailyReentry.reason}` : ""}
+                  </p>
+                  {data.viewerRole === "admin" && (
+                    <button
+                      type="button"
+                      disabled={reentryBusy}
+                      onClick={() => void updateDailyReentry(false)}
+                      className="pixel-btn pixel-btn-warn mt-3 px-3 py-1.5 text-xs font-bold"
+                    >
+                      Отозвать допуск
+                    </button>
+                  )}
+                </div>
+              ) : data.viewerRole === "admin" && data.scran.approved && data.daily.length > 0 ? (
+                <button
+                  type="button"
+                  disabled={reentryBusy}
+                  onClick={() => void updateDailyReentry(true)}
+                  className="pixel-btn pixel-btn-info mt-4 px-3 py-2 text-sm font-bold"
+                >
+                  {reentryBusy ? "Сохраняем…" : "Разрешить ещё одно участие"}
+                </button>
+              ) : null}
             </div>
 
             <div className="pixel-container border-4 border-black bg-zinc-900/90 p-4 text-white">

@@ -248,7 +248,6 @@ export function SoundtrackPlayer(): ReactElement | null {
   const shouldHide =
     !preferences.musicEnabled ||
     state.scene === "silent" ||
-    state.outcome !== null ||
     state.panelMode === "hidden" ||
     currentTrack === null ||
     trackCount === 0;

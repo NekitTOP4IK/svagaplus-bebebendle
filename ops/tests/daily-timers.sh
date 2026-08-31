@@ -36,6 +36,9 @@ done
 
 installer="$ROOT/ops/install-daily-timers.sh"
 require_file "$installer"
+require_line 'OPS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' "$installer"
+require_line '    source="$OPS_ROOT/systemd/$unit"' "$installer"
+require_line '    install -m 0644 "$OPS_ROOT/systemd/$unit" "$UNIT_DIR/$unit"' "$installer"
 
 run_install_as_unprivileged() {
   if [[ "$EUID" -ne 0 ]]; then

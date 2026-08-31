@@ -5,7 +5,9 @@ services:
       dockerfile: Dockerfile
     container_name: bebebendle-next
     ports:
-      - "3000:3000"
+      # Loopback-only: nginx on the host proxies to 127.0.0.1:3000, and exposing
+      # the app directly would let clients spoof X-Forwarded-For for rate limits.
+      - "127.0.0.1:3000:3000"
     env_file:
       - .env
     extra_hosts:
@@ -52,7 +54,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "5432:5432"
+      # Loopback-only: enough for host tooling (DATABASE_URL 127.0.0.1:5432),
+      # while the DB itself stays unreachable from the outside.
+      - "127.0.0.1:5432:5432"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]

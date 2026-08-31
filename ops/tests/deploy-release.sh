@@ -158,4 +158,41 @@ if bash "$ROOT/ops/deploy-release.sh" "$SHA3" staging "http://127.0.0.1:3000"; t
   exit 1
 fi
 
+# Prebuilt artifact: .next + node_modules + matching fingerprint → host build skipped
+SHA4="$(printf 'e%.0s' {1..40})"
+PRE_FP="$(printf '%s\0' "http://127.0.0.1:3000" "http://127.0.0.1:3000" "test_bot" | sha256sum | awk '{print $1}')"
+WORK_PRE="$TMP/src-prebuilt"
+cp -a "$WORK" "$WORK_PRE"
+mkdir -p "$WORK_PRE/next/.next"
+echo 'prebuilt-build-id' >"$WORK_PRE/next/.next/BUILD_ID"
+printf '%s\n' "$PRE_FP" >"$WORK_PRE/next/.bebebendle-public-env"
+tar -czf "$DEPLOY_ROOT/incoming/bebebendle-$SHA4.tar.gz" -C "$WORK_PRE" .
+(cd "$DEPLOY_ROOT/incoming" && sha256sum "bebebendle-$SHA4.tar.gz" >"bebebendle-$SHA4.tar.gz.sha256")
+rm -f /tmp/bebe-health-ok
+( sleep 1; touch /tmp/bebe-health-ok ) &
+PRE_OUTPUT="$(bash "$ROOT/ops/deploy-release.sh" "$SHA4" staging "http://127.0.0.1:3000" 2>&1)"
+if ! grep -Fq 'prebuilt artifact from CI' <<<"$PRE_OUTPUT"; then
+  echo "FAIL: prebuilt artifact was not detected" >&2
+  echo "$PRE_OUTPUT" >&2
+  exit 1
+fi
+if ! grep -Fq 'PREBUILT=1' <<<"$PRE_OUTPUT"; then
+  echo "FAIL: PREBUILT=1 flag not reported" >&2
+  echo "$PRE_OUTPUT" >&2
+  exit 1
+fi
+[[ -f "$DEPLOY_ROOT/releases/$SHA4/next/.next/BUILD_ID" ]]
+
+# Prebuilt artifact with stale fingerprint (public env changed after build) → must fail
+SHA5="$(printf 'f%.0s' {1..40})"
+WORK_STALE="$TMP/src-stale"
+cp -a "$WORK_PRE" "$WORK_STALE"
+printf '%s\n' "deadbeef" >"$WORK_STALE/next/.bebebendle-public-env"
+tar -czf "$DEPLOY_ROOT/incoming/bebebendle-$SHA5.tar.gz" -C "$WORK_STALE" .
+(cd "$DEPLOY_ROOT/incoming" && sha256sum "bebebendle-$SHA5.tar.gz" >"bebebendle-$SHA5.tar.gz.sha256")
+if bash "$ROOT/ops/deploy-release.sh" "$SHA5" staging "http://127.0.0.1:3000" 2>/dev/null; then
+  echo "FAIL: stale prebuilt fingerprint should fail the deploy"
+  exit 1
+fi
+
 echo "deploy-release tests passed"

@@ -299,21 +299,22 @@ On this host SVAGA+ PM2 processes currently run as **root**. Bebebendle should s
 3. GitHub Environment `production`: `DEPLOY_HOST=185.184.123.237`, `DEPLOY_USER=deploy`, `DEPLOY_PATH=/opt/bebebendle`, key, known_hosts, variable `APP_URL=https://bebebendle.svagaplus.com`  
 4. Required reviewers on Environment `production`  
 5. Merge verified staging → `main` → approve deploy  
-6. Install daily generation cron (00:00 MSK) — see below  
+6. Install daily systemd timers (00:00 MSK) — see below
 7. Smoke: [`svaga-integration-smoke.md`](./svaga-integration-smoke.md)
 
-### Daily generation cron (00:00 MSK)
+### Daily systemd timers (00:00 MSK)
 
-Host crontab (user `deploy` or root with env readable by script):
+After the first release, install the checked-in unit templates as root:
 
-```cron
-0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-daily.sh >> /opt/bebebendle/shared/logs/daily-cron.log 2>&1
-0 0 * * * TZ=Europe/Moscow /opt/bebebendle/current/ops/cron-generate-competitive.sh >> /opt/bebebendle/shared/logs/competitive-cron.log 2>&1
+```bash
+sudo bash /opt/bebebendle/current/ops/install-daily-timers.sh install
+bash /opt/bebebendle/current/ops/install-daily-timers.sh status
+systemctl list-timers 'bebebendle-*'
 ```
 
-Script: `ops/cron-generate-daily.sh` — sources `shared/.env` (`CRON_SECRET`, `BEBEBENDLE_INTERNAL_URL`) and `GET`s `/api/cron/daily`. Calendar day is **Europe/Moscow**.
+`bebebendle-daily.timer` and `bebebendle-competitive.timer` schedule at **00:00 Europe/Moscow** with `Persistent=true`. Their services run as `deploy`, call the stable `/opt/bebebendle/current/ops/cron-generate-*.sh` paths, and append logs under `/opt/bebebendle/shared/logs`. The installer validates source templates, copies units into `/etc/systemd/system`, reloads systemd, and enables both timers. `install` needs root; `status` only reads unit state and is safe for `deploy` or deployment automation.
 
-Competitive script: `ops/cron-generate-competitive.sh` — same env/`CRON_SECRET`, `GET`s `/api/cron/competitive` (season transitions + competitive daily). Safe no-op when `competitive_enabled` is off or there is no playable season (HTTP 200 + `skipped`).
+The daily script sources `shared/.env` (`CRON_SECRET`, `BEBEBENDLE_INTERNAL_URL`) and calls `/api/cron/daily`. The competitive script uses the same secret and safely no-ops when the feature is disabled or no season is playable.
 
 ### Verify after root bootstrap
 

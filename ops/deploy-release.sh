@@ -245,29 +245,11 @@ mkdir -p "$ROOT/shared/logs/next" "$ROOT/shared/logs/bot"
 chmod +x "$RELEASE/scripts/run-next.sh" "$RELEASE/scripts/run-bot.sh" 2>/dev/null || true
 chmod +x "$RELEASE/ops/install-daily-timers.sh" 2>/dev/null || true
 
-echo "==> next dependencies"
-NEXT_LOCK_HASH="$(
-  {
-    file_hash "$RELEASE/next/package.json"
-    file_hash "$RELEASE/next/bun.lock"
-  } | sha256sum | awk '{print $1}'
-)"
-NEXT_NM_CACHE="$CACHE_DIR/node_modules/$NEXT_LOCK_HASH"
-cd "$RELEASE/next"
-if [[ -d "$NEXT_NM_CACHE" ]]; then
-  echo "    reusing node_modules $NEXT_LOCK_HASH"
-  clone_tree "$NEXT_NM_CACHE" "$RELEASE/next/node_modules"
-else
-  echo "    bun install (cold)"
-  run_low_prio bun install --frozen-lockfile
-  mkdir -p "$CACHE_DIR/node_modules"
-  force_rm "$NEXT_NM_CACHE"
-  clone_tree "$RELEASE/next/node_modules" "$NEXT_NM_CACHE"
+PREBUILT=0
+if [[ -f "$RELEASE/next/.next/BUILD_ID" && -d "$RELEASE/next/node_modules" && -f "$RELEASE/next/.bebebendle-public-env" ]]; then
+  PREBUILT=1
 fi
 
-echo "==> next build"
-NEW_NEXT_SRC="$(dir_hash "$RELEASE/next")"
-# NEXT_PUBLIC_* is inlined at build time — env change must invalidate .next reuse
 PUBLIC_ENV_FP="$(
   printf '%s\0' \
     "${NEXT_PUBLIC_SITE_URL:-}" \
@@ -275,28 +257,65 @@ PUBLIC_ENV_FP="$(
     "${NEXT_PUBLIC_TELEGRAM_BOT_USERNAME:-}" |
     sha256sum | awk '{print $1}'
 )"
-SKIP_NEXT_BUILD=0
-if [[ -n "$PREV_RELEASE" && -d "$PREV_RELEASE/next/.next" ]]; then
-  PREV_NEXT_SRC="$(dir_hash "$PREV_RELEASE/next")"
-  PREV_PUBLIC_ENV_FP=""
-  if [[ -f "$PREV_RELEASE/next/.bebebendle-public-env" ]]; then
-    PREV_PUBLIC_ENV_FP="$(cat "$PREV_RELEASE/next/.bebebendle-public-env")"
+
+if [[ "$PREBUILT" -eq 1 ]]; then
+  echo "==> next: prebuilt artifact from CI"
+  SHIPPED_FP="$(cat "$RELEASE/next/.bebebendle-public-env" 2>/dev/null || true)"
+  if [[ "$SHIPPED_FP" != "$PUBLIC_ENV_FP" ]]; then
+    echo "ERROR: prebuilt .next was built with different NEXT_PUBLIC_* values" >&2
+    echo "       shipped fingerprint: $SHIPPED_FP" >&2
+    echo "       host fingerprint:    $PUBLIC_ENV_FP" >&2
+    echo "       fix: re-run the release pipeline (APP_URL / NEXT_PUBLIC_TELEGRAM_BOT_USERNAME changed since build)" >&2
+    exit 1
   fi
-  if [[ "$NEW_NEXT_SRC" == "$PREV_NEXT_SRC" && "$NEW_NEXT_SRC" != "missing" && "$PUBLIC_ENV_FP" == "$PREV_PUBLIC_ENV_FP" ]]; then
-    echo "    next sources + public env unchanged — reusing .next"
-    clone_tree "$PREV_RELEASE/next/.next" "$RELEASE/next/.next"
+  SKIP_NEXT_BUILD=1
+else
+  echo "==> next dependencies"
+  NEXT_LOCK_HASH="$(
+    {
+      file_hash "$RELEASE/next/package.json"
+      file_hash "$RELEASE/next/bun.lock"
+    } | sha256sum | awk '{print $1}'
+  )"
+  NEXT_NM_CACHE="$CACHE_DIR/node_modules/$NEXT_LOCK_HASH"
+  cd "$RELEASE/next"
+  if [[ -d "$NEXT_NM_CACHE" ]]; then
+    echo "    reusing node_modules $NEXT_LOCK_HASH"
+    clone_tree "$NEXT_NM_CACHE" "$RELEASE/next/node_modules"
+  else
+    echo "    bun install (cold)"
+    run_low_prio bun install --frozen-lockfile
+    mkdir -p "$CACHE_DIR/node_modules"
+    force_rm "$NEXT_NM_CACHE"
+    clone_tree "$RELEASE/next/node_modules" "$NEXT_NM_CACHE"
+  fi
+
+  echo "==> next build"
+  NEW_NEXT_SRC="$(dir_hash "$RELEASE/next")"
+  # NEXT_PUBLIC_* is inlined at build time — env change must invalidate .next reuse
+  SKIP_NEXT_BUILD=0
+  if [[ -n "$PREV_RELEASE" && -d "$PREV_RELEASE/next/.next" ]]; then
+    PREV_NEXT_SRC="$(dir_hash "$PREV_RELEASE/next")"
+    PREV_PUBLIC_ENV_FP=""
+    if [[ -f "$PREV_RELEASE/next/.bebebendle-public-env" ]]; then
+      PREV_PUBLIC_ENV_FP="$(cat "$PREV_RELEASE/next/.bebebendle-public-env")"
+    fi
+    if [[ "$NEW_NEXT_SRC" == "$PREV_NEXT_SRC" && "$NEW_NEXT_SRC" != "missing" && "$PUBLIC_ENV_FP" == "$PREV_PUBLIC_ENV_FP" ]]; then
+      echo "    next sources + public env unchanged — reusing .next"
+      clone_tree "$PREV_RELEASE/next/.next" "$RELEASE/next/.next"
+      printf '%s\n' "$PUBLIC_ENV_FP" >"$RELEASE/next/.bebebendle-public-env"
+      SKIP_NEXT_BUILD=1
+    elif [[ "$PUBLIC_ENV_FP" != "$PREV_PUBLIC_ENV_FP" ]]; then
+      echo "    public env fingerprint changed — rebuilding next"
+    fi
+  fi
+  if [[ "$SKIP_NEXT_BUILD" -eq 0 ]]; then
+    run_low_prio env \
+      NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
+      NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
+      bun run build
     printf '%s\n' "$PUBLIC_ENV_FP" >"$RELEASE/next/.bebebendle-public-env"
-    SKIP_NEXT_BUILD=1
-  elif [[ "$PUBLIC_ENV_FP" != "$PREV_PUBLIC_ENV_FP" ]]; then
-    echo "    public env fingerprint changed — rebuilding next"
   fi
-fi
-if [[ "$SKIP_NEXT_BUILD" -eq 0 ]]; then
-  run_low_prio env \
-    NEXT_PUBLIC_SITE_URL="$NEXT_PUBLIC_SITE_URL" \
-    NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
-    bun run build
-  printf '%s\n' "$PUBLIC_ENV_FP" >"$RELEASE/next/.bebebendle-public-env"
 fi
 
 echo "==> bot dependencies"
@@ -415,7 +434,7 @@ if [[ -z "$PREV_RELEASE" || "${BEBEBENDLE_PM2_HARD_RESTART:-0}" == "1" ]]; then
   RESTART_BOT=1
   echo "    hard restart both (first deploy or BEBEBENDLE_PM2_HARD_RESTART=1)"
 else
-  if [[ "$SKIP_NEXT_BUILD" -eq 0 ]]; then
+  if [[ "$SKIP_NEXT_BUILD" -eq 0 || "$PREBUILT" -eq 1 ]]; then
     RESTART_NEXT=1
   fi
   # Bot process inputs: lock (venv) or bot source tree.
@@ -505,7 +524,7 @@ elif [[ "$RESTART_NEXT" -eq 1 ]]; then
 elif [[ "$RESTART_BOT" -eq 1 ]]; then
   RESTART_LABEL="bot"
 fi
-echo "==> flags: SKIP_NEXT_BUILD=$SKIP_NEXT_BUILD SKIP_MIGRATE=$SKIP_MIGRATE SKIP_DB_BACKUP=$SKIP_DB_BACKUP RESTART=$RESTART_LABEL"
+echo "==> flags: PREBUILT=$PREBUILT SKIP_NEXT_BUILD=$SKIP_NEXT_BUILD SKIP_MIGRATE=$SKIP_MIGRATE SKIP_DB_BACKUP=$SKIP_DB_BACKUP RESTART=$RESTART_LABEL"
 echo "==> timing: dump_s=${t_dump} migrate_s=${t_migrate} pm2_s=${t_pm2} health_s=${t_health}"
 
 echo "==> prune old releases (keep $KEEP_RELEASES)"

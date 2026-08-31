@@ -82,7 +82,8 @@ export function RoundCard({
                 border: "3px solid #aa8800",
                 boxShadow: "3px 3px 0 rgba(0, 0, 0, 0.45)",
                 color: "#ffffff",
-                textShadow: "1px 1px 0 #888888",
+                textShadow:
+                  "-1.5px -1.5px 0 #665200, 0 -1.5px 0 #665200, 1.5px -1.5px 0 #665200, -1.5px 0 0 #665200, 1.5px 0 0 #665200, -1.5px 1.5px 0 #665200, 0 1.5px 0 #665200, 1.5px 1.5px 0 #665200",
               }}
             >
               {scran.price.toFixed(2)} ₽

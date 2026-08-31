@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
+import { sql } from "drizzle-orm";
 import { Pool, type PoolConfig } from "pg";
-import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex, serial, bigint, index, jsonb, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, boolean, timestamp, uniqueIndex, serial, bigint, index, jsonb, primaryKey, check } from "drizzle-orm/pg-core";
 
 /**
  * Use a Pool (not a single Client). A bare `pg.Client` becomes permanently
@@ -137,10 +138,74 @@ export const dailyScrandles = pgTable("daily_scrandles", {
   scranAId: integer("scran_a_id").notNull(),
   scranBId: integer("scran_b_id").notNull(),
   roundNumber: integer("round_number").notNull(),
+  source: text("source", { enum: ["regular", "custom"] }).notNull().default("regular"),
   createdAt: timestamp("created_at").notNull(),
 }, (table) => ({
   uniqueRoundPerDay: uniqueIndex("unique_round_per_day").on(table.date, table.roundNumber),
+  sourceCheck: check("daily_scrandles_source_check", sql`${table.source} IN ('regular', 'custom')`),
 }));
+
+/** Persistent drafts and publication records for administrator-curated casual Dailies. */
+export const dailyCustomEvents = pgTable("daily_custom_events", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  targetDate: text("target_date").notNull(),
+  status: text("status", { enum: ["draft", "published", "cancelled"] }).notNull(),
+  notifyAuthors: boolean("notify_authors").notNull().default(false),
+  showEventBadge: boolean("show_event_badge").notNull().default(true),
+  showOnHome: boolean("show_on_home").notNull().default(false),
+  badgeStyle: text("badge_style", { enum: ["violet", "gold", "neon", "rainbow"] }).notNull().default("violet"),
+  createdByUserId: integer("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+}, (table) => ({
+  activeDateUnique: uniqueIndex("daily_custom_events_active_date_uidx")
+    .on(table.targetDate)
+    .where(sql`${table.status} <> 'cancelled'`),
+  statusCheck: check(
+    "daily_custom_events_status_check",
+    sql`${table.status} IN ('draft', 'published', 'cancelled')`,
+  ),
+  badgeStyleCheck: check(
+    "daily_custom_events_badge_style_check",
+    sql`${table.badgeStyle} IN ('violet', 'gold', 'neon', 'rainbow')`,
+  ),
+}));
+
+/** Ordered dishes for a custom Daily; adjacent positions form a round. */
+export const dailyCustomEventEntries = pgTable("daily_custom_event_entries", {
+  eventId: integer("event_id")
+    .notNull()
+    .references(() => dailyCustomEvents.id, { onDelete: "cascade" }),
+  scranId: integer("scran_id")
+    .notNull()
+    .references(() => scrans.id, { onDelete: "restrict" }),
+  position: integer("position").notNull(),
+}, (table) => ({
+  pk: primaryKey({
+    name: "daily_custom_event_entries_event_scran_pk",
+    columns: [table.eventId, table.scranId],
+  }),
+  eventPositionUnique: uniqueIndex("daily_custom_event_entries_event_position_uidx")
+    .on(table.eventId, table.position),
+  scranIdx: index("daily_custom_event_entries_scran_id_idx").on(table.scranId),
+  positionCheck: check(
+    "daily_custom_event_entries_position_check",
+    sql`${table.position} BETWEEN 1 AND 20`,
+  ),
+}));
+
+/** One reusable one-shot permission for a scran to return to casual Daily. */
+export const dailyReentryGrants = pgTable("daily_reentry_grants", {
+  scranId: integer("scran_id").primaryKey().references(() => scrans.id, { onDelete: "cascade" }),
+  grantedByUserId: integer("granted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  reason: text("reason"),
+  grantedAt: timestamp("granted_at", { withTimezone: true }).defaultNow().notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  consumedForDate: text("consumed_for_date"),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
 
 export const scrandleVotes = pgTable("scrandle_votes", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -314,6 +379,9 @@ export const competitiveSeasonFinalRanks = pgTable("competitive_season_final_ran
 
 export type Scran = typeof scrans.$inferSelect;
 export type DailyScrandle = typeof dailyScrandles.$inferSelect;
+export type DailyCustomEvent = typeof dailyCustomEvents.$inferSelect;
+export type DailyCustomEventEntry = typeof dailyCustomEventEntries.$inferSelect;
+export type DailyReentryGrant = typeof dailyReentryGrants.$inferSelect;
 export type ScrandleVote = typeof scrandleVotes.$inferSelect;
 export type DailyUserResult = typeof dailyUserResults.$inferSelect;
 export type TelegramVote = typeof telegramVotes.$inferSelect;

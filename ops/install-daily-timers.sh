@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+OPS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UNIT_DIR=/etc/systemd/system
 UNITS=(
   bebebendle-daily.service
@@ -35,7 +35,7 @@ install_units() {
 
   local unit source
   for unit in "${UNITS[@]}"; do
-    source="$ROOT/systemd/$unit"
+    source="$OPS_ROOT/systemd/$unit"
     [[ -f "$source" ]] || {
       echo "missing unit template: $source" >&2
       exit 1
@@ -45,7 +45,7 @@ install_units() {
 
   install -d -m 0755 "$UNIT_DIR"
   for unit in "${UNITS[@]}"; do
-    install -m 0644 "$ROOT/systemd/$unit" "$UNIT_DIR/$unit"
+    install -m 0644 "$OPS_ROOT/systemd/$unit" "$UNIT_DIR/$unit"
   done
   systemctl daemon-reload
   systemctl enable --now bebebendle-daily.timer bebebendle-competitive.timer

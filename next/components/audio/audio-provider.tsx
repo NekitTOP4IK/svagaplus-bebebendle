@@ -22,7 +22,6 @@ import {
 } from "@/lib/audio/soundtrack-metadata";
 import {
   resolveRouteAudioScene,
-  supportedSources,
   tracksForScene,
 } from "@/lib/audio/soundtrack";
 import {
@@ -119,6 +118,7 @@ export function AudioProvider({
   const volumeFadeTokenRef = useRef(0);
   const suppressMediaEventsRef = useRef(false);
   const playedOutcomeIdsRef = useRef(new Set<string>());
+  const outcomeRouteRef = useRef<string | null>(null);
   const pendingSceneRef = useRef<{ scene: AudioScene; generation: number } | null>(null);
   const outcomeSceneRef = useRef<AudioScene | null>(null);
   const pendingSceneAfterOutcomeRef = useRef<AudioScene | null>(null);
@@ -340,11 +340,13 @@ export function AudioProvider({
   const applyScene = useCallback(
     (scene: AudioScene): void => {
       // A game owner is unmounted as the result screen appears. Preserve the
-      // jingle while that owner is cleared; an explicit newer owner still
-      // wins immediately (the provider marks only clearScene as deferred).
+      // jingle while that owner is cleared, but only while the user stays on
+      // the route that requested it; navigating away must hand the element to
+      // the destination scene immediately.
       if (
         stateRef.current.outcome !== null &&
         jingleModeRef.current &&
+        pathname === outcomeRouteRef.current &&
         (deferSceneAfterOutcomeRef.current || scene === "silent")
       ) {
         pendingSceneAfterOutcomeRef.current = scene;
@@ -410,6 +412,7 @@ export function AudioProvider({
       dispatch,
       fadeVolume,
       getAudio,
+      pathname,
       resumeOrPrime,
       soundtrackMetadata,
     ],
@@ -420,7 +423,11 @@ export function AudioProvider({
   const finishOutcome = useCallback((element: HTMLAudioElement): void => {
     jingleModeRef.current = false;
     activeJingleRequestRef.current = null;
+    outcomeRouteRef.current = null;
     clearMediaSource(element);
+    queueRef.current = [];
+    sceneTracksRef.current = [];
+    dispatch({ type: "SCENE_CHANGED", scene: stateRef.current.scene, trackCount: 0 });
     const pendingScene = pendingSceneAfterOutcomeRef.current;
     pendingSceneAfterOutcomeRef.current = null;
     const outcomeScene = outcomeSceneRef.current;
@@ -433,7 +440,7 @@ export function AudioProvider({
         ? outcomeScene
         : null;
     if (nextScene) applyScene(nextScene);
-  }, [applyScene, clearMediaSource]);
+  }, [applyScene, clearMediaSource, dispatch]);
 
   finishOutcomeRef.current = finishOutcome;
 
@@ -500,6 +507,34 @@ export function AudioProvider({
     lastSceneKeyRef.current = key;
     applyScene(effectiveScene);
   }, [effectiveScene, ownersKey, soundtrackMetadataKey, applyScene]);
+
+  // A jingle only lives on the route that requested it: leaving that route
+  // cuts it even when the destination resolves to an identical scene key
+  // (which never triggers applyScene).
+  useEffect(() => {
+    if (!jingleModeRef.current || activeJingleRequestRef.current === null) return;
+    const outcomeRoute = outcomeRouteRef.current;
+    if (outcomeRoute === null || pathname === outcomeRoute) return;
+
+    const element = getAudio();
+    cancelVolumeFade();
+    suppressMediaEventsRef.current = true;
+    element.pause();
+    element.currentTime = 0;
+    suppressMediaEventsRef.current = false;
+    jingleModeRef.current = false;
+    activeJingleRequestRef.current = null;
+    outcomeRouteRef.current = null;
+    pendingSceneAfterOutcomeRef.current = null;
+    outcomeSceneRef.current = null;
+    resumeSceneAfterOutcomeRef.current = false;
+    deferSceneAfterOutcomeRef.current = false;
+    queueRef.current = [];
+    sceneTracksRef.current = [];
+    mediaGenerationRef.current = null;
+    setPosition({ currentTime: 0, duration: 0 });
+    dispatch({ type: "SCENE_CHANGED", scene: stateRef.current.scene, trackCount: 0 });
+  }, [pathname, cancelVolumeFade, dispatch, getAudio]);
 
   useEffect(() => {
     const onGesture = (): void => {
@@ -613,19 +648,22 @@ export function AudioProvider({
       outcomeSceneRef.current = stateRef.current.scene;
       pendingSceneAfterOutcomeRef.current = null;
       resumeSceneAfterOutcomeRef.current = resumeSceneAfter;
+      outcomeRouteRef.current = pathname;
 
       const element = getAudio();
       clearMediaSource(element);
-      queueRef.current = [];
-      sceneTracksRef.current = [];
       jingleModeRef.current = false;
       activeJingleRequestRef.current = null;
       jingleRequestCounterRef.current += 1;
 
       const manifest = applySoundtrackMetadata(SOUNDTRACK_MANIFEST, soundtrackMetadata);
       const jingle = outcome === "victory" ? manifest.victoryJingle : manifest.defeatJingle;
-      const source = jingle ? supportedSources(jingle, canPlay)[0] : undefined;
-      if (!jingle || !source || !activatedRef.current || !musicEnabledRef.current) {
+      const sourceIndex = jingle
+        ? jingle.sources.findIndex((source) => canPlay(source.type) !== "")
+        : -1;
+      if (!jingle || sourceIndex < 0 || !activatedRef.current || !musicEnabledRef.current) {
+        queueRef.current = [];
+        sceneTracksRef.current = [];
         if (resumeSceneAfter && outcomeSceneRef.current) {
           const scene = outcomeSceneRef.current;
           outcomeSceneRef.current = null;
@@ -634,6 +672,11 @@ export function AudioProvider({
         }
         return;
       }
+
+      // Expose the jingle as a single-track playlist so the player UI can show
+      // what is playing while it runs.
+      sceneTracksRef.current = [{ track: jingle }];
+      queueRef.current = [{ trackIndex: 0, sourceIndex }];
 
       const generation = stateRef.current.generation;
       const request = jingleRequestCounterRef.current + 1;
@@ -644,22 +687,36 @@ export function AudioProvider({
       element.volume = preferences.musicVolume;
       element.muted = false;
       element.loop = false;
-      element.src = source.src;
+      element.src = jingle.sources[sourceIndex]!.src;
       element.load();
       suppressMediaEventsRef.current = false;
       mediaGenerationRef.current = { generation, jingleRequest: request };
-      void element.play().catch(() => {
-        const media = mediaGenerationRef.current;
-        if (
-          activeJingleRequestRef.current !== request ||
-          media?.generation !== generation ||
-          media.jingleRequest !== request ||
-          stateRef.current.generation !== generation
-        ) {
-          return;
-        }
-        finishOutcome(element);
-      });
+      void element.play().then(
+        () => {
+          const media = mediaGenerationRef.current;
+          if (
+            activeJingleRequestRef.current !== request ||
+            media?.generation !== generation ||
+            media.jingleRequest !== request ||
+            stateRef.current.generation !== generation
+          ) {
+            return;
+          }
+          dispatch({ type: "TRACK_STARTED", generation });
+        },
+        () => {
+          const media = mediaGenerationRef.current;
+          if (
+            activeJingleRequestRef.current !== request ||
+            media?.generation !== generation ||
+            media.jingleRequest !== request ||
+            stateRef.current.generation !== generation
+          ) {
+            return;
+          }
+          finishOutcome(element);
+        },
+      );
     },
     [
       applyScene,
@@ -668,6 +725,7 @@ export function AudioProvider({
       dispatch,
       finishOutcome,
       getAudio,
+      pathname,
       preferences.musicVolume,
       soundtrackMetadata,
     ],
